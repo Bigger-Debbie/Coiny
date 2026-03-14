@@ -7,6 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="appsettings.Development.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="appsettings.Development.json" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
@@ -23,8 +31,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers/" />
     <Folder Include="Data/" />
+    <Folder Include="DTOs/Accounts/" />
     <Folder Include="Entities/" />
     <Folder Include="Services/" />
   </ItemGroup>

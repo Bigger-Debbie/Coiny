@@ -17,6 +17,9 @@ public class Account
     [MaxLength(50)]
     public string Type { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string? InstitutionName { get; set; }
+
     public decimal OpeningBalance { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public bool IsActive { get; set; } = true;

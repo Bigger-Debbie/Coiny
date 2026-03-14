@@ -82,6 +82,7 @@ namespace Coiny.Api.Migrations
                     UserId = table.Column<string>(type: "TEXT", nullable: false),
                     Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
                     Type = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    InstitutionName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
                     OpeningBalance = table.Column<decimal>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
                     IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
