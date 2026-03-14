@@ -26,6 +26,7 @@
     <Folder Include="Controllers/" />
     <Folder Include="Data/" />
     <Folder Include="Entities/" />
+    <Folder Include="Services/" />
   </ItemGroup>
 
 </Project>
