@@ -10,10 +10,11 @@
 using System;
 using System.Reflection;
 
+[assembly: Microsoft.Extensions.Configuration.UserSecrets.UserSecretsIdAttribute("5f57ca6c-e889-4c85-85f0-73f62186dabb")]
 [assembly: System.Reflection.AssemblyCompanyAttribute("Coiny.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+42dd05cb0af80753f789fcc85bdd5c47500945f8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5a8d6df8d2f7cc06613ac3a6d1522fa2380317ff")]
 [assembly: System.Reflection.AssemblyProductAttribute("Coiny.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Coiny.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

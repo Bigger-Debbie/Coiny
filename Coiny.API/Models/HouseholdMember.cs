@@ -2,9 +2,8 @@ using Coiny.API.Enums;
 
 namespace Coiny.API.Models;
 
-public class HouseholdMember
+public class HouseholdMember : BaseEntity
 {
-    public int Id { get; set; }
     public int HouseholdId { get; set; }
     public Household Household { get; set; } = null;
     public string UserId { get; set; } = string.Empty;
