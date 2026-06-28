@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Coiny.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+338236b6a1419401bb4e3366d774097d3b101968")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+42dd05cb0af80753f789fcc85bdd5c47500945f8")]
 [assembly: System.Reflection.AssemblyProductAttribute("Coiny.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Coiny.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
