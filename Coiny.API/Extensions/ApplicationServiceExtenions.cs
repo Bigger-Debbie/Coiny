@@ -12,6 +12,7 @@ public static class ApplicationServceExtensions
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IHouseholdService, HouseholdService>();
         services.AddScoped<IInstitutionService, InstitutionService>();
+        services.AddScoped<IAccountService, AccountService>();
 
         return services;
     }
