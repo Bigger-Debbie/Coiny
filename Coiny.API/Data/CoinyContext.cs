@@ -12,6 +12,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
     public DbSet<HouseholdMember> HouseholdMembers => Set<HouseholdMember>();
     public DbSet<Institution> Institutions => Set<Institution>();
     public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<Category> Categories => Set<Category>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
