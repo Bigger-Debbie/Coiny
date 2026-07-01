@@ -13,6 +13,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
     public DbSet<Institution> Institutions => Set<Institution>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Transaction> Transactions => Set<Transaction>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

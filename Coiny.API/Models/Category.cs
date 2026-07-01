@@ -10,4 +10,5 @@ public class Category : BaseEntity
     public CategoryType CategoryType { get; set; }
     public bool IsSystem { get; set; }
     public bool IsActive { get; set; }
+    public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 }

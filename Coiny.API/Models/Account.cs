@@ -12,4 +12,5 @@ public class Account : BaseEntity
     public AccountType AccountType { get; set; }
     public decimal OpeningBalance { get; set; }
     public bool IsActive { get; set; } = true;
+    public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 }
