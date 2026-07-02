@@ -15,6 +15,7 @@ public static class ApplicationServceExtensions
         services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IAccountBalanceService, AccountBalanceService>();
 
         return services;
     }

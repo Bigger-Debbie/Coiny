@@ -11,35 +11,47 @@ public class AccountService : IAccountService
 {
     private readonly CoinyContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAccountBalanceService _accountBalanceService;
 
-    public AccountService( CoinyContext context, ICurrentUserService currentUserService)
+    public AccountService(
+        CoinyContext context,
+        ICurrentUserService currentUserService,
+        IAccountBalanceService accountBalanceService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _accountBalanceService = accountBalanceService;
     }
 
     public async Task<List<AccountResponse>> GetAccountsAsync()
     {
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
 
-        return await _context.Accounts
+        var accounts = await _context.Accounts
             .Where(a => a.HouseholdId == householdId)
             .Include(a => a.Institution)
             .OrderBy(a => a.Name)
-            .Select(a => new AccountResponse
-            {
-                Id = a.Id,
-                Name = a.Name,
-                AccountType = a.AccountType,
-                OpeningBalance = a.OpeningBalance,
-                CurrentBalance = a.OpeningBalance,
-                IsActive = a.IsActive,
-                InstitutionId = a.InstitutionId,
-                InstitutionName = a.Institution != null
-                    ? a.Institution.Name
-                    : null
-            })
             .ToListAsync();
+
+        var response = new List<AccountResponse>();
+
+        foreach (var account in accounts)
+        {
+            response.Add(new AccountResponse
+            {
+                Id = account.Id,
+                Name = account.Name,
+                AccountType = account.AccountType,
+                OpeningBalance = account.OpeningBalance,
+                CurrentBalance = await _accountBalanceService
+                    .GetCurrentBalanceAsync(account.Id),
+                IsActive = account.IsActive,
+                InstitutionId = account.InstitutionId,
+                InstitutionName = account.Institution?.Name
+            });
+        }
+
+        return response;
     }
 
     public async Task<AccountResponse> CreateAccountAsync(CreateAccountRequest request)
