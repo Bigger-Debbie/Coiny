@@ -24,7 +24,11 @@ export class Login {
     this.authService.login(this.model).subscribe({
 
       next: response => {
-        console.log(response);
+        this.authService.setToken(response.token);
+
+        console.log('Login successful.');
+
+        console.log(this.authService.getToken());
       },
 
       error: error => {
