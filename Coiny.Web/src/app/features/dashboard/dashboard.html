@@ -1,0 +1,26 @@
+<h1>Dashboard</h1>
+
+<section>
+    <h2>Accounts</h2>
+
+    @if (accounts.length === 0) {
+        <p>No accounts found</p>
+    }
+
+    @for (account of accounts; track account.id) {
+        <div>
+            <h3>{{ account.name }}</h3>
+
+            <p>Type: {{ account.accountType }}</p>
+
+            @if (account.institutionName) {
+                <p>Institution: {{ account.institutionName }}</p>
+            }
+
+            <p>Opening Balance: {{ account.openingBalance }}</p>
+            <p>CurrentBalance: {{ account.currentBalance }}</p>
+
+            <hr />
+        </div>
+    }
+</section>
