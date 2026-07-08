@@ -1,26 +1,63 @@
 <h1>Dashboard</h1>
 
-<section>
+@if (dashboard) {
+  <section>
+    <h2>Net Worth</h2>
+    <p>{{ dashboard.netWorth | currency }}</p>
+  </section>
+
+  <section>
     <h2>Accounts</h2>
 
-    @if (accounts.length === 0) {
-        <p>No accounts found</p>
+    @if (dashboard.accounts.length === 0) {
+      <p>No accounts found.</p>
     }
 
-    @for (account of accounts; track account.id) {
-        <div>
-            <h3>{{ account.name }}</h3>
+    @for (account of dashboard.accounts; track account.id) {
+      <div>
+        <h3>{{ account.name }}</h3>
 
-            <p>Type: {{ account.accountType }}</p>
+        @if (account.institutionName) {
+          <p>{{ account.institutionName }}</p>
+        }
 
-            @if (account.institutionName) {
-                <p>Institution: {{ account.institutionName }}</p>
-            }
+        <p>Type: {{ account.accountType }}</p>
+        <p>Current Balance: {{ account.currentBalance | currency }}</p>
 
-            <p>Opening Balance: {{ account.openingBalance }}</p>
-            <p>CurrentBalance: {{ account.currentBalance }}</p>
-
-            <hr />
-        </div>
+        <hr />
+      </div>
     }
-</section>
+  </section>
+
+  <section>
+    <h2>Recent Transactions</h2>
+
+    @if (dashboard.recentTransactions.length === 0) {
+      <p>No transactions found.</p>
+    }
+
+    @for (transaction of dashboard.recentTransactions; track transaction.id) {
+      <div>
+        <h3>{{ transaction.description }}</h3>
+
+        @if (transaction.merchant) {
+          <p>Merchant: {{ transaction.merchant }}</p>
+        }
+
+        <p>Amount: {{ transaction.amount | currency }}</p>
+        <p>Category: {{ transaction.categoryName }} / {{ transaction.categoryType }}</p>
+        <p>Account: {{ transaction.accountName }}</p>
+
+        @if (transaction.institutionName) {
+          <p>Institution: {{ transaction.institutionName }}</p>
+        }
+
+        <p>Date: {{ transaction.transactionDate | date }}</p>
+
+        <hr />
+      </div>
+    }
+  </section>
+} @else {
+  <p>Loading dashboard...</p>
+}

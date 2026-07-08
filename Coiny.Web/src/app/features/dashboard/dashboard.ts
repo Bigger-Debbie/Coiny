@@ -1,31 +1,30 @@
 import { Component } from '@angular/core';
 import { inject, OnInit } from '@angular/core';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 
-import { AccountService } from '../../core/services/account.service';
-import { Account } from '../../shared/models/account/account';
+import { DashboardService } from '../../core/services/dashboard.service';
+import { DashboardSummary } from '../../shared/models/dashboard/dashboard-summary';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [],
+  imports: [CurrencyPipe, DatePipe],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
 export class Dashboard implements OnInit {
-  private readonly accountService = inject(AccountService);
+  private readonly dashboardService = inject(DashboardService);
 
-  accounts: Account[] = [];
+  dashboard: DashboardSummary | null = null;
 
   ngOnInit(): void {
-    this.accountService.getAccounts().subscribe({
-      next: accounts => {
-        this.accounts = accounts;
-
-        console.log(accounts);
+    this.dashboardService.getSummary().subscribe({
+      next: summary => {
+        this.dashboard = summary;
+        console.log(summary);
       },
-
       error: error => {
         console.log(error);
       }
-    })
+    });
   }
 }
