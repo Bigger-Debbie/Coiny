@@ -27,8 +27,6 @@ export class Login {
 
       next: response => {
         this.authService.setToken(response.token);
-        console.log('Login successful.');
-
         this.router.navigate(['/dashboard']);
       },
 

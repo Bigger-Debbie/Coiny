@@ -1,11 +1,16 @@
 import { Injectable, inject } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
+import { jwtDecode } from "jwt-decode";
 
 import { environemnt } from "../../../environments/environment";
 
 import { LoginRequest } from "../../shared/models/auth/login-request";
 import { LoginResponse } from "../../shared/models/auth/login-response";
+
+interface JwtPayload {
+    exp?: number;
+}
 
 @Injectable({
     providedIn: 'root'
@@ -34,7 +39,35 @@ export class AuthService {
         localStorage.removeItem(this.tokenKey);
     }
 
+    isTokenExpired(token: string): boolean {
+        try {
+            const decoded = jwtDecode<JwtPayload>(token);
+
+            if (!decoded.exp) {
+            return true;
+            }
+
+            const nowInSeconds = Math.floor(Date.now() / 1000);
+
+            return nowInSeconds >= decoded.exp;
+        } catch (error) {
+            console.error('JWT decode failed:', error);
+            return true;
+        }
+    }
+
     isAuthenticated(): boolean {
-        return this.getToken() !== null;
+        const token = this.getToken();
+
+        if (!token) {
+            return false;
+        }
+
+        if (this.isTokenExpired(token)) { 
+            this.logout();
+            return false;
+        }
+
+        return true;
     }
 }
