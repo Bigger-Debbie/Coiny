@@ -30,6 +30,9 @@ public class TransactionService : ITransactionService
             .Select(t => new TransactionResponse
             {
                 Id = t.Id,
+                InstitutionName = t.Account.Institution != null
+                    ? t.Account.Institution.Name
+                    : null,
                 AccountName = t.Account.Name,
                 CategoryName = t.Category.Name,
                 CategoryType = t.Category.CategoryType,
