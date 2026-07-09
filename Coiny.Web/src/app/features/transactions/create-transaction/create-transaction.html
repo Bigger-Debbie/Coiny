@@ -1,0 +1,95 @@
+<h1>Create Transaction</h1>
+
+<form (ngSubmit)="save()">
+  <div>
+    <label for="accountId">Account</label>
+    <select id="accountId" name="accountId" [(ngModel)]="request.accountId" required>
+      <option [ngValue]="0">Select account</option>
+
+      @for (account of accounts; track account.id) {
+        <option [ngValue]="account.id">
+          {{ account.name }}
+        </option>
+      }
+    </select>
+  </div>
+
+  <div>
+    <label for="categoryId">Category</label>
+    <select id="categoryId" name="categoryId" [(ngModel)]="request.categoryId" required>
+      <option [ngValue]="0">Select category</option>
+
+      @for (category of categories; track category.id) {
+        <option [ngValue]="category.id">
+          {{ category.name }} - {{ category.categoryType }}
+        </option>
+      }
+    </select>
+  </div>
+
+  <div>
+    <label for="amount">Amount</label>
+    <input
+      id="amount"
+      name="amount"
+      type="number"
+      step="0.01"
+      [(ngModel)]="request.amount"
+      required
+    />
+  </div>
+
+  <div>
+    <label for="transactionDate">Date</label>
+    <input
+      id="transactionDate"
+      name="transactionDate"
+      type="date"
+      [(ngModel)]="request.transactionDate"
+      required
+    />
+  </div>
+
+  <div>
+    <label for="description">Description</label>
+    <input
+      id="description"
+      name="description"
+      type="text"
+      [(ngModel)]="request.description"
+      required
+    />
+  </div>
+
+  <div>
+    <label for="merchant">Merchant</label>
+    <input
+      id="merchant"
+      name="merchant"
+      type="text"
+      [(ngModel)]="request.merchant"
+    />
+  </div>
+
+  <div>
+    <label for="notes">Notes</label>
+    <textarea
+      id="notes"
+      name="notes"
+      [(ngModel)]="request.notes"
+    ></textarea>
+  </div>
+
+  <div>
+    <label>
+      <input
+        type="checkbox"
+        name="isCleared"
+        [(ngModel)]="request.isCleared"
+      />
+      Cleared
+    </label>
+  </div>
+
+  <button type="submit">Save Transaction</button>
+</form>
