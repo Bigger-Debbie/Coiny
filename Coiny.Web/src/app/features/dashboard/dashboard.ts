@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { inject, OnInit } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { Router } from '@angular/router';
 
 import { DashboardService } from '../../core/services/dashboard.service';
 import { DashboardSummary } from '../../shared/models/dashboard/dashboard-summary';
@@ -13,6 +14,7 @@ import { DashboardSummary } from '../../shared/models/dashboard/dashboard-summar
 })
 export class Dashboard implements OnInit {
   private readonly dashboardService = inject(DashboardService);
+  private readonly router = inject(Router);
 
   dashboard: DashboardSummary | null = null;
 
@@ -26,5 +28,9 @@ export class Dashboard implements OnInit {
         console.log(error);
       }
     });
+  }
+
+  goToCreateTransaction(): void {
+    this.router.navigate(['/transactions/new']);
   }
 }

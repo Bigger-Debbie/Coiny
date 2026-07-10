@@ -73,4 +73,8 @@ export class CreateTransaction implements OnInit {
       }
     });
   }
+
+  cancle(): void {
+    this.router.navigate(['/dashboard']);
+  }
 }

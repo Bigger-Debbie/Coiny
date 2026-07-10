@@ -8,6 +8,10 @@
 
       @for (account of accounts; track account.id) {
         <option [ngValue]="account.id">
+          @if (account.institutionName) {
+            {{ account.institutionName }} -
+          }
+
           {{ account.name }}
         </option>
       }
@@ -92,4 +96,5 @@
   </div>
 
   <button type="submit">Save Transaction</button>
+  <button type="button" (click)="cancle()">Cancel</button>
 </form>
