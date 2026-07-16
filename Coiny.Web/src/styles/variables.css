@@ -1,0 +1,42 @@
+:root {
+  /* Colors */
+  --color-primary: #2f305f;
+  --color-accent: #eb9a50;
+  --color-highlight: #f2c948;
+
+  --color-success: #047c04;
+  --color-danger: #9b001e;
+  --color-warning: #c36430;
+
+  --color-background: #f7f7fb;
+  --color-surface: #ffffff;
+  --color-text: #18181f;
+  --color-text-muted: #6d6d7a;
+  --color-border: #d9d9e3;
+
+  /* Typography */
+  --font-body: "century-gothic", sans-serif;
+  --font-heading: "rig-shaded-bold-face", sans-serif;
+
+  /* Layout */
+  --page-max-width: 1440px;
+  --page-padding: 2rem;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  /* Shape */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+
+  /* Effects */
+  --shadow-card: 0 0.5rem 1.5rem rgb(47 48 111 / 8%);
+  --transition-fast: 150ms ease;
+}

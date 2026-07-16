@@ -1,0 +1,28 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-container {
+  width: min(100% - 2 * var(--page-padding), var(--page-max-width));
+  margin-inline: auto;
+}
+
+.page-section {
+  margin-block: var(--space-8);
+}

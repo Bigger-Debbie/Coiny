@@ -3,6 +3,7 @@ import { Login } from './features/auth/login/login';
 import { Dashboard } from './features/dashboard/dashboard';
 import { CreateTransaction } from './features/transactions/create-transaction/create-transaction';
 import { authGuard } from './core/guards/auth-guard';
+import { AppLayout } from './layouts/app-layout/app-layout';
 
 export const routes: Routes = [
     {
@@ -10,18 +11,23 @@ export const routes: Routes = [
         component: Login
     },
     {
-        path: 'dashboard',
-        component: Dashboard,
-        canActivate: [authGuard]
-    },
-    {
-        path: 'transactions/new',
-        component: CreateTransaction,
-        canActivate: [authGuard]
-    },
-    {
         path: '',
-        redirectTo: 'login',
-        pathMatch: 'full'
+        component: AppLayout,
+        canActivate: [authGuard],
+        children: [
+        {
+            path: 'dashboard',
+            component: Dashboard
+        },
+        {
+            path: 'transactions/new',
+            component: CreateTransaction
+        },
+        {
+            path: '',
+            redirectTo: 'dashboard',
+            pathMatch: 'full'
+        }
+        ]
     }
 ];
