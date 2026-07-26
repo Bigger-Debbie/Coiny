@@ -1,0 +1,84 @@
+.app-header{
+    background: var(--color-surface);
+    padding-bottom: 1rem;
+}
+
+.header-content{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 5rem;
+}
+
+.header-divider{
+    height: 2px;
+    background: var(--color-primary);
+    margin: 0 5rem 0 9rem;
+}
+
+.brand{
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.brand-logo{
+    height: 4rem;
+    display: block;
+}
+
+.brand-name{
+    transform: translateY(-1px);
+    padding-top: .5rem;
+    color: var(--color-primary);
+    font-family: var(--font-heading);
+    font-size: 2.75rem;
+    font-weight: 700;
+    letter-spacing: 0.18rem;
+    line-height: 1;
+}
+
+.navigation{
+    display: flex;
+    gap: 2rem;
+}
+
+.navigation-link{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 2.5rem;
+    width: 2.5rem;
+    color: var(--color-primary);
+    transition: 
+        color .2s ease,
+        transform 150ms ease;
+    cursor: pointer;
+}
+
+.navigation-link:hover{
+    color: var(--color-accent);
+    transform: scale(1.05);
+}
+
+.avatar-button {
+    width: 3rem;
+    height: 3rem;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border: none;
+    border-radius: 50%;
+
+    background-color: var(--color-accent);
+    color: var(--color-primary);
+
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 1.75rem;
+
+    cursor: pointer;
+}
+

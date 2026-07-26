@@ -3,9 +3,11 @@ import { Router, RouterLink, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/services/auth.service';
 
+import { AppHeader } from '../../shared/components/app-header/app-header';
+
 @Component({
   selector: 'app-app-layout',
-  imports: [RouterLink, RouterOutlet],
+  imports: [RouterLink, RouterOutlet, AppHeader],
   templateUrl: './app-layout.html',
   styleUrl: './app-layout.css',
 })

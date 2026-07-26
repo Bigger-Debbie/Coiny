@@ -1,15 +1,5 @@
-<header>
-    <h1>Coiny</h1>
+<app-header></app-header>
 
-    <nav>
-        <a routerLink="/dashboard">Dashboard</a>
-        <a routerLink="/accounts">Accounts</a>
-        <a routerLink="/transcations">Transactions</a>
-    </nav>
-
-    <button type="button" (click)="logout()">Logout</button>
-</header>
-
-<main>
+<main class="page-container">
     <router-outlet></router-outlet>
 </main>

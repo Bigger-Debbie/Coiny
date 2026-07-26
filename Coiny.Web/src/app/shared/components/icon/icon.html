@@ -1,0 +1,10 @@
+<svg
+  [attr.viewBox]="icon.viewBox"
+  aria-hidden="true"
+  focusable="false">
+
+  @for (path of icon.paths; track $index) {
+    <path [attr.d]="path"></path>
+  }
+
+</svg>
