@@ -10,10 +10,7 @@ public class DashboardService : IDashboardService
     private readonly IAccountService _accountService;
     private readonly ITransactionService _transactionService;
 
-    public DashboardService(
-        IAccountService accountService,
-        ITransactionService transactionService
-    )
+    public DashboardService(IAccountService accountService, ITransactionService transactionService)
     {
         _accountService = accountService;
         _transactionService = transactionService;
@@ -24,8 +21,8 @@ public class DashboardService : IDashboardService
         var accounts = await _accountService.GetAccountsAsync();
         var transactions = await _transactionService.GetTransactionsAsync();
 
-        var dashboardAccounts = accounts.Select(account =>
-            new DashboardAccountsResponse
+        var dashboardAccounts = accounts
+            .Select(account => new DashboardAccountsResponse
             {
                 Id = account.Id,
                 Name = account.Name,
@@ -35,32 +32,50 @@ public class DashboardService : IDashboardService
             })
             .ToList();
 
-        var netWorth = dashboardAccounts.Sum(account =>
-            IsLiability(account.AccountType)
-                ? -account.CurrentBalance
-                : account.CurrentBalance);
+        var NetWorthSummary = new NetWorthSummaryResponse
+        {
+            CurrentValue = dashboardAccounts.Sum(account => 
+                IsLiability(account.AccountType)
+                    ? -account.CurrentBalance
+                    : account.CurrentBalance),
+
+            Retirement = dashboardAccounts
+                .Where(account =>
+                    account.AccountType == AccountType.Retirement)
+                .Sum(account => account.CurrentBalance),
+
+            LiquidFunds = dashboardAccounts
+                .Where(account =>
+                    IsLiquidFund(account.AccountType))
+                .Sum(account => account.CurrentBalance),
+
+            Debt = dashboardAccounts
+                .Where(account =>
+                    IsLiability(account.AccountType))
+                .Sum(account => account.CurrentBalance)
+        };
 
         var recentTransactions = transactions
-            .OrderBy(t => t.TransactionDate)
-            .ThenByDescending(t => t.Id)
+            .OrderByDescending(transaction => transaction.TransactionDate)
+            .ThenByDescending(transaction => transaction.Id)
             .Take(10)
-            .Select(t => new DashboardTransactionResponse
+            .Select(transaction => new DashboardTransactionResponse
             {
-                Id = t.Id,
-                AccountName = t.AccountName,
-                InstitutionName = t.InstitutionName,
-                CategoryName = t.CategoryName,
-                CategoryType = t.CategoryType,
-                Amount = t.Amount,
-                TransactionDate = t.TransactionDate,
-                Description = t.Description,
-                Merchant = t.Merchant
+                Id = transaction.Id,
+                AccountName = transaction.AccountName,
+                InstitutionName = transaction.InstitutionName,
+                CategoryName = transaction.CategoryName,
+                CategoryType = transaction.CategoryType,
+                Amount = transaction.Amount,
+                TransactionDate = transaction.TransactionDate,
+                Description = transaction.Description,
+                Merchant = transaction.Merchant
             })
             .ToList();
 
         return new DashboardSummaryResponse
         {
-            NetWorth = netWorth,
+            NetWorth = NetWorthSummary,
             Accounts = dashboardAccounts,
             RecentTransactions = recentTransactions
         };
@@ -68,6 +83,16 @@ public class DashboardService : IDashboardService
 
     private static bool IsLiability(AccountType accountType)
     {
-        return accountType is AccountType.CreditCard or AccountType.Loan;
+        return accountType is
+            AccountType.CreditCard or
+            AccountType.Loan;
+    }
+
+    private static bool IsLiquidFund(AccountType accountType)
+    {
+        return accountType is
+            AccountType.Checking or
+            AccountType.Savings or
+            AccountType.Cash;
     }
 }

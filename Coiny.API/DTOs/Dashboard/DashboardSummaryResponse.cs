@@ -2,7 +2,7 @@ namespace Coiny.API.DTOs.Dashboard;
 
 public class DashboardSummaryResponse
 {
-    public decimal NetWorth { get; set; }
+    public NetWorthSummaryResponse NetWorth { get; set; } = new();
     public List<DashboardAccountsResponse> Accounts { get; set; } = [];
     public List<DashboardTransactionResponse> RecentTransactions { get; set; } = [];
 }

@@ -1,0 +1,90 @@
+.dashboard-layout{
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-top: 1rem
+}
+
+.dashboard-columns{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.net-worth-section{
+    display: grid;
+    grid-template-columns: minmax(0, 2.5fr) minmax(18rem, 1fr);
+    gap: 2rem;
+
+    border: 2px solid red;
+}
+
+.net-worth-main{
+    display: grid;
+    grid-template-rows: auto minmax(14rem, 1fr) auto;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.net-worth-sidebar {
+    display: grid;
+    grid-template-rows: 1.75fr repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.net-worth-summary {
+    min-height: 4rem;
+}
+
+.net-worth-chart {
+    min-height: 14rem;
+}
+
+.net-worth-range {
+    min-height: 3rem;
+}
+
+.net-worth-summary,
+.net-worth-chart,
+.net-worth-range,
+.welcome-panel,
+.summary-panel {
+    border: 2px solid red;
+}
+
+.accounts-section,
+.transactions-section{
+    min-height: 30rem;
+    border: 2px solid red;
+}
+
+@media (max-width: 800px){
+    .dashboard-columns {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .net-worth-section {
+        grid-template-columns: 1fr;
+    }
+
+    .net-worth-sidebar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .welcome-panel {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 600px) {
+    .net-worth-sidebar {
+        grid-template-columns: 1fr;
+    }
+
+    .welcome-panel {
+        grid-column: auto;
+    }
+}

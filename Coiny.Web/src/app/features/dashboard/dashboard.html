@@ -1,67 +1,59 @@
-<h1>Dashboard</h1>
+<div class="dashboard-layout">
+  <section class="net-worth-section">
+    
+    <div class="net-worth-main">
+      <div class="net-worth-summary">
+        
+        <div class="net-worth-primary">
+          <h1 class="net-worth-value">
+            {{ dashboard?.netWorth | currency }}
+          </h1>
+          <span class="net-worth-label">
+            Net Worth
+          </span>
+        </div>
 
-<button type="button" (click)="goToCreateTransaction()">
-  + Add Transaction
-</button>
+        <div class="net-worth-change">
+          <span class="change-icon"></span>
+          <span class="change-value">
+            $2,500 (2.01%)
+          </span>
+        </div>
 
-@if (dashboard) {
-  <section>
-    <h2>Net Worth</h2>
-    <p>{{ dashboard.netWorth | currency }}</p>
-  </section>
-
-  <section>
-    <h2>Accounts</h2>
-
-    @if (dashboard.accounts.length === 0) {
-      <p>No accounts found.</p>
-    }
-
-    @for (account of dashboard.accounts; track account.id) {
-      <div>
-        <h3>{{ account.name }}</h3>
-
-        @if (account.institutionName) {
-          <p>{{ account.institutionName }}</p>
-        }
-
-        <p>Type: {{ account.accountType }}</p>
-        <p>Current Balance: {{ account.currentBalance | currency }}</p>
-
-        <hr />
       </div>
-    }
-  </section>
-
-  <section>
-    <h2>Recent Transactions</h2>
-
-    @if (dashboard.recentTransactions.length === 0) {
-      <p>No transactions found.</p>
-    }
-
-    @for (transaction of dashboard.recentTransactions; track transaction.id) {
-      <div>
-        <h3>{{ transaction.description }}</h3>
-
-        @if (transaction.merchant) {
-          <p>Merchant: {{ transaction.merchant }}</p>
-        }
-
-        <p>Amount: {{ transaction.amount | currency }}</p>
-        <p>Category: {{ transaction.categoryName }} / {{ transaction.categoryType }}</p>
-        <p>Account: {{ transaction.accountName }}</p>
-
-        @if (transaction.institutionName) {
-          <p>Institution: {{ transaction.institutionName }}</p>
-        }
-
-        <p>Date: {{ transaction.transactionDate | date }}</p>
-
-        <hr />
+      <div class="net-worth-chart">
+        Chart
       </div>
-    }
+      <div class="net-worth-range">
+        Time Range
+      </div>
+    </div>
+
+    <aside class="net-worth-sidebar">
+      <div class="welcome-panel">
+        Welcome
+      </div>
+
+      <div class="summary-panel">
+        Retirement
+      </div>
+
+      <div class="summary-panel">
+        Liquid Funds
+      </div>
+
+      <div class="summary-panel">
+        Debt
+      </div>
+    </aside>
+
   </section>
-} @else {
-  <p>Loading dashboard...</p>
-}
+  <div class="dashboard-columns">
+    <section class="accounts-section">
+      Accounts
+    </section>
+    <section class="transactions-section">
+      Transactions
+    </section>
+  </div>
+</div>

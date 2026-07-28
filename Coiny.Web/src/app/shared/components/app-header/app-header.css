@@ -7,13 +7,14 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 5rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
 }
 
 .header-divider{
     height: 2px;
     background: var(--color-primary);
-    margin: 0 5rem 0 9rem;
+    margin-left: 3rem;
 }
 
 .brand{
