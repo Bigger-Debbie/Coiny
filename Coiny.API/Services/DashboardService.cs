@@ -1,4 +1,5 @@
 using Coiny.API.DTOs.Dashboard;
+using Coiny.API.DTOs.Trends;
 using Coiny.API.Enums;
 using Coiny.API.Interfaces;
 using Coiny.API.Models;
@@ -9,11 +10,14 @@ public class DashboardService : IDashboardService
 {
     private readonly IAccountService _accountService;
     private readonly ITransactionService _transactionService;
+    private readonly IAccountTrendService _accountTrendService;
 
-    public DashboardService(IAccountService accountService, ITransactionService transactionService)
+    public DashboardService(IAccountService accountService, ITransactionService transactionService,
+        IAccountTrendService accountTrendService)
     {
         _accountService = accountService;
         _transactionService = transactionService;
+        _accountTrendService = accountTrendService;
     }
 
     public async Task<DashboardSummaryResponse> GetSummaryAsync()
@@ -79,6 +83,12 @@ public class DashboardService : IDashboardService
             Accounts = dashboardAccounts,
             RecentTransactions = recentTransactions
         };
+    }
+
+    public Task<TrendResult> GetNetWorthTrendAsync(DateOnly startDate, DateOnly endDate)
+    {
+        return _accountTrendService.GetTrendAsync(startDate, endDate,
+            aggregation: AccountTrendAggregation.NetWorth);
     }
 
     private static bool IsLiability(AccountType accountType)

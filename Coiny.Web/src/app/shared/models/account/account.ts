@@ -8,6 +8,7 @@ export interface Account {
     accountType: string;
 
     openingBalance: number;
+    openingBalanceDate: string;
     currentBalance: number;
 
     isActive: boolean;

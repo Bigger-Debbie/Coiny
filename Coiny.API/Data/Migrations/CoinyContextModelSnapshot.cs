@@ -46,6 +46,9 @@ namespace Coiny.API.Data.Migrations
                     b.Property<decimal>("OpeningBalance")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateOnly>("OpeningBalanceDate")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("HouseholdId");

@@ -11,6 +11,8 @@ public class Account : BaseEntity
     public string Name { get; set; } = string.Empty;
     public AccountType AccountType { get; set; }
     public decimal OpeningBalance { get; set; }
+    /// <summary>The opening balance is the balance at the start of this date.</summary>
+    public DateOnly OpeningBalanceDate { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
     public ICollection<AccountBalanceSnapshot> BalanceSnapshots { get; set; } = new List<AccountBalanceSnapshot>();

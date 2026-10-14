@@ -15,4 +15,7 @@ public class CreateAccountRequest
 
     [Range(0, double.MaxValue)]
     public decimal OpeningBalance { get; set; }
+
+    [Required]
+    public DateOnly? OpeningBalanceDate { get; set; }
 }

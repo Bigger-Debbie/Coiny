@@ -2,6 +2,7 @@ using Coiny.API.Data;
 using Coiny.API.DTOs.Transactions;
 using Coiny.API.Interfaces;
 using Coiny.API.Models;
+using Coiny.API.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Coiny.API.Services;
@@ -10,11 +11,14 @@ public class TransactionService : ITransactionService
 {
     private readonly CoinyContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAccountBalanceSnapshotService _snapshotService;
 
-    public TransactionService (CoinyContext context, ICurrentUserService currentUserService)
+    public TransactionService (CoinyContext context, ICurrentUserService currentUserService,
+        IAccountBalanceSnapshotService snapshotService)
     {
         _context = context; 
         _currentUserService = currentUserService;
+        _snapshotService = snapshotService;
     }
 
     public async Task<List<TransactionResponse>> GetTransactionsAsync()
@@ -48,6 +52,7 @@ public class TransactionService : ITransactionService
     public async Task<TransactionResponse> CreateTransactionAsync(CreateTransactionRequest request)
     {
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
+        await using var databaseTransaction = await _context.Database.BeginTransactionAsync();
 
         var account = await _context.Accounts
             .FirstOrDefaultAsync(a => 
@@ -57,6 +62,9 @@ public class TransactionService : ITransactionService
         if (account is null)
             throw new InvalidOperationException("Account does not belong to the current household");
 
+        if (DateOnly.FromDateTime(request.TransactionDate) < account.OpeningBalanceDate)
+            throw new InvalidOperationException("Transaction date cannot be before the account's opening balance date.");
+
         var category = await _context.Categories
             .FirstOrDefaultAsync(c => 
                 c.Id == request.CategoryId &&
@@ -64,6 +72,9 @@ public class TransactionService : ITransactionService
 
         if (category is null)
             throw new InvalidOperationException("Category does not belong to the current household.");
+
+        if (category.CategoryType == CategoryType.Transfer)
+            throw new InvalidOperationException("Transfers require paired account transactions and are not supported yet.");
 
         var transaction = new Transaction
         {
@@ -80,6 +91,9 @@ public class TransactionService : ITransactionService
 
         _context.Transactions.Add(transaction);
         await _context.SaveChangesAsync();
+        await _snapshotService.RecalculateFromAsync(account.Id, DateOnly.FromDateTime(transaction.TransactionDate));
+        await _context.SaveChangesAsync();
+        await databaseTransaction.CommitAsync();
 
         return new TransactionResponse
         {

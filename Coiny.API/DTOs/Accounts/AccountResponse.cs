@@ -8,6 +8,7 @@ public class AccountResponse
     public string Name { get; set; } = string.Empty;
     public AccountType AccountType { get; set; }
     public decimal OpeningBalance { get; set; }
+    public DateOnly OpeningBalanceDate { get; set; }
     public decimal CurrentBalance { get; set; }
     public bool IsActive { get; set; }
     public int? InstitutionId { get; set; }

@@ -12,15 +12,18 @@ public class AccountService : IAccountService
     private readonly CoinyContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAccountBalanceService _accountBalanceService;
+    private readonly IAccountBalanceSnapshotService _snapshotService;
 
     public AccountService(
         CoinyContext context,
         ICurrentUserService currentUserService,
-        IAccountBalanceService accountBalanceService)
+        IAccountBalanceService accountBalanceService,
+        IAccountBalanceSnapshotService snapshotService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _accountBalanceService = accountBalanceService;
+        _snapshotService = snapshotService;
     }
 
     public async Task<List<AccountResponse>> GetAccountsAsync()
@@ -43,6 +46,7 @@ public class AccountService : IAccountService
                 Name = account.Name,
                 AccountType = account.AccountType,
                 OpeningBalance = account.OpeningBalance,
+                OpeningBalanceDate = account.OpeningBalanceDate,
                 CurrentBalance = await _accountBalanceService
                     .GetCurrentBalanceAsync(account.Id),
                 IsActive = account.IsActive,
@@ -56,6 +60,9 @@ public class AccountService : IAccountService
 
     public async Task<AccountResponse> CreateAccountAsync(CreateAccountRequest request)
     {
+        if (!request.OpeningBalanceDate.HasValue || request.OpeningBalanceDate.Value == DateOnly.MinValue)
+            throw new InvalidOperationException("A valid opening balance date is required.");
+
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
 
         if (request.InstitutionId.HasValue)
@@ -76,11 +83,16 @@ public class AccountService : IAccountService
             Name = request.Name,
             AccountType = request.AccountType,
             OpeningBalance = request.OpeningBalance,
+            OpeningBalanceDate = request.OpeningBalanceDate.Value,
             IsActive = true
         };
 
+        await using var databaseTransaction = await _context.Database.BeginTransactionAsync();
         _context.Accounts.Add(account);
         await _context.SaveChangesAsync();
+        await _snapshotService.RecalculateFromAsync(account.Id, account.OpeningBalanceDate);
+        await _context.SaveChangesAsync();
+        await databaseTransaction.CommitAsync();
 
         string? institutionName = null;
 
@@ -98,6 +110,7 @@ public class AccountService : IAccountService
             Name = account.Name,
             AccountType = account.AccountType,
             OpeningBalance = account.OpeningBalance,
+            OpeningBalanceDate = account.OpeningBalanceDate,
             CurrentBalance = account.OpeningBalance,
             IsActive = account.IsActive,
             InstitutionId = account.InstitutionId,

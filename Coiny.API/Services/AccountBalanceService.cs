@@ -28,20 +28,8 @@ public class AccountBalanceService : IAccountBalanceService
 
         foreach (var transaction in transactions)
         {
-            switch (transaction.Category.CategoryType)
-            {
-                case CategoryType.Income:
-                    balance += transaction.Amount;
-                    break;
-                
-                case CategoryType.Expense:
-                    balance -= transaction.Amount;
-                    break;
-
-                case CategoryType.Transfer:
-                    // TODO: Add transfer logic
-                    break;
-            }
+            balance += AccountBalanceCalculator.GetBalanceChange(
+                account.AccountType, transaction.Category.CategoryType, transaction.Amount);
         }
 
         return balance;
