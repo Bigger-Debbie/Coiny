@@ -55,6 +55,32 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("Accounts");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.AccountBalanceSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Balance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("SnapshotDate")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "SnapshotDate")
+                        .IsUnique();
+
+                    b.ToTable("AccountBalanceSnapshots");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -429,6 +455,17 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("Institution");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.AccountBalanceSnapshot", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Account", "Account")
+                        .WithMany("BalanceSnapshots")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.Category", b =>
                 {
                     b.HasOne("Coiny.API.Models.Household", "Household")
@@ -550,6 +587,8 @@ namespace Coiny.API.Data.Migrations
 
             modelBuilder.Entity("Coiny.API.Models.Account", b =>
                 {
+                    b.Navigation("BalanceSnapshots");
+
                     b.Navigation("Transactions");
                 });
 

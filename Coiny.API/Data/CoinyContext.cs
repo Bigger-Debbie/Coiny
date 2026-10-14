@@ -14,6 +14,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<AccountBalanceSnapshot> AccountBalanceSnapshots => Set<AccountBalanceSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
