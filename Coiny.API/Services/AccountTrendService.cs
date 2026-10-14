@@ -8,21 +8,25 @@ namespace Coiny.API.Services;
 
 public class AccountTrendService : IAccountTrendService
 {
+    private static readonly TimeZoneInfo ApplicationTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
     private readonly CoinyContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAccountBalanceSnapshotService _snapshotService;
     private readonly ITrendService _trendService;
+    private readonly TimeProvider _timeProvider;
 
     public AccountTrendService(
         CoinyContext context,
         ICurrentUserService currentUserService,
         IAccountBalanceSnapshotService snapshotService,
-        ITrendService trendService)
+        ITrendService trendService,
+        TimeProvider timeProvider)
     {
         _context = context;
         _currentUserService = currentUserService;
         _snapshotService = snapshotService;
         _trendService = trendService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<TrendResult> GetTrendAsync(
@@ -33,6 +37,15 @@ public class AccountTrendService : IAccountTrendService
     {
         if (endDate < startDate)
             throw new ArgumentException("End date cannot be before start date.", nameof(endDate));
+
+        var today = DateOnly.FromDateTime(
+            TimeZoneInfo.ConvertTime(_timeProvider.GetUtcNow(), ApplicationTimeZone).DateTime);
+
+        if (startDate > today)
+            throw new ArgumentException("Start date cannot be after today.", nameof(startDate));
+
+        if (endDate > today)
+            endDate = today;
 
         if (!Enum.IsDefined(aggregation))
             throw new ArgumentException("Unsupported account trend aggregation.", nameof(aggregation));

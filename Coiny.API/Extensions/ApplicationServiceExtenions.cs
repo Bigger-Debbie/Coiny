@@ -8,6 +8,7 @@ public static class ApplicationServceExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
+        services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IHouseholdService, HouseholdService>();

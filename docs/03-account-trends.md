@@ -55,6 +55,12 @@ Authorization: Bearer <token>
 ```
 
 Both dates are required. Malformed, missing, or reversed dates return HTTP 400.
+A start date after today also returns HTTP 400. An end date after today is capped
+at today; the last returned point reflects that limit. These historical limits
+apply to all account trends, including individual accounts and selected groups.
+Today is determined in `America/New_York`, independently of the server timezone,
+using an injectable `TimeProvider`. Future forecasting and transaction-date
+policies are separate concerns.
 The endpoint requires authentication and derives the household from the user.
 It returns `TrendResult` with `points` (`date`, `value`), `startingValue`,
 `endingValue`, `absoluteChange`, `percentageChange`, and `direction`.
