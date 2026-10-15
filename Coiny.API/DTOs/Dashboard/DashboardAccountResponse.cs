@@ -9,4 +9,5 @@ public class DashboardAccountsResponse
     public AccountType AccountType { get; set; }
     public decimal CurrentBalance { get; set; }
     public string? InstitutionName { get; set; }
+    public DashboardAccountTrendResponse MonthlyTrend { get; set; } = new();
 }

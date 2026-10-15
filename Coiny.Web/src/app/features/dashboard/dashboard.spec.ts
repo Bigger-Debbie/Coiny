@@ -33,6 +33,7 @@ describe('Dashboard', () => {
   it('loads 1M and keeps current net worth independent of trend ending value', () => {
     const { f, summary, initial } = render();
     expect(f.nativeElement.textContent).toContain('Loading your financial picture');
+    expect(f.nativeElement.textContent).toContain('Loading your accounts');
     expect(initial.request.params.has('startDate')).toBe(true);
     summary.flush(summaryData);
     initial.flush(trend);
@@ -41,6 +42,7 @@ describe('Dashboard', () => {
     expect(f.nativeElement.querySelector('.change-value').textContent).toContain('$25.00');
     expect(f.nativeElement.querySelector('app-trend-chart')).toBeTruthy();
     expect(f.nativeElement.querySelector('[aria-pressed="true"]').textContent.trim()).toBe('1M');
+    expect(f.nativeElement.textContent).toContain('No accounts yet');
     expect(f.nativeElement.querySelector('.welcome-panel h2').textContent).toBe('Welcome back, Alex');
     expect(f.nativeElement.querySelector('.welcome-panel p').textContent).toBe('The Ross household at a glance.');
     f.componentInstance.householdName.set('The Ross household');
@@ -57,6 +59,20 @@ describe('Dashboard', () => {
     http.expectOne(r => r.url.endsWith('/net-worth-trend')).flush(trend);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('the past 3 months');
+  });
+  it('keeps account trends fixed when the hero chart range changes', () => {
+    const { f, summary, initial } = render();
+    summary.flush({ ...summaryData, accounts: [{
+      id: 1, name: 'Primary Checking', accountType: 'Checking', currentBalance: 1200, institutionName: 'Demo Bank',
+      monthlyTrend: { startDate: '2026-09-15', endDate: '2026-10-15', absoluteChange: 200, percentageChange: 20, direction: 'Up' },
+    }] });
+    initial.flush(trend);
+    f.componentInstance.selectRange('1D');
+    http.expectOne(r => r.url.endsWith('/net-worth-trend')).flush(trend);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('app-account-list').textContent).toContain('20.0%');
+    expect(f.nativeElement.querySelector('app-account-list').textContent).toContain('1M change');
+    http.expectNone(r => r.url.endsWith('/dashboard'));
   });
 
   it('offers 1D and renders directional trend icons', () => {
@@ -119,10 +135,18 @@ describe('Dashboard', () => {
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Your trend couldn’t load');
     expect(f.nativeElement.textContent).toContain('Retry balances');
+    expect(f.nativeElement.textContent).toContain('Your accounts couldn’t load');
     f.componentInstance.loadTrend();
     http.expectOne(r => r.url.endsWith('/net-worth-trend')).flush(trend);
     f.detectChanges();
     expect(f.nativeElement.querySelector('app-trend-chart')).toBeTruthy();
     expect(f.componentInstance.summaryError()).toBe(true);
+    const retry = Array.from(f.nativeElement.querySelectorAll('button'))
+      .find((button: any) => button.textContent.trim() === 'Retry accounts') as HTMLButtonElement;
+    retry.click();
+    http.expectOne(r => r.url.endsWith('/dashboard')).flush(summaryData);
+    f.detectChanges();
+    expect(f.componentInstance.summaryError()).toBe(false);
+    expect(f.nativeElement.textContent).toContain('No accounts yet');
   });
 });

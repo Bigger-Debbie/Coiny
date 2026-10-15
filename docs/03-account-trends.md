@@ -66,4 +66,20 @@ It returns `TrendResult` with `points` (`date`, `value`), `startingValue`,
 `endingValue`, `absoluteChange`, `percentageChange`, and `direction`.
 
 This endpoint supplies graph data separately from the existing dashboard summary.
-The frontend chart and account-group UI are separate milestones.
+The frontend hero chart uses this endpoint. Account-group selection UI remains
+a separate milestone.
+
+## Dashboard Account Summaries
+
+Each account in `GET /api/dashboard` includes a compact `monthlyTrend` containing
+`startDate`, `endDate`, `absoluteChange`, `percentageChange`, and `direction`.
+The range is one calendar month before today through today in America/New_York.
+It remains fixed when the hero chart's selected range changes. Daily points are
+not repeated in the account response.
+
+Account rows display institution initials (falling back to the account name),
+names, balances, and the monthly change. Increasing assets are green; increasing
+credit-card or loan debt is red. Decreasing debt is green. Arrows always indicate
+the numerical direction. Neutral changes have no arrow. If a percentage is
+unavailable because the starting balance is zero, the row shows the dollar
+change instead; absent history is labeled explicitly.

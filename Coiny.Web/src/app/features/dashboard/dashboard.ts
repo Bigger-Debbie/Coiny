@@ -11,10 +11,11 @@ import { TrendResult } from '../../shared/models/trends/trend-result';
 import { TrendChart } from '../../shared/components/trend-chart/trend-chart';
 import { Icon } from '../../shared/components/icon/icon';
 import { getTrendDates, TrendRange } from './trend-range';
+import { AccountList } from './account-list/account-list';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CurrencyPipe, DecimalPipe, TrendChart, Icon],
+  imports: [CurrencyPipe, DecimalPipe, TrendChart, Icon, AccountList],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })

@@ -11,13 +11,15 @@ public class DashboardService : IDashboardService
     private readonly IAccountService _accountService;
     private readonly ITransactionService _transactionService;
     private readonly IAccountTrendService _accountTrendService;
+    private readonly TimeProvider _timeProvider;
 
     public DashboardService(IAccountService accountService, ITransactionService transactionService,
-        IAccountTrendService accountTrendService)
+        IAccountTrendService accountTrendService, TimeProvider timeProvider)
     {
         _accountService = accountService;
         _transactionService = transactionService;
         _accountTrendService = accountTrendService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<DashboardSummaryResponse> GetSummaryAsync()
@@ -25,16 +27,33 @@ public class DashboardService : IDashboardService
         var accounts = await _accountService.GetAccountsAsync();
         var transactions = await _transactionService.GetTransactionsAsync();
 
-        var dashboardAccounts = accounts
-            .Select(account => new DashboardAccountsResponse
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(
+            _timeProvider.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).DateTime);
+        var startDate = today.AddMonths(-1);
+        var dashboardAccounts = new List<DashboardAccountsResponse>();
+
+        foreach (var account in accounts)
+        {
+            // Keep the period fixed regardless of the hero chart selection.
+            // EF shares a scoped context, so these queries run sequentially.
+            var trend = await _accountTrendService.GetTrendAsync(startDate, today, [account.Id]);
+            dashboardAccounts.Add(new DashboardAccountsResponse
             {
                 Id = account.Id,
                 Name = account.Name,
                 AccountType = account.AccountType,
                 CurrentBalance = account.CurrentBalance,
-                InstitutionName = account.InstitutionName
-            })
-            .ToList();
+                InstitutionName = account.InstitutionName,
+                MonthlyTrend = new DashboardAccountTrendResponse
+                {
+                    StartDate = startDate,
+                    EndDate = today,
+                    AbsoluteChange = trend.AbsoluteChange,
+                    PercentageChange = trend.PercentageChange,
+                    Direction = trend.Direction
+                }
+            });
+        }
 
         var NetWorthSummary = new NetWorthSummaryResponse
         {
