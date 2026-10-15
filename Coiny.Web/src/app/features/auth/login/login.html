@@ -1,27 +1,53 @@
-<h1>Coiny</h1>
-
-<form (ngSubmit)="login()">
-  <div>
-    <label for="email">Email</label>
-    <input
-      id="email"
-      name="email"
-      type="email"
-      [(ngModel)]="model.email"
-      required
-    />
+<div class="login-page">
+  <div class="coin-background" aria-hidden="true" [class.paused]="paused()">
+    @for (coin of coins; track $index) {
+      <img src="assets/icons/Coiny-Coin-Outline.svg" alt=""
+        [style.left.%]="coin.left" [style.width.px]="coin.size"
+        [style.animation-duration.s]="coin.duration" [style.animation-delay.s]="coin.delay"
+        [style.--rotation]="coin.rotation + 'deg'" />
+    }
   </div>
-
-  <div>
-    <label for="password">Password</label>
-    <input
-      id="password"
-      name="password"
-      type="password"
-      [(ngModel)]="model.password"
-      required
-    />
-  </div>
-
-  <button type="submit">Login</button>
-</form>
+  <button class="motion-control" type="button" (click)="paused.set(!paused())"
+    [attr.aria-pressed]="paused()">{{ paused() ? 'Resume background animation' : 'Pause background animation' }}</button>
+  <main>
+    <section class="login-card" aria-label="Sign in to Coiny">
+      <img class="login-logo" src="assets/logos/Coiny-Logo-Hrztl.svg" alt="Coiny" />
+      <form #form="ngForm" (ngSubmit)="login(form)" novalidate [attr.aria-busy]="submitting()">
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="username"
+            [(ngModel)]="model.email" #email="ngModel" required email
+            [attr.aria-invalid]="email.invalid && (email.touched || form.submitted)"
+            aria-describedby="email-error" />
+          <span id="email-error" class="field-error">
+            @if (email.invalid && (email.touched || form.submitted)) { Enter a valid email address. }
+          </span>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-field">
+            <input id="password" name="password" [type]="passwordVisible() ? 'text' : 'password'"
+              autocomplete="current-password" [(ngModel)]="model.password" #password="ngModel" required
+              [attr.aria-invalid]="password.invalid && (password.touched || form.submitted)"
+              aria-describedby="password-error" />
+            <button class="password-toggle" type="button" (click)="passwordVisible.set(!passwordVisible())"
+              [attr.aria-label]="passwordVisible() ? 'Hide password' : 'Show password'">
+              <img [src]="passwordVisible() ? 'assets/icons/hide.svg' : 'assets/icons/show.svg'" alt="" />
+            </button>
+          </div>
+          <span id="password-error" class="field-error">
+            @if (password.invalid && (password.touched || form.submitted)) { Enter your password. }
+          </span>
+        </div>
+        <button class="text-button forgot" type="button"
+          (click)="notice.set('Password recovery is coming soon.')">Forgot Password?</button>
+        @if (errorMessage()) { <p class="feedback error" role="alert">{{ errorMessage() }}</p> }
+        <button class="login-button" type="submit" [disabled]="submitting()">{{ submitting() ? 'Signing in…' : 'LOGIN' }}</button>
+        <button class="text-button signup" type="button"
+          (click)="notice.set('Sign up is coming soon.')">Sign Up</button>
+        <p class="feedback notice" role="status">{{ notice() }}</p>
+      </form>
+    </section>
+  </main>
+  <app-footer />
+</div>
