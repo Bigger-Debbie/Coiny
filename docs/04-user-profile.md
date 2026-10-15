@@ -1,23 +1,71 @@
-# Current User and Dashboard Greeting
+# Authentication and User Profile
 
-`GET /api/auth/me` requires a bearer token and returns only the authenticated
-user's `id`, `email`, and nullable `firstName`. A token whose user no longer exists
-receives HTTP 401. The endpoint does not accept a user ID from the caller.
+[Documentation index](../README.md#documentation)
 
-New registrations require `firstName` (maximum 100 characters), in addition to
-email and password. Leading and trailing whitespace is removed before saving.
-The `AddUserFirstName` migration adds a nullable column so existing users and
-their financial data are preserved. Existing users retain a null first name;
-this milestone does not add a profile-edit endpoint or infer names from email.
+## Implemented authentication
 
-The dashboard loads the profile and `GET /api/households/me` independently of its
-financial requests. A first name of `Alex` and household name of `Ross` produce
-"Welcome back, Alex" and "The Ross household at a glance." Missing names or
-failed requests fall back to the generic greeting. Stored household names that
-already include "The" or end in "household" do not receive duplicate words.
+ASP.NET Core Identity stores users and password hashes. The API issues signed
+JWTs after registration or login. JWT validation checks issuer, audience,
+signature, and lifetime. Current configuration uses issuer `Coiny`, audience
+`CoinyUsers`, and a 120-minute expiration; the signing key is configured locally.
 
-Trend controls are ordered `1D`, `1W`, `1M`, `3M`, `6M`, `1Y`, `YTD`. `1M`
-remains the default. `1D` starts yesterday; `1W` starts seven calendar days ago.
-Both ranges include today, using the API's America/New_York calendar dates.
-Unavailable percentage changes are omitted entirely; valid dollar changes and
-zero-percent changes remain visible.
+| Endpoint | Authentication | Behavior |
+| --- | --- | --- |
+| `POST /api/auth/register` | Public | Creates a user and returns token/email |
+| `POST /api/auth/login` | Public | Validates credentials and returns token/email |
+| `GET /api/auth/me` | Bearer token | Returns the authenticated user's profile |
+
+Registration requires `firstName` (maximum 100 characters), email, and password
+(minimum eight characters, also subject to Identity's default complexity rules).
+The first name is trimmed before saving. Registration does not create a household.
+
+`GET /api/auth/me` returns only `id`, `email`, and nullable `firstName`; it accepts
+no user ID from the caller. If the token's user no longer exists, it returns 401.
+There is no profile-update endpoint.
+
+The `AddUserFirstName` migration adds a nullable column to preserve older users.
+Such users keep a null first name until it is populated. Names are not inferred
+from email. See the [API reference](07-api-reference.md) for examples.
+
+## Current frontend behavior
+
+`AuthService` stores the token in local storage under `coiny_token`. The HTTP
+interceptor attaches it as a bearer token. The route guard checks for a token and
+its expiration before entering the protected application layout; invalid or
+expired tokens are removed and navigation goes to `/login`.
+
+A basic `/login` form is implemented. Logout methods exist in the service/layout,
+but the header avatar has no wired logout action. There is no global handling of
+401 responses or refresh-token flow. Do not assume an active page automatically
+redirects the moment its token expires.
+
+The login UI currently reports failures to the console rather than displaying a
+complete user-facing error state. Registration is available through the API,
+not a signup screen.
+
+## Dashboard personalization
+
+The dashboard loads `/api/auth/me` and `/api/households/me` independently of its
+financial data. Alex in a household named Ross sees:
+
+```text
+Welcome back, Alex
+The Ross household at a glance.
+```
+
+Missing names or failed requests use the generic greeting. Stored household
+names already beginning with “The” or ending in “household” avoid duplicate words;
+other names are displayed as stored. The greeting does not rename a household.
+
+The header's avatar is still the static letter `A`; dashboard personalization
+does not imply that the header profile menu is implemented.
+
+## Next authentication work
+
+Visible logout, complete session-expiration handling, login presentation, signup,
+and new-user household onboarding are planned. Password reset, email
+confirmation, token revocation/refresh, and member invitations have no public
+workflows yet. Login currently does not increment Identity lockout failures.
+
+For local signing-key setup, see [development setup](06-development-setup.md).
+For the seeded login, see [demo data](05-demo-data.md).

@@ -1,83 +1,70 @@
 # Coiny
 
-> A modern household finance platform built with ASP.NET Core, Angular, Entity Framework Core, and SQLite.
+Coiny is a household finance app for understanding account balances, recent activity,
+and changes in net worth. It is built with ASP.NET Core, Entity Framework Core,
+SQLite, ASP.NET Core Identity, JWT authentication, and Angular.
 
-## Overview
+## Current status
 
-Coiny is a full-stack web application designed to help individuals and families manage their finances with clarity and confidence.
+Coiny has a working dashboard and financial data foundation. It is in active
+local development; budgeting, planning, and the complete authentication experience
+remain future work.
 
-While many finance applications focus solely on tracking income and expenses, Coiny is being designed as a complete financial planning platform. The long-term vision is to provide users with a centralized dashboard for managing accounts, tracking spending, creating budgets, planning future purchases, monitoring financial goals, and making informed financial decisions.
+| Area | Implemented | Still planned |
+| --- | --- | --- |
+| Authentication | Registration/login APIs, current-user profile, basic login screen, token storage and route guard | Polished login, signup UI, visible logout, complete expired-session handling |
+| Households | Create/get current household, ownership-scoped financial services | Invitations, member management, household switching |
+| Financial data | Create/list institutions, accounts, categories, transactions | Management pages, edit/delete flows, paired transfers, imports |
+| History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
+| Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
+| Planning | Product and domain direction | Budgets, goals, recurring transactions, purchase planning |
 
-This project is also a software engineering exercise focused on thoughtful architecture, clean code, and long-term maintainability. Every feature is designed before it is implemented, with documentation living alongside the code to capture both the *what* and the *why* behind each decision.
+## Get started
 
----
+Follow the [local setup guide](docs/06-development-setup.md) to configure the API,
+install dependencies, and start both applications. For a populated dashboard, use
+[development demo data](docs/05-demo-data.md).
 
-## Current Goals
+Default local URLs:
 
-* Secure user authentication
-* Household-based financial management
-* Financial institutions and accounts
-* Transaction ledger
-* Budget planning
-* Savings and financial goals
-* Dashboard and reporting
-* Future purchase planning
+- Frontend: `http://localhost:4200`
+- API: `http://localhost:5298/api`
+- Development OpenAPI document: `http://localhost:5298/openapi/v1.json`
 
----
+## Repository layout
 
-## Technology Stack
+```text
+Coiny.API/       ASP.NET Core API, domain models, services, EF migrations
+Coiny.Web/       Angular app, shared UI, styles, and frontend tests
+Coiny.slnx      .NET solution
+docs/           Product, domain, behavior, setup, and API documentation
+```
 
-### Backend
-
-* ASP.NET Core Web API
-* Entity Framework Core
-* SQLite
-* ASP.NET Core Identity
-* JWT Authentication
-
-### Frontend
-
-* Angular
-* TypeScript
-* CSS
-
-### Development
-
-* Fedora Linux
-* Visual Studio Code
-* Git & GitHub
-
----
-
-## Project Status
-
-**Active Development**
-
-Coiny is currently in the early architecture and design phase. The project is being developed incrementally, with a strong emphasis on domain modeling, documentation, and maintainable software design.
-
----
+The API targets .NET 10; the frontend uses Angular 21 and TypeScript. Exact
+package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
+[package.json](Coiny.Web/package.json), and the frontend lockfile.
 
 ## Documentation
 
-Project documentation can be found in the `docs/` directory.
+| Guide | Purpose |
+| --- | --- |
+| [Project vision](docs/00-project-vision.md) | Audience, product goals, and future direction |
+| [Development principles](docs/01-development-principles.md) | Engineering and collaboration conventions |
+| [Domain blueprint](docs/02-domain-blueprint.md) | Implemented entities, relationships, and planned concepts |
+| [Balances, snapshots, and trends](docs/03-account-trends.md) | Financial rules and service responsibilities |
+| [Authentication and user profile](docs/04-user-profile.md) | Current authentication behavior and personalization |
+| [Demo data](docs/05-demo-data.md) | Development login, seed command, and database reset |
+| [Development setup](docs/06-development-setup.md) | Configuration, startup, checks, and troubleshooting |
+| [API and Postman reference](docs/07-api-reference.md) | All current endpoints, payloads, and testing workflow |
+| [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
+| [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
-Documentation includes:
+## Next milestones
 
-* Project Vision
-* Development Principles
-* Domain Blueprint
-* Architecture Decision Records (ADRs)
-* Database Design
-* API Design
-* UI Planning
+The dashboard's hero chart, Accounts pane, and Recent Transactions pane are
+implemented. The next agreed focus is authentication: logout, login presentation,
+registration/signup, and new-user setup. Dedicated account and transaction
+management pages follow separately.
 
----
-
-### Future Ideas
-
-* Investment tracking
-* Net worth dashboard
-* CSV import from financial institutions
-* Bill reminders
-* Subscription management
-* Mobile-friendly experience
+For current development limitations and test status, see the
+[setup guide](docs/06-development-setup.md#verification).

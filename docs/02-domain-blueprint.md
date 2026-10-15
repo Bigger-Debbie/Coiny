@@ -1,173 +1,89 @@
 # Domain Blueprint
 
-The domain blueprint provides a high-level overview of the core business entities that make up Coiny.
-
-This document is intended to guide implementation and provide a shared understanding of how the application is modeled. It is intentionally lightweight and will evolve as the project grows.
-
----
-
-# Core Domain
-
-## Household
-
-**Purpose**
-
-Represents a shared financial space for one or more users.
-
-**Relationships**
-
-* Has many Household Members
-* Has many Institutions
-* Has many Accounts
-* Has many Categories
-* Has many Budgets
-* Has many Goals
-
----
-
-## Household Member
-
-**Purpose**
-
-Represents a user's membership within a household.
-
-**Relationships**
-
-* Belongs to one Household
-* References one Application User
-
----
-
-## Institution
-
-**Purpose**
-
-Represents a financial institution such as a bank, brokerage, lender, or credit card provider.
-
-**Relationships**
-
-* Belongs to one Household
-* Has many Accounts
-
----
-
-## Account
-
-**Purpose**
-
-Represents a financial account where money is stored or debt is held.
-
-Examples include:
-
-* Checking
-* Savings
-* Credit Card
-* Investment
-* Loan
-* Cash
-
-**Relationships**
-
-* Belongs to one Household
-* Optionally belongs to one Institution
-* Has many Transactions
-
-**Notes**
-
-Current balance will be calculated from the opening balance and transaction history.
-
----
-
-## Transaction
-
-**Purpose**
-
-Represents a financial event that changes the balance of an account.
-
-Transactions are the authoritative financial record within Coiny.
-
-**Relationships**
-
-* Belongs to one Account
-* Optionally belongs to one Category
-* Created by one User
-
----
-
-## Category
-
-**Purpose**
-
-Groups transactions into meaningful spending or income classifications.
-
-Examples include:
-
-* Groceries
-* Utilities
-* Restaurants
-* Salary
-
-**Relationships**
-
-* Belongs to one Household
-* Has many Transactions
-* May have a parent category
-
----
-
-## Budget
-
-**Purpose**
-
-Defines planned spending for a category over a period of time.
-
----
-
-## Goal
-
-**Purpose**
-
-Represents a financial objective such as saving for a purchase or paying down debt.
-
----
-
-## Recurring Transaction
-
-**Purpose**
-
-Represents income or expenses that occur on a repeating schedule.
-
-Examples include:
-
-* Mortgage
-* Rent
-* Paycheck
-* Netflix
-* Utilities
-
----
-
-# Design Notes
-
-The following principles influence the design of the domain:
-
-* Transactions are the source of truth.
-* Derived values should be calculated whenever practical.
-* Business rules belong in the backend.
-* The simplest correct solution is preferred.
-* The model should represent real-world financial concepts.
-
----
-
-# Initial Development Order
-
-The first implementation will focus on the following entities:
-
-1. Household
-2. Household Member
-3. Institution
-4. Account
-5. Category
-6. Transaction
-
-Budgets, goals, and recurring transactions will be implemented after the core financial model is complete.
+[Documentation index](../README.md#documentation)
+
+This blueprint describes the implemented model. Planned concepts are listed
+separately below. EF models live in `Coiny.API/Models/` and are registered through
+`CoinyContext`; Identity contributes its own user and role tables.
+
+## Implemented entities
+
+| Entity | Purpose and relationships |
+| --- | --- |
+| `ApplicationUser` | Identity user with email and nullable `FirstName`; linked to households through memberships |
+| `Household` | Shared financial space with memberships, institutions, accounts, categories, and transactions |
+| `HouseholdMember` | Links a user to a household with an `Owner` or `Member` role |
+| `Institution` | Household-owned bank/provider; has accounts |
+| `Account` | Household-owned account, optional institution, opening balance/date, transactions, and snapshots |
+| `Category` | Household-owned transaction classification with `Income`, `Expense`, or `Transfer` type |
+| `Transaction` | Required household, account, and category; positive amount, date, description, optional merchant/notes, cleared flag |
+| `AccountBalanceSnapshot` | Account's derived closing balance on one calendar day |
+
+Domain entities inherit integer `Id` and UTC `CreatedAt` from `BaseEntity`.
+`ApplicationUser` inherits Identity's string ID instead.
+
+```mermaid
+erDiagram
+    ApplicationUser ||--o{ HouseholdMember : joins
+    Household ||--o{ HouseholdMember : includes
+    Household ||--o{ Institution : owns
+    Household ||--o{ Account : owns
+    Household ||--o{ Category : owns
+    Household ||--o{ Transaction : owns
+    Institution o|--o{ Account : provides
+    Account ||--o{ Transaction : records
+    Category ||--o{ Transaction : classifies
+    Account ||--o{ AccountBalanceSnapshot : projects
+```
+
+## Ownership and membership
+
+Services resolve the authenticated user's household from their membership.
+Account/institution selection and transaction account/category references are
+checked against it. No household ID is accepted in financial creation payloads.
+
+Household creation rejects users who already have a membership. The database
+uniquely indexes `(HouseholdId, UserId)`, while the service currently selects the
+first membership for a user. Household switching, invitations, and role-based
+financial permissions are not implemented.
+
+## Accounts and balances
+
+`AccountType` values are `Checking`, `Savings`, `CreditCard`, `Investment`,
+`Retirement`, `Loan`, `Cash`, `Crypto`, and `Other`. Credit cards and loans are
+liabilities; the other types are treated as assets by current calculations.
+
+`OpeningBalanceDate` is a `DateOnly`. The opening balance is the balance at the
+start of that date. Current balance is derived, not an editable stored total.
+See [financial rules](03-account-trends.md) for debt signs and historical behavior.
+
+`IsActive` flags exist on accounts, institutions, and categories. There are no
+activation-management endpoints, and account listing/dashboard totals do not
+currently filter inactive accounts.
+
+## Constraints and current model boundaries
+
+- Snapshots uniquely index `(AccountId, SnapshotDate)`.
+- Categories uniquely index `(HouseholdId, Name)`; the creation service also
+  checks duplicate names case-insensitively.
+- Account and transaction monetary columns are mapped as `decimal(18,2)`.
+  Application-level cent rounding/scale enforcement is not implemented.
+- Transactions require a category. Account/category deletion is restricted while
+  transactions reference them; snapshots also restrict account deletion.
+- An account can have no institution. Its configured institution relationship uses
+  `SetNull` on deletion. There is no public deletion endpoint yet.
+- Transactions do not currently store a creator-user audit reference.
+- Categories do not currently have parent/child relationships.
+
+## Planned concepts
+
+| Concept | Intended purpose |
+| --- | --- |
+| Budget | Planned category spending over a period |
+| Goal | Savings target, debt payoff, or other financial objective |
+| Recurring transaction | Scheduled income or expense pattern |
+| Paired transfer | Atomic movement between accounts, including card payments |
+| Category hierarchy | Parent/child classifications |
+| Transaction audit | Attribution and designed correction history |
+
+These are design directions, not existing entities or API capabilities.

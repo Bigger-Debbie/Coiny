@@ -1,154 +1,63 @@
 # Development Principles
 
-**Project:** Coiny
+[Documentation index](../README.md#documentation)
 
----
+## Agree on behavior before code changes
 
-# Purpose
+Discuss the scope, business rules, and user experience before implementation.
+Get approval for the proposed code changes, then complete and verify that
+increment. Discuss meaningful scope changes before adding them. Commit and push
+when requested.
 
-This document defines the engineering principles that guide the design and development of Coiny.
+## Let business rules lead
 
-These principles exist to encourage thoughtful architecture, maintainable code, and consistent decision-making throughout the lifetime of the project.
+Model household ownership and financial behavior explicitly. The API owns
+validation and authorization; frontend checks improve the experience but do not
+replace backend rules.
 
-Whenever multiple implementation options exist, these principles should help determine the best path forward.
+Controllers handle HTTP contracts. Services own workflows and financial rules.
+DTOs keep API contracts separate from EF entities. EF configurations describe
+relationships, indexes, and storage mapping.
 
----
+## Keep the ledger authoritative
 
-# Principle 1
+An account's opening balance and transaction history define its balance.
+Financial history should be preserved where practical. Current transaction APIs
+support creation and listing; edit/correction workflows still need design.
 
-## Design Before Development
+Avoid independently maintained totals. Daily account snapshots are an intentional
+stored projection of the ledger, introduced to support historical trends. They
+are recalculated when backdated transactions affect them and saved atomically
+with the originating account or transaction change. They are not a second source
+of truth. See [balance history](03-account-trends.md).
 
-Features should be understood and designed before implementation begins.
+## Prefer the simplest correct implementation
 
-This includes defining:
+Use readable, focused code and existing services before adding abstractions.
+Keep generic trend calculations independent of account selection and snapshot
+storage. Reuse UI components where their behavior is shared, without introducing
+a framework for every similar row or card.
 
-* Business requirements
-* Domain model
-* Database relationships
-* API contracts
-* User experience
+Use C# `decimal` for financial calculations. Do not round underlying trend values
+for presentation. Formatting and semantic color decisions belong in the UI.
 
-Writing code is the final step—not the first.
+## Verify meaningful behavior
 
----
+Check financial boundaries, household isolation, dates, and rollback behavior.
+Frontend tests should cover interactions, states, and contracts rather than
+repeat styling declarations. Run the checks appropriate to the change and report
+known failures honestly. Temporary local checks are not a committed test suite.
 
-# Principle 2
+Database migrations belong in source control. Apply them deliberately; resetting
+local demo data is a separate, destructive workflow documented in
+[demo data](05-demo-data.md).
 
-## Business Rules Drive the Software
+## Maintain the documentation with the feature
 
-Coiny models real financial concepts.
+Document what exists, why it behaves that way, and what remains planned. Keep
+business rules in the relevant guide and link to them from setup and API docs.
+Update payload examples when contracts change.
 
-The software should reflect how money actually moves through accounts, households, and budgets rather than simply exposing database tables through an API.
-
-The domain model should always represent the business problem being solved.
-
----
-
-# Principle 3
-
-## Transactions Are the Source of Truth
-
-Financial history should be immutable whenever practical.
-
-Transactions represent the authoritative financial record.
-
-Balances, spending totals, budget utilization, and similar values should be calculated from transaction history rather than manually maintained.
-
----
-
-# Principle 4
-
-## Do Not Store Derived Data
-
-If a value can be reliably calculated, it should generally not be stored.
-
-Examples include:
-
-* Account balances
-* Net worth
-* Budget remaining
-* Goal progress
-* Monthly spending totals
-
-Derived values may be cached later for performance, but calculations remain the authoritative source.
-
----
-
-# Principle 5
-
-## Readability Over Cleverness
-
-Code should prioritize clarity over brevity.
-
-Future maintainers—including your future self—should be able to understand the intent of the code without unnecessary complexity.
-
-Readable software is maintainable software.
-
----
-
-# Principle 6
-
-## Small, Incremental Progress
-
-Coiny will be developed through small, well-defined milestones.
-
-Each completed milestone should leave the application in a functional and stable state.
-
-Large features should be broken into manageable pieces whenever possible.
-
----
-
-# Principle 7
-
-## Documentation Is Part of the Product
-
-Architecture, design decisions, and business rules should be documented alongside the code.
-
-Documentation should explain not only what the software does, but why it was designed that way.
-
----
-
-# Principle 8
-
-## The Backend Owns the Rules
-
-Business validation belongs within the API.
-
-The frontend exists to provide an excellent user experience, but the backend remains responsible for enforcing business rules and protecting data integrity.
-
----
-
-# Principle 9
-
-## Build for Tomorrow, Not Just Today
-
-Features should be designed with reasonable future growth in mind.
-
-Coiny should remain easy to extend as additional capabilities are introduced, while avoiding unnecessary complexity or speculative features.
-
----
-
-# Principle 10
-
-## Favor Explicitness
-
-Relationships, ownership, and business behavior should be explicit.
-
-Avoid hidden assumptions, magic strings, and implicit behavior whenever possible.
-
-Well-defined models lead to predictable software.
-
----
-
-# Decision Framework
-
-When evaluating implementation choices, ask the following questions:
-
-1. Does this accurately model the real-world financial concept?
-2. Does it improve long-term maintainability?
-3. Is the design simple to understand?
-4. Does it align with the domain model?
-5. Can another developer easily understand the reasoning?
-6. Would this decision still make sense one year from now?
-
-If the answer to these questions is "yes," the solution is likely aligned with the goals of the project.
+Do not commit local secrets, SQLite files, or generated output as part of feature
+changes. The repository currently contains tracked API `bin/` and `obj/` artifacts;
+cleaning that history and expanding ignore rules is separate maintenance work.

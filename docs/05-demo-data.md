@@ -1,47 +1,81 @@
 # Development Demo Data
 
-The demo seed command runs explicitly, exits after seeding, and is unavailable
-outside `Development`. Normal API startup never creates sample data. It applies
-pending migrations and requires an empty database; running it again refuses to
-change existing data.
+[Documentation index](../README.md#documentation)
 
-From the repository root, seed an empty local database:
+Complete [local configuration](06-development-setup.md#configure-the-api) first.
+The seed command is explicit, runs only in `Development`, applies pending
+migrations, and exits without starting the HTTP server. Normal API startup never
+creates sample data. A populated database is rejected rather than overwritten.
+
+## Seed an empty database
+
+Run from the repository root. An explicit connection string ensures the CLI and
+API target the same local file:
 
 ```sh
+export ConnectionStrings__DefaultConnection="Data Source=$PWD/Coiny.API/coiny.db"
 dotnet run --project Coiny.API --launch-profile http -- --seed-demo
 ```
 
-For a complete reset, stop the API first. The following commands permanently
-delete the local test database and recreate it with demo data:
+## Reset and seed
+
+Stop the API first. These commands **permanently delete all data** in the named
+local test database, recreate its schema, and seed it:
 
 ```sh
+export ConnectionStrings__DefaultConnection="Data Source=$PWD/Coiny.API/coiny.db"
 dotnet ef database drop --force --project Coiny.API
 dotnet run --project Coiny.API --launch-profile http -- --seed-demo
 ```
 
-Use the same SQLite connection string for both commands. The local database is
-`Coiny.API/coiny.db`. An explicit absolute `ConnectionStrings__DefaultConnection`
-environment variable can select a separate disposable database for testing.
+Start the API normally afterward:
 
-Development-only login:
+```sh
+dotnet run --project Coiny.API --launch-profile http
+```
 
-- Email: `alex@coiny.test`
-- Password: `CoinyDemo!2026`
-- First name: Alex
-- Household name: Ross
+Log out of any old browser session and sign in again. Deleted users' old tokens
+cannot access the newly created demo household. Until visible logout is wired,
+remove `coiny_token` from this site's local storage using browser developer tools,
+then visit `/login`.
 
-The seed creates checking, emergency savings, retirement, and credit-card accounts
-with nonzero opening balances. History starts on the first day of the month six
-months before today, using the application's America/New_York calendar day.
-Paychecks, rent, bills, groceries, dining, fuel, savings interest, and employer
-retirement contributions provide sample changes across chart ranges. Daily
-coffee purchases ensure activity yesterday and today. Amounts and date patterns
-are deterministic; a later reset moves the history window to the new current day.
+## Development-only login
+
+| Field | Value |
+| --- | --- |
+| Email | `alex@coiny.test` |
+| Password | `CoinyDemo!2026` |
+| First name | Alex |
+| Household name | Ross |
+
+These are synthetic development credentials, defined in `DemoDataSeeder`.
+They are not intended for a deployed environment.
+
+## Sample financial history
+
+| Account | Type | Opening balance |
+| --- | --- | --- |
+| Primary Checking | Checking | $6,000 |
+| Emergency Savings | Savings | $12,000 |
+| 401(k) | Retirement | $75,000 |
+| Everyday Credit Card | CreditCard | $1,800 owed |
+
+The seed creates three institutions and nine income/expense categories. History
+begins on the first day of the month six months before today, using the
+America/New_York calendar day, and ends today.
+
+Paychecks, rent, utilities, groceries, dining, fuel, savings interest, retirement
+fees, and employer contributions produce changes across chart ranges. Daily
+coffee purchases ensure activity for yesterday/today and weekly comparisons.
+Amounts and schedules are deterministic; dates and row counts move with the day
+on which the command runs.
 
 Identity creates the user. Household, institution, category, account, and
-transaction services create the financial data and snapshots. Transactions are
-synthetic examples, not financial forecasts or a complete accounting scenario;
-paired transfers and credit-card payments are omitted until supported.
+transaction services create the financial data. Snapshots are generated through
+the same atomic workflows as normal API calls. The seed restores its temporary
+authenticated context when it finishes.
 
-Start the API normally after seeding. Log out of any old browser session and log
-in with the demo credentials, since tokens from deleted users are no longer valid.
+This is a useful UI/behavior fixture, not complete household accounting. Paired
+transfers and credit-card payments are omitted because they are not implemented.
+To test in isolation, set `ConnectionStrings__DefaultConnection` to an absolute
+SQLite path in a separate disposable directory.

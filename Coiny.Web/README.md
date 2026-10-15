@@ -1,59 +1,48 @@
-# CoinyWeb
+# Coiny Web
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.17.
+Angular frontend for Coiny's household dashboard. See the
+[root README](../README.md) for project status and the
+[setup guide](../docs/06-development-setup.md) for API configuration and local URLs.
 
-## Development server
+## Commands
 
-To start a local development server, run:
+Run from `Coiny.Web`:
 
-```bash
-ng serve
+```sh
+npm ci
+npm start
+npm run build
+npm test -- --watch=false
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+`npm start` serves `http://localhost:4200`; production output goes to
+`dist/Coiny.Web`. Tests use Angular's unit-test builder with Vitest/jsdom.
+There is no configured end-to-end runner.
 
-## Code scaffolding
+For the known starter-test failure and focused dashboard test command, see
+[verification](../docs/06-development-setup.md#verification).
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Source layout
 
-```bash
-ng generate component component-name
-```
+| Directory | Responsibility |
+| --- | --- |
+| `src/app/core/services/` | API calls and token handling |
+| `src/app/core/guards/`, `interceptors/` | Route authentication and bearer header |
+| `src/app/features/dashboard/` | Hero, range selection, account list, recent transactions |
+| `src/app/features/auth/login/` | Current basic login screen |
+| `src/app/features/transactions/create-transaction/` | Existing transaction form |
+| `src/app/shared/components/` | Header, icons, reusable SVG trend chart |
+| `src/app/shared/models/` | API response/request types |
+| `src/styles/` | Colors, typography, layout, buttons, cards, forms |
+| `src/environments/environment.ts` | API URL configuration |
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The current environment export is spelled `environemnt`. The default API URL is
+`http://localhost:5298/api`; changing it requires the corresponding API/CORS setup.
 
-```bash
-ng generate --help
-```
+## Product behavior
 
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+The [dashboard guide](../docs/08-dashboard.md) defines chart ranges, financial
+colors, avatar alternation, and pane states. The
+[authentication guide](../docs/04-user-profile.md) distinguishes existing token
+handling from planned logout/signup work. Routes and unfinished navigation are
+listed in the dashboard guide; header icons alone do not indicate finished pages.
