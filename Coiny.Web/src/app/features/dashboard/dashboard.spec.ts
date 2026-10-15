@@ -34,6 +34,7 @@ describe('Dashboard', () => {
     const { f, summary, initial } = render();
     expect(f.nativeElement.textContent).toContain('Loading your financial picture');
     expect(f.nativeElement.textContent).toContain('Loading your accounts');
+    expect(f.nativeElement.textContent).toContain('Loading your transactions');
     expect(initial.request.params.has('startDate')).toBe(true);
     summary.flush(summaryData);
     initial.flush(trend);
@@ -43,6 +44,7 @@ describe('Dashboard', () => {
     expect(f.nativeElement.querySelector('app-trend-chart')).toBeTruthy();
     expect(f.nativeElement.querySelector('[aria-pressed="true"]').textContent.trim()).toBe('1M');
     expect(f.nativeElement.textContent).toContain('No accounts yet');
+    expect(f.nativeElement.textContent).toContain('No transactions yet');
     expect(f.nativeElement.querySelector('.welcome-panel h2').textContent).toBe('Welcome back, Alex');
     expect(f.nativeElement.querySelector('.welcome-panel p').textContent).toBe('The Ross household at a glance.');
     f.componentInstance.householdName.set('The Ross household');
@@ -73,6 +75,33 @@ describe('Dashboard', () => {
     expect(f.nativeElement.querySelector('app-account-list').textContent).toContain('20.0%');
     expect(f.nativeElement.querySelector('app-account-list').textContent).toContain('1M change');
     http.expectNone(r => r.url.endsWith('/dashboard'));
+  });
+  it('renders recent activity from the dashboard response without add actions', () => {
+    const { f, summary, initial } = render();
+    summary.flush({ ...summaryData, recentTransactions: [{
+      id: 1, accountName: 'Primary Checking', institutionName: 'Demo Bank', categoryName: 'Groceries',
+      categoryType: 'Expense', amount: 92.35, transactionDate: '2026-10-15T12:00:00',
+      description: 'Weekly groceries', merchant: 'Demo Market',
+    }] });
+    initial.flush(trend);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('app-transaction-list').textContent).toContain('Weekly groceries');
+    expect(f.nativeElement.querySelector('app-transaction-list').textContent).toContain('−$92.35');
+    expect(f.nativeElement.querySelector('.transactions-section button')).toBeNull();
+    expect(f.nativeElement.querySelector('.accounts-section button')).toBeNull();
+    http.expectNone(r => r.url.endsWith('/transactions'));
+  });
+  it('retries a failed transactions pane using the existing summary request', () => {
+    const { f, summary, initial } = render();
+    summary.flush('Unavailable', { status: 500, statusText: 'Server error' });
+    initial.flush(trend);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('.transactions-section').textContent).toContain('Your transactions couldn’t load');
+    f.nativeElement.querySelector('.transactions-section button').click();
+    http.expectOne(r => r.url.endsWith('/dashboard')).flush(summaryData);
+    f.detectChanges();
+    expect(f.nativeElement.querySelector('.transactions-section').textContent).toContain('No transactions yet');
+    expect(f.nativeElement.querySelector('.accounts-section').textContent).toContain('No accounts yet');
   });
 
   it('offers 1D and renders directional trend icons', () => {

@@ -81,6 +81,19 @@
         }
       }
     </section>
-    <section class="transactions-section"><h2>Transactions</h2></section>
+    <section class="transactions-section" aria-labelledby="transactions-heading" [attr.aria-busy]="summaryLoading()">
+      <h2 id="transactions-heading">Recent Transactions</h2>
+      @if (summaryLoading()) {
+        <p class="text-muted" role="status">Loading your transactions…</p>
+      } @else if (summaryError()) {
+        <div role="status"><p>Your transactions couldn’t load.</p><button type="button" class="retry-button" (click)="loadSummary()">Retry transactions</button></div>
+      } @else if (dashboard(); as summary) {
+        @if (summary.recentTransactions.length) {
+          <app-transaction-list [transactions]="summary.recentTransactions" />
+        } @else {
+          <p class="text-muted" role="status">No transactions yet. Your latest activity will appear here once recorded.</p>
+        }
+      }
+    </section>
   </div>
 </div>

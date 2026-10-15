@@ -2,7 +2,6 @@ import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angula
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
-import { Router } from '@angular/router';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { AuthService } from '../../core/services/auth.service';
 import { HouseholdService } from '../../core/services/household.service';
@@ -12,10 +11,11 @@ import { TrendChart } from '../../shared/components/trend-chart/trend-chart';
 import { Icon } from '../../shared/components/icon/icon';
 import { getTrendDates, TrendRange } from './trend-range';
 import { AccountList } from './account-list/account-list';
+import { TransactionList } from './transaction-list/transaction-list';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CurrencyPipe, DecimalPipe, TrendChart, Icon, AccountList],
+  imports: [CurrencyPipe, DecimalPipe, TrendChart, Icon, AccountList, TransactionList],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
@@ -23,7 +23,6 @@ export class Dashboard implements OnInit {
   private readonly dashboardService = inject(DashboardService);
   private readonly authService = inject(AuthService);
   private readonly householdService = inject(HouseholdService);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private trendRequest?: Subscription;
 
@@ -94,7 +93,4 @@ export class Dashboard implements OnInit {
       });
   }
 
-  goToCreateTransaction(): void {
-    this.router.navigate(['/transactions/new']);
-  }
 }

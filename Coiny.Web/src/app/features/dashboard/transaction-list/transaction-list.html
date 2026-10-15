@@ -1,0 +1,23 @@
+<div class="column-labels" aria-hidden="true"><span>Account</span><span>Amount</span><span>Details</span></div>
+<ul class="transaction-list">
+  @for (transaction of transactions; track transaction.id) {
+    <li class="transaction-row">
+      <span class="institution-avatar" aria-hidden="true">{{ initial(transaction) }}</span>
+      <div class="account-details"><strong>{{ transaction.accountName }}</strong><span>{{ transaction.institutionName || 'No institution' }}</span></div>
+      <div class="amount-details">
+        <span class="transaction-amount" [class.income]="transaction.categoryType === 'Income'" [class.expense]="transaction.categoryType === 'Expense'">
+          @if (transaction.categoryType === 'Income' || transaction.categoryType === 'Expense') {
+            <app-icon class="amount-icon" [name]="transaction.categoryType === 'Income' ? 'up' : 'down'" />
+          }
+          <span>{{ transaction.categoryType === 'Income' ? '+' : transaction.categoryType === 'Expense' ? '−' : '' }}{{ magnitude(transaction.amount) | currency }}</span>
+        </span>
+        @if (transaction.categoryType === 'Transfer') {<small>Transfer</small>}
+      </div>
+      <div class="transaction-details">
+        <span>{{ transaction.description.trim() || transaction.categoryName }}</span>
+        @if (transaction.merchant?.trim()) {<strong>{{ transaction.merchant }}</strong>}
+        <time [attr.datetime]="calendarDate(transaction)" [attr.title]="calendarDate(transaction) | date:'longDate':'UTC'">{{ calendarDate(transaction) | date:'MMM d, y':'UTC' }}</time>
+      </div>
+    </li>
+  }
+</ul>
