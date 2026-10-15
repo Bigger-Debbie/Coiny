@@ -3,7 +3,7 @@
 .chart:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
 svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .line { fill: none; stroke: var(--color-accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.area { fill: var(--color-accent); opacity: 0.025; }
+.area { fill: var(--color-accent); opacity: 0.12; }
 .zero-line { stroke: var(--color-border); stroke-dasharray: 4 6; vector-effect: non-scaling-stroke; }
 .guide { stroke: var(--color-primary); opacity: 0.25; vector-effect: non-scaling-stroke; }
 .dot, .active-dot { fill: var(--color-accent); }

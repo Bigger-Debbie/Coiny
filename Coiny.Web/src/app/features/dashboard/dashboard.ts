@@ -42,7 +42,7 @@ export class Dashboard implements OnInit {
   };
   readonly absoluteChange = computed(() => Math.abs(this.trend()?.absoluteChange ?? 0));
   readonly percentageMagnitude = computed(() => Math.abs(this.trend()?.percentageChange ?? 0));
-  readonly firstName = signal<string | null>(null);
+  readonly firstName = computed(() => this.authService.currentUser()?.firstName?.trim() || null);
   readonly householdName = signal<string | null>(null);
   readonly householdGreeting = computed(() => {
     const name = this.householdName()?.trim();
@@ -55,8 +55,7 @@ export class Dashboard implements OnInit {
     this.loadSummary();
     this.loadTrend();
     this.authService.getCurrentUser().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: user => this.firstName.set(user.firstName?.trim() || null),
-      error: () => this.firstName.set(null),
+      error: () => { /* AuthService exposes the shared fallback state. */ },
     });
     this.householdService.getCurrentHousehold().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: household => this.householdName.set(household.name),

@@ -12,7 +12,7 @@ remain future work.
 
 | Area | Implemented | Still planned |
 | --- | --- | --- |
-| Authentication | Registration/login APIs, current-user profile, basic login screen, token storage and route guard | Polished login, signup UI, visible logout, complete expired-session handling |
+| Authentication | Registration/login APIs, shared current-user profile, header menu/local logout, basic login screen, token storage and route guard | Polished login, signup UI, complete expired-session handling |
 | Households | Create/get current household, ownership-scoped financial services | Invitations, member management, household switching |
 | Financial data | Create/list institutions, accounts, categories, transactions | Management pages, edit/delete flows, paired transfers, imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
@@ -62,7 +62,8 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 ## Next milestones
 
 The dashboard's hero chart, Accounts pane, and Recent Transactions pane are
-implemented. The next agreed focus is authentication: logout, login presentation,
+implemented, along with the header profile menu and local logout. The next
+authentication steps are complete expired-session handling, login presentation,
 registration/signup, and new-user setup. Dedicated account and transaction
 management pages follow separately.
 

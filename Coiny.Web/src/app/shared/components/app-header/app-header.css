@@ -21,6 +21,7 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    transform: translateX(-4px);
 }
 
 .brand-logo{
@@ -82,4 +83,14 @@
 
     cursor: pointer;
 }
+
+.user { position: relative; }
+.avatar-button:focus-visible, .logout-button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.profile-menu { position: absolute; top: calc(100% + 0.75rem); right: 0; z-index: 20; width: min(18rem, calc(100vw - 2rem)); padding: 0.5rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
+.profile-details { display: grid; gap: 0.25rem; padding: 0.75rem; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.profile-details strong { color: var(--color-primary); }
+.profile-details span { color: var(--color-text-muted); font-size: 0.85rem; }
+.logout-button { display: block; width: 100%; min-height: 2.75rem; margin-top: 0.5rem; text-align: left; color: var(--color-primary); background: transparent; font-weight: 400; }
+.logout-button:hover { background: var(--color-background); transform: none; }
+@media (max-width: 600px) { .header-content { flex-wrap: wrap; gap: 1rem; } .navigation { gap: 1rem; margin-left: auto; } }
 

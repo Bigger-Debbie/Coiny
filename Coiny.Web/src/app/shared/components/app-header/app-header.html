@@ -35,10 +35,26 @@
                     name="budget">
                 </app-icon>
             </a>
-            <div class="user">
-                <button class="avatar-button" type="button">
-                    A
+            <div class="user" #profileRoot (focusout)="onFocusOut($event)">
+                <button #avatarButton class="avatar-button" type="button" aria-label="Profile menu"
+                    aria-haspopup="menu" [attr.aria-expanded]="menuOpen()" aria-controls="profile-menu"
+                    (click)="toggleMenu()" (keydown)="onAvatarKeydown($event)">
+                    {{ initial() }}
                 </button>
+                @if (menuOpen()) {
+                    <div id="profile-menu" class="profile-menu" role="menu" aria-label="Your account" (keydown)="onMenuKeydown($event)">
+                        <div class="profile-details" role="none">
+                            @if (auth.currentUser(); as user) {
+                                <strong>{{ user.firstName?.trim() || 'Your account' }}</strong>
+                                <span>{{ user.email }}</span>
+                            } @else {
+                                <strong>Your account</strong>
+                                <span role="status">{{ auth.profileLoading() ? 'Loading profile…' : 'Profile unavailable' }}</span>
+                            }
+                        </div>
+                        <button #logoutButton type="button" role="menuitem" class="logout-button" (click)="logout()">Log out</button>
+                    </div>
+                }
             </div>
         </nav>
     </div>

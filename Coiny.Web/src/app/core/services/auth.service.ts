@@ -1,6 +1,6 @@
-import { Injectable, inject } from "@angular/core";
+import { Injectable, inject, signal } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
-import { Observable } from "rxjs";
+import { defer, finalize, Observable, shareReplay, Subject, takeUntil, tap } from "rxjs";
 import { jwtDecode } from "jwt-decode";
 
 import { environemnt } from "../../../environments/environment";
@@ -21,6 +21,15 @@ export class AuthService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environemnt.apiUrl}/auth`;
     private readonly tokenKey = 'coiny_token';
+    private readonly profile = signal<CurrentUser | null>(null);
+    private readonly loadingProfile = signal(false);
+    private readonly failedProfile = signal(false);
+    private readonly profileInvalidated = new Subject<void>();
+    private profileRequest?: Observable<CurrentUser>;
+
+    readonly currentUser = this.profile.asReadonly();
+    readonly profileLoading = this.loadingProfile.asReadonly();
+    readonly profileError = this.failedProfile.asReadonly();
 
     login(request: LoginRequest): Observable<LoginResponse> {
         return this.http.post<LoginResponse>(
@@ -29,10 +38,30 @@ export class AuthService {
     }
 
     getCurrentUser(): Observable<CurrentUser> {
-        return this.http.get<CurrentUser>(`${this.apiUrl}/me`);
+        if (!this.profileRequest) {
+            this.profileRequest = defer(() => {
+                this.loadingProfile.set(true);
+                this.failedProfile.set(false);
+                return this.http.get<CurrentUser>(`${this.apiUrl}/me`);
+            }).pipe(
+                takeUntil(this.profileInvalidated),
+                tap({
+                    next: user => this.profile.set(user),
+                    error: () => {
+                        this.profile.set(null);
+                        this.failedProfile.set(true);
+                        this.profileRequest = undefined;
+                    }
+                }),
+                finalize(() => this.loadingProfile.set(false)),
+                shareReplay({ bufferSize: 1, refCount: true })
+            );
+        }
+        return this.profileRequest;
     }
 
     setToken(token: string): void {
+        this.clearProfile();
         localStorage.setItem(this.tokenKey, token);
     }
 
@@ -42,6 +71,17 @@ export class AuthService {
 
     logout(): void {
         localStorage.removeItem(this.tokenKey);
+        this.clearProfile();
+    }
+
+    private clearProfile(): void {
+        // Cancel a pending profile request so a response from the old session
+        // cannot repopulate the user after logout or a different login.
+        this.profileInvalidated.next();
+        this.profileRequest = undefined;
+        this.profile.set(null);
+        this.loadingProfile.set(false);
+        this.failedProfile.set(false);
     }
 
     isTokenExpired(token: string): boolean {

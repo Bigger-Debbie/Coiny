@@ -34,10 +34,10 @@ Start the API normally afterward:
 dotnet run --project Coiny.API --launch-profile http
 ```
 
-Log out of any old browser session and sign in again. Deleted users' old tokens
-cannot access the newly created demo household. Until visible logout is wired,
-remove `coiny_token` from this site's local storage using browser developer tools,
-then visit `/login`.
+Log out through the header profile menu and sign in again. Deleted users' old
+tokens cannot access the newly created demo household. If the old page is
+unavailable, remove `coiny_token` from this site's local storage using browser
+developer tools, then visit `/login`.
 
 ## Development-only login
 

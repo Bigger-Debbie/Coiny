@@ -4,6 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter } from '@angular/router';
 import { Dashboard } from './dashboard';
 import { TrendResult } from '../../shared/models/trends/trend-result';
+import { AppHeader } from '../../shared/components/app-header/app-header';
 const trend: TrendResult = {
   points: [{ date: '2026-10-01', value: 100 }, { date: '2026-10-02', value: 125 }],
   startingValue: 100, endingValue: 125, absoluteChange: 25, percentageChange: 25, direction: 'Up',
@@ -12,7 +13,7 @@ const summaryData = { netWorth: { currentValue: 500, retirement: 300, liquidFund
 describe('Dashboard', () => {
   let http: HttpTestingController;
   beforeEach(() => {
-    TestBed.configureTestingModule({ imports: [Dashboard], providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])] });
+    TestBed.configureTestingModule({ imports: [Dashboard, AppHeader], providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])] });
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
@@ -52,6 +53,17 @@ describe('Dashboard', () => {
     expect(f.nativeElement.querySelector('.welcome-panel p').textContent).toBe('The Ross household at a glance.');
     expect(Array.from(f.nativeElement.querySelectorAll('.range-controls button'), (button: any) => button.textContent.trim()))
       .toEqual(['1D', '1W', '1M', '3M', '6M', '1Y', 'YTD']);
+  });
+  it('shares one profile request with the header', () => {
+    const header = TestBed.createComponent(AppHeader);
+    header.detectChanges();
+    const { f, summary, initial } = render();
+    summary.flush(summaryData);
+    initial.flush(trend);
+    header.detectChanges(); f.detectChanges();
+    expect(header.nativeElement.querySelector('.avatar-button').textContent.trim()).toBe('A');
+    expect(f.nativeElement.querySelector('.welcome-panel h2').textContent).toBe('Welcome back, Alex');
+    http.expectNone(r => r.url.endsWith('/auth/me'));
   });
   it('cancels superseded range requests', () => {
     const { f, summary, initial } = render();

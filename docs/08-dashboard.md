@@ -23,6 +23,7 @@ The header's blue divider is one pixel thick to match the site's light borders.
 
 Financial summary, selected trend, and personalization load independently. Failed
 profile requests fall back to generic text rather than blocking financial data.
+The header and dashboard share the current-user request/state through `AuthService`.
 Accounts and transactions share the summary request; retrying either reloads it.
 
 ## Hero chart
@@ -114,9 +115,12 @@ details rearrange for narrower screens.
 | `/` | Redirects to dashboard inside the protected layout |
 | `/accounts`, `/transactions`, `/budget` | Planned destinations; no route implementations |
 
-The header includes navigation markup for those planned destinations and a static
-avatar. A functional profile/logout menu, signup, and household onboarding are
-still planned. See [authentication](04-user-profile.md) for the current boundary.
+The header includes navigation markup for the planned destinations. Its dynamic
+initial opens a profile menu with name/email and local logout, including keyboard
+navigation and outside-click dismissal. Signup, full expired-session handling,
+and household onboarding remain planned. See
+[authentication](04-user-profile.md#header-profile-menu-and-local-logout) for the
+current boundary.
 
 ## Components and styling
 
@@ -125,6 +129,7 @@ still planned. See [authentication](04-user-profile.md) for the current boundary
 - `AccountList`: account rows and favorable/unfavorable trend presentation.
 - `TransactionList`: recent ledger rows and signed category amounts.
 - `Icon`: shared SVG shapes, including the supplied up/down assets.
+- `AppHeader`: shared profile state, accessible menu, and local logout.
 - `AppFooter`: shared copyright and horizontal logo in the protected app layout.
 
 Reuse the existing CSS tokens in `src/styles/variables.css`. Keep business signs,

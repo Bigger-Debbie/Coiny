@@ -139,6 +139,8 @@ Current verification baseline:
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
+- Dashboard CSS currently slightly exceeds its 4 kB warning budget; the production
+  build still passes.
 - There is no committed backend test project or end-to-end browser suite yet.
   Temporary backend integration checks used during development are not repository
   tests, and `dotnet build` does not run them.
@@ -149,7 +151,7 @@ Current verification baseline:
 | --- | --- |
 | Missing JWT configuration/key | Configure `Jwt:Key`; use the Development launch profile for user secrets |
 | SQLite reports a missing table/column | Stop the API, apply migrations to the same connection string, restart |
-| Login fails after a reset | Remove the old local-storage token and use the newly seeded credentials |
+| Login fails after a reset | Log out through the header menu (or remove the old local-storage token) and use the newly seeded credentials |
 | Dashboard errors for a new registration | Create the user's household before financial API calls |
 | Account trends missing after an API change | Restart the API so its response includes `monthlyTrend` |
 | Frontend cannot reach API | Confirm launch URL, `environment.ts`, and allowed CORS origin |
