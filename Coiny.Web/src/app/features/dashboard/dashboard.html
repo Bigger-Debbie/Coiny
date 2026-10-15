@@ -1,59 +1,73 @@
 <div class="dashboard-layout">
-  <section class="net-worth-section">
-    
+  <section class="net-worth-section" aria-label="Your financial overview">
     <div class="net-worth-main">
       <div class="net-worth-summary">
-        
         <div class="net-worth-primary">
           <h1 class="net-worth-value">
-            {{ dashboard?.netWorth | currency }}
+            @if (dashboard(); as summary) {
+              {{ summary.netWorth.currentValue | currency }}
+            } @else {
+              <span [attr.aria-label]="summaryLoading() ? 'Loading net worth' : 'Net worth unavailable'">—</span>
+            }
           </h1>
-          <span class="net-worth-label">
-            Net Worth
-          </span>
+          <span class="net-worth-label">Net Worth</span>
         </div>
-
-        <div class="net-worth-change">
-          <span class="change-icon"></span>
-          <span class="change-value">
-            $2,500 (2.01%)
-          </span>
+        <div class="net-worth-change" aria-live="polite">
+          @if (trend(); as result) {
+            @if (result.absoluteChange !== null) {
+              <span class="change-value" [class.positive]="result.direction === 'Up'" [class.negative]="result.direction === 'Down'">
+                @if (result.direction !== 'Neutral') {
+                  <app-icon class="change-icon" [name]="result.direction === 'Up' ? 'up' : 'down'" />
+                }
+                {{ result.direction === 'Up' ? '+' : result.direction === 'Down' ? '−' : '' }}{{ absoluteChange() | currency }}
+                @if (result.percentageChange !== null) {
+                  <span class="change-percent">(
+                    {{ result.percentageChange > 0 ? '+' : result.percentageChange < 0 ? '−' : '' }}{{ percentageMagnitude() | number:'1.1-1' }}%
+                  )</span>
+                }
+              </span>
+              <span class="change-period">over {{ rangeDescriptions[selectedRange()] }}</span>
+            }
+          }
         </div>
-
       </div>
-      <div class="net-worth-chart">
-        Chart
+      @if (summaryError()) {
+        <div class="summary-error" role="status">Your current balances couldn’t load.
+          <button type="button" class="retry-button" (click)="loadSummary()">Retry balances</button>
+        </div>
+      }
+      <div class="net-worth-chart" [attr.aria-busy]="trendLoading()">
+        @if (trendLoading()) {
+          <div class="chart-state" role="status"><span class="loading-line"></span><p>Loading your financial picture…</p></div>
+        } @else if (trendError()) {
+          <div class="chart-state" role="status"><h2>Your trend couldn’t load</h2><p>Please try again in a moment.</p><button type="button" class="retry-button" (click)="loadTrend()">Try again</button></div>
+        } @else if (trend(); as result) {
+          @if (result.points.length) {
+            <app-trend-chart [points]="result.points" label="Net worth history. Use arrow keys to explore dates and balances." />
+          } @else {
+            <div class="chart-state" role="status"><h2>A fresh start</h2><p>No account history for this period. Choose a longer range or add an account to begin.</p></div>
+          }
+        }
       </div>
       <div class="net-worth-range">
-        Time Range
+        <span class="chart-caption">Daily closing balance</span>
+        <div class="range-controls" role="group" aria-label="Net worth date range">
+          @for (range of ranges; track range) {
+            <button type="button" [class.selected]="selectedRange() === range" [attr.aria-pressed]="selectedRange() === range"
+              [attr.aria-label]="rangeDescriptions[range]" (click)="selectRange(range)">{{ range }}</button>
+          }
+        </div>
       </div>
     </div>
-
-    <aside class="net-worth-sidebar">
-      <div class="welcome-panel">
-        Welcome
-      </div>
-
-      <div class="summary-panel">
-        Retirement
-      </div>
-
-      <div class="summary-panel">
-        Liquid Funds
-      </div>
-
-      <div class="summary-panel">
-        Debt
-      </div>
+    <aside class="net-worth-sidebar" aria-label="Balance breakdown">
+      <div class="welcome-panel"><h2>Welcome back@if (firstName()) {, {{ firstName() }}}</h2><p>{{ householdGreeting() }}</p></div>
+      <div class="summary-panel retirement"><strong>{{ dashboard() ? (dashboard()!.netWorth.retirement | currency) : '—' }}</strong><span>Retirement</span></div>
+      <div class="summary-panel liquid"><strong>{{ dashboard() ? (dashboard()!.netWorth.liquidFunds | currency) : '—' }}</strong><span>Liquid Funds</span></div>
+      <div class="summary-panel debt"><strong>{{ dashboard() ? (dashboard()!.netWorth.debt | currency) : '—' }}</strong><span>Debt</span></div>
     </aside>
-
   </section>
   <div class="dashboard-columns">
-    <section class="accounts-section">
-      Accounts
-    </section>
-    <section class="transactions-section">
-      Transactions
-    </section>
+    <section class="accounts-section"><h2>Accounts</h2></section>
+    <section class="transactions-section"><h2>Transactions</h2></section>
   </div>
 </div>

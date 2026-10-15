@@ -3,6 +3,7 @@ using Coiny.API.Interfaces;
 using Coiny.API.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Coiny.API.Controllers;
 
@@ -31,6 +32,7 @@ public class AuthController : ControllerBase
         {
             UserName = request.Email,
             Email = request.Email,
+            FirstName = request.FirstName.Trim(),
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -44,6 +46,23 @@ public class AuthController : ControllerBase
         {
             Token = token,
             Email = user.Email ?? string.Empty
+        });
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<CurrentUserResponse>> GetCurrentUser()
+    {
+        var user = await _userManager.GetUserAsync(User);
+
+        if (user is null)
+            return Unauthorized();
+
+        return Ok(new CurrentUserResponse
+        {
+            Id = user.Id,
+            Email = user.Email ?? string.Empty,
+            FirstName = user.FirstName
         });
     }
 

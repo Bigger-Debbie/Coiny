@@ -1,0 +1,28 @@
+<div class="chart" role="slider" [attr.tabindex]="plot.length ? 0 : -1"
+  [attr.aria-label]="label" aria-valuemin="0" [attr.aria-valuemax]="plot.length ? plot.length - 1 : 0"
+  [attr.aria-valuenow]="activeIndex ?? 0" [attr.aria-valuetext]="accessibleValue"
+  (pointermove)="inspect($event)" (pointerdown)="inspect($event)" (pointerleave)="leave($event)"
+  (focus)="focus()" (blur)="blur()" (keydown)="onKeydown($event)">
+  <svg viewBox="0 0 800 240" preserveAspectRatio="none" aria-hidden="true">
+    @if (zeroY !== null) {
+      <line x1="20" x2="780" [attr.y1]="zeroY" [attr.y2]="zeroY" class="zero-line" />
+    }
+    @if (plot.length > 1) {
+      <path [attr.d]="areaPath" class="area" />
+      <path [attr.d]="linePath" class="line" />
+    }
+    @if (plot.length === 1) {
+      <circle [attr.cx]="plot[0].x" [attr.cy]="plot[0].y" r="4" class="dot" />
+    }
+    @if (activePoint; as point) {
+      <line [attr.x1]="point.x" [attr.x2]="point.x" y1="54" y2="232" class="guide" />
+      <circle [attr.cx]="point.x" [attr.cy]="point.y" r="5" class="active-dot" />
+    }
+  </svg>
+  @if (activePoint; as point) {
+    <div class="tooltip" [style.left]="tooltipLeft" aria-hidden="true">
+      <span>{{ point.date | date:'MMM d, y':'UTC' }}</span>
+      <strong>{{ point.value | currency:'USD':'symbol':'1.2-2' }}</strong>
+    </div>
+  }
+</div>

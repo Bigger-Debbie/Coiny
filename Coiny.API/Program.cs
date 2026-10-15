@@ -1,8 +1,10 @@
 using Coiny.API.Extensions;
 using Coiny.API.Configuration;
 using System.Text.Json.Serialization;
+using Coiny.API.Data;
 
-var builder = WebApplication.CreateBuilder(args);
+var seedDemo = args.Contains("--seed-demo");
+var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--seed-demo").ToArray());
 
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddIdentityServices();
@@ -34,6 +36,16 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (seedDemo)
+{
+    if (!app.Environment.IsDevelopment())
+        throw new InvalidOperationException("Demo seeding is only available in Development.");
+
+    await using var scope = app.Services.CreateAsyncScope();
+    await scope.ServiceProvider.GetRequiredService<DemoDataSeeder>().SeedAsync();
+    return;
+}
 
 if (app.Environment.IsDevelopment())
 {

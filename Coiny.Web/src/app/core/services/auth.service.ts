@@ -7,6 +7,7 @@ import { environemnt } from "../../../environments/environment";
 
 import { LoginRequest } from "../../shared/models/auth/login-request";
 import { LoginResponse } from "../../shared/models/auth/login-response";
+import { CurrentUser } from '../../shared/models/auth/current-user';
 
 interface JwtPayload {
     exp?: number;
@@ -25,6 +26,10 @@ export class AuthService {
         return this.http.post<LoginResponse>(
             `${this.apiUrl}/login`,
             request);
+    }
+
+    getCurrentUser(): Observable<CurrentUser> {
+        return this.http.get<CurrentUser>(`${this.apiUrl}/me`);
     }
 
     setToken(token: string): void {
