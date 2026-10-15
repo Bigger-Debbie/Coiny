@@ -1,13 +1,14 @@
 import { Component, inject } from '@angular/core';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../core/services/auth.service';
 
 import { AppHeader } from '../../shared/components/app-header/app-header';
+import { AppFooter } from '../../shared/components/app-footer/app-footer';
 
 @Component({
   selector: 'app-app-layout',
-  imports: [RouterLink, RouterOutlet, AppHeader],
+  imports: [RouterOutlet, AppHeader, AppFooter],
   templateUrl: './app-layout.html',
   styleUrl: './app-layout.css',
 })

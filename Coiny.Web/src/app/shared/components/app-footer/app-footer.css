@@ -1,0 +1,7 @@
+:host { display: block; }
+.app-footer { padding-block: 1.5rem; color: var(--color-text); }
+.footer-content { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; text-align: center; }
+small { color: inherit; font-size: 0.75rem; }
+.footer-brand { display: inline-flex; align-items: center; gap: 0.75rem; }
+.footer-brand > span { color: var(--color-border); }
+img { width: 6.5rem; height: auto; }

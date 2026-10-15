@@ -9,6 +9,11 @@ right, and Accounts and Recent Transactions panes below. It adapts to stacked
 layouts on narrower screens. The sidebar stretches on desktop so its final
 balance card aligns with the bottom of the trend section.
 
+The shared app layout includes a centered footer with the current year,
+copyright text, and `Coiny-Logo-Hrztl.svg`. It stays at the bottom of short pages
+and follows content on long pages, wrapping its text/logo on narrow screens.
+The header's blue divider is one pixel thick to match the site's light borders.
+
 | Data | Source |
 | --- | --- |
 | Current net worth, retirement, liquid funds, debt, accounts, recent transactions | `GET /api/dashboard` |
@@ -120,6 +125,7 @@ still planned. See [authentication](04-user-profile.md) for the current boundary
 - `AccountList`: account rows and favorable/unfavorable trend presentation.
 - `TransactionList`: recent ledger rows and signed category amounts.
 - `Icon`: shared SVG shapes, including the supplied up/down assets.
+- `AppFooter`: shared copyright and horizontal logo in the protected app layout.
 
 Reuse the existing CSS tokens in `src/styles/variables.css`. Keep business signs,
 calendar rules, and API contracts consistent with the backend. See

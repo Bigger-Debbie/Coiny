@@ -138,8 +138,7 @@ Current verification baseline:
 - The committed dashboard/component tests pass.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
-- Existing build warnings include nullable properties in `HouseholdMember` and
-  an unused `RouterLink` import in `AppLayout`.
+- Existing backend build warnings include nullable properties in `HouseholdMember`.
 - There is no committed backend test project or end-to-end browser suite yet.
   Temporary backend integration checks used during development are not repository
   tests, and `dotnet build` does not run them.

@@ -2,9 +2,9 @@
 .net-worth-section { display: grid; grid-template-columns: minmax(0, 2.5fr) minmax(18rem, 1fr); gap: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border); }
 .net-worth-main { display: flex; flex-direction: column; min-width: 0; }
 .net-worth-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
-.net-worth-primary { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75rem; }
-.net-worth-label { color: var(--color-warning); padding-left: 0.75rem; border-left: 1px solid var(--color-accent); font-size: 1.1rem; }
-.net-worth-value { margin: 0; font-family: var(--font-body); font-size: clamp(2rem, 3vw, 2.75rem); font-weight: 400; letter-spacing: -0.04em; line-height: 1.2; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.net-worth-primary { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.75rem; }
+.net-worth-label { color: var(--color-warning); padding-left: 0.75rem; border-left: 1px solid var(--color-accent); font-size: 1.1rem; line-height: 1; margin-bottom: 0.2rem; }
+.net-worth-value { margin: 0; font-family: var(--font-body); font-size: clamp(2rem, 3vw, 2.75rem); font-weight: 400; letter-spacing: -0.04em; line-height: 1; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .change-period, .chart-caption { color: var(--color-text-muted); font-size: 0.8rem; }
 .net-worth-change { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
 .change-value { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--color-text-muted); font-size: 0.95rem; font-variant-numeric: tabular-nums; }
