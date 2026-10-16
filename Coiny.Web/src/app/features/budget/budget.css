@@ -7,7 +7,7 @@ p { line-height:1.6; }
 .page-heading { margin-bottom:1.5rem; }
 .page-heading p, small, .hint, .empty { color:var(--color-text-muted); }
 .panel { border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1.5rem; background:var(--color-surface); }
-.intro { display:flex; align-items:center; gap:2rem; margin-bottom:1.5rem; }
+.intro { display:flex; align-items:center; gap:2rem; margin:1.5rem 0 0; }
 .intro > div { flex:1; }
 .intro button { flex-shrink:0; }
 .draft-note { color:var(--color-primary); font-weight:700; }

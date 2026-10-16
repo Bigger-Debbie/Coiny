@@ -46,3 +46,11 @@ small,
 .text-muted {
   color: var(--color-text-muted);
 }
+
+.page-title {
+  font: inherit;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  margin: 0;
+  color: var(--color-primary);
+}

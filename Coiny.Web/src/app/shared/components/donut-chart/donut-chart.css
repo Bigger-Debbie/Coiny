@@ -21,3 +21,5 @@ small { font-size: .7rem; color: var(--color-text-muted); }
 .amount { display: grid; gap: .15rem; margin-left: auto; text-align: right; font-size: .85rem; color: var(--color-danger); font-variant-numeric: tabular-nums; }
 .amount.income { color: var(--color-success); }
 @media (prefers-reduced-motion: reduce) { .slice-shape { transition: none; } .slice.active .slice-shape { transform: none; } }
+
+.amount.unsigned { color:var(--color-primary); }

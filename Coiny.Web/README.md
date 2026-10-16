@@ -30,7 +30,7 @@ For the known starter-test failure and focused dashboard/accounts test commands,
 | `src/app/core/guards/`, `interceptors/` | Route authentication and bearer header |
 | `src/app/features/dashboard/` | Hero, range selection, account list, recent transactions |
 | `src/app/features/auth/login/` | Branded login, animated coins, password toggle |
-| `src/app/features/budget/` | Five-step household budget wizard, save/resume, saved previews, publication, and plan summary |
+| `src/app/features/budget/` | Five-step household budget wizard, save/resume, saved previews, publication, monthly navigation, and allocation dashboard |
 | `src/app/features/accounts/` | Account selection, scoped trends, transaction filters/pages, creation modals, income/expense breakdown |
 | `src/app/features/transactions/create-transaction/` | Account-aware transaction form |
 | `src/app/shared/components/` | Header/footer, icons, selectors, modal shell, SVG trend and donut charts |

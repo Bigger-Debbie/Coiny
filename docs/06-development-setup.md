@@ -150,7 +150,9 @@ Current verification baseline after the category-breakdown implementation:
 - The dashboard, accounts, budgeting wizard, creation-form, and shared-component tests pass.
 - Budget wizard tests cover save/resume, full-draft preservation, validation, stale
   conflicts, unsaved navigation, publication, and future-only published plans.
-- The full frontend run has 92 passing tests out of 93; the remaining failure
+- Budget dashboard tests cover grouped allocations, unassigned/over-budget
+  presentation, separate payroll details, month navigation, retries, and stale responses.
+- The full frontend run has 97 passing tests out of 98; the remaining failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.

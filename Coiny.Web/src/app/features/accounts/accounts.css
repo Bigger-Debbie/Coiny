@@ -1,6 +1,5 @@
 :host { display: block; }
 .page-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin: .5rem 0 1.5rem; }
-.page-title { font: inherit; font-size: 1.4rem; margin: 0; }
 .page-heading > button, .pane-actions > button { font-size: .75rem; }
 .pane-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
 .notice { color: var(--color-success); font-size: .85rem; }

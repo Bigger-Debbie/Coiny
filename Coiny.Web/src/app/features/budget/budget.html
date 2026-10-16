@@ -1,5 +1,4 @@
-<section class="budget-page">
-  <header class="page-heading"><div><h1>Household budget</h1><p>Give your income a plan.</p></div></header>
+<section class="budget-page" aria-label="Household budget">
   @if (loading()) { <p role="status">Loading your household budget…</p> }
   @else {
     @if (notice()) { <p class="success" role="status">{{ notice() }}</p> }
@@ -11,21 +10,15 @@
       </div>
     }
     @if (setup(); as status) {
-      @if (!wizard()) {
-        <div class="intro panel">
-          <div><h2>{{ status.hasPublishedBudget ? 'Your household plan' : 'Let’s build your household budget' }}</h2>
-            <p>{{ status.hasPublishedBudget ? 'Your published plan is shared with your household. Edit a draft to make changes from a chosen month.' : 'Start with take-home income, plan your bills and spending, then decide what to save or invest.' }}</p>
-            <p>You can save and return at any step. These are plans; no money is moved and no transactions are created.</p>
-            @if (draft(); as saved) { <p class="draft-note">Saved draft · {{ steps[steps.length - 1].key === saved.setupStep ? 'Ready for review' : 'Setup in progress' }} · Effective {{ saved.effectiveFromMonth | date:'MMMM yyyy':'UTC' }}</p> }
-          </div>
-          <button class="button-primary" [disabled]="busy()" (click)="start()">{{ busy() ? 'Opening…' : draft() ? 'Continue setup' : status.hasPublishedBudget ? 'Edit budget' : 'Set up your budget' }}</button>
-        </div>
-      } @else {
+      @if (wizard()) {
         <ol class="steps" aria-label="Budget setup progress">
           @for (item of steps; track item.key; let i = $index) {
             <li [class.current]="step() === i" [attr.aria-current]="step() === i ? 'step' : null"><span>{{ i + 1 }}</span>{{ item.label }}</li>
           }
         </ol>
+      }
+      @if (!wizard() && status.hasPublishedBudget) {
+        <app-budget-dashboard [month]="projection()" [selectedMonth]="selectedMonth()" [loading]="monthLoading()" [error]="monthError()" (selectMonth)="loadPublished($event)" />
       }
       <div class="budget-layout" [class.setup-layout]="wizard()">
         @if (wizard()) {
@@ -87,7 +80,7 @@
             </div>
           </form>
         }
-        @if (wizard() || projection()) {
+        @if (wizard()) {
           <aside class="panel summary" aria-label="Monthly budget summary">
             <p class="eyebrow">{{ wizard() ? 'Saved draft preview' : 'Published monthly plan' }}</p>
             @if (wizard()) {
@@ -119,6 +112,16 @@
           </aside>
         }
       </div>
+      @if (!wizard()) {
+        <div class="intro panel">
+          <div><h2>{{ status.hasPublishedBudget ? 'Your household plan' : 'Let’s build your household budget' }}</h2>
+            <p>{{ status.hasPublishedBudget ? 'Your published plan is shared with your household. Edit a draft to make changes from a chosen month.' : 'Start with take-home income, plan your bills and spending, then decide what to save or invest.' }}</p>
+            <p>You can save and return at any step. These are plans; no money is moved and no transactions are created.</p>
+            @if (draft(); as saved) { <p class="draft-note">Saved draft · {{ steps[steps.length - 1].key === saved.setupStep ? 'Ready for review' : 'Setup in progress' }} · Effective {{ saved.effectiveFromMonth | date:'MMMM yyyy':'UTC' }}</p> }
+          </div>
+          <button class="button-primary" [disabled]="busy()" (click)="start()">{{ busy() ? 'Opening…' : draft() ? 'Continue setup' : status.hasPublishedBudget ? 'Edit budget' : 'Set up your budget' }}</button>
+        </div>
+      }
     }
   }
 </section>

@@ -7,7 +7,7 @@ SQLite, ASP.NET Core Identity, JWT authentication, and Angular.
 ## Current status
 
 Coiny has a working dashboard, accounts page, and household budget setup wizard.
-It is in active local development; budget charts/calendar, forecasting, and the
+It is in active local development; the budget calendar, forecasting, and the
 complete authentication experience remain future work.
 
 | Area | Implemented | Still planned |
@@ -17,7 +17,7 @@ complete authentication experience remain future work.
 | Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown | Edit/delete flows, paired transfers, imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Budget schema, recurrence, draft/preview/publish API, setup wizard, monthly plan summary | Allocation chart, calendar, goals, forecasting |
+| Planning | Budget schema, recurrence, draft/preview/publish API, setup wizard, monthly allocation donut and breakdown | Calendar, goals, forecasting |
 
 ## Get started
 
@@ -66,8 +66,8 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 The dashboard, login screen, profile menu/local logout, and accounts page with
 interactive income/expense category breakdown are implemented. Household budgeting
 now has models, recurrence, a draft/preview/publish API, and a resumable frontend
-setup wizard with a published-plan summary. Next are the allocation chart and
-calendar, followed by a richer budget overview.
+setup wizard and published monthly allocation dashboard. Next is the calendar,
+followed by richer budget editing and reporting.
 Account editing, deletion, and further reporting remain future work. Signup, password
 recovery, complete expired-session handling, and new-user setup are deferred.
 

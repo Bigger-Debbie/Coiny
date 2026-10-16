@@ -6,8 +6,8 @@
 
 The backend models, migrations, recurrence calculator, and household-scoped
 draft/publish/month-projection services and authenticated HTTP endpoints are implemented.
-The frontend setup wizard and a simple published-plan summary are implemented.
-The allocation chart, calendar, and richer budgeting dashboard remain to be built.
+The frontend setup wizard and published monthly allocation dashboard are implemented.
+The calendar, richer editing, and forecasting remain to be built.
 The existing account/category breakdown is a summary of recorded transactions;
 it is separate from the planned-income allocation chart described here.
 
@@ -210,7 +210,7 @@ server, JWT key, or live database required. See the
 2. Recurrence calculation and revision/draft workflows, including household access
    checks and publication validation — implemented.
 3. A resumable household setup wizard and its API — implemented.
-4. The monthly income-allocation donut with Unassigned/over-budget presentation.
+4. The monthly income-allocation donut with Unassigned/over-budget presentation — implemented.
 5. Calendar, upcoming scheduled items, and pay schedules.
 6. Budget overview/editing with effective-month changes.
 7. Forecasting and plan-versus-actual reporting later.
@@ -259,6 +259,46 @@ Stale or missing drafts block further writes and offer **Reload household draft*
 reloading asks before discarding unsaved edits. The client never retries a stale
 save by silently replacing its edit version.
 
-Publication shows a simple monthly totals/allocations summary. Planned calendar
-occurrences do not create transactions or imply payment completion. The allocation
-donut, calendar, and forecasting are separate future increments.
+Publication opens the monthly allocation dashboard described below. Planned calendar
+occurrences do not create transactions or imply payment completion. The calendar
+and forecasting are separate future increments.
+
+
+## Published monthly dashboard
+
+Published households open directly to **Your monthly outlook**; the shared-plan
+edit/resume block sits at the bottom of the page.
+The initial month is the current America/New_York month when a plan applies, or
+the first published effective month for a future-only plan. Previous/next controls
+and a month input request `/api/budgets/month`; historical and future months are
+supported. A new edit defaults to the selected month if future, otherwise the
+current month. Existing drafts always resume their saved effective month.
+
+Cards show take-home income, planned allocations, and either unassigned money or
+the amount over budget. The donut groups planned allocations into Housing, Bills,
+Everyday spending, Savings, and Investing, plus Unassigned. Group IDs and colors
+stay stable when groups disappear in different months. Zero-valued slices are
+omitted; no-payday/no-allocation months show an empty message.
+
+When allocations fit within income, slice percentages use take-home income as
+the denominator and include Unassigned. When allocations exceed income, the
+center reads **Total planned**, percentages use total allocations, and an explicit
+warning reports the shortfall. There is no invented extra-income or shortfall
+slice. Payroll health-insurance and retirement details are shown separately;
+they do not enter the donut or reduce take-home income again.
+
+The shared donut retains hover/focus enlargement, tooltips, tap/keyboard pinning,
+Escape dismissal, and reduced-motion support. Budget mode uses unsigned amounts,
+monthly plan labels, and no transaction counts. Account category charts retain
+their signed income/expense amounts and transaction counts.
+
+The **Budget breakdown** pane has four native, keyboard-accessible collapsible
+sections matching the wizard: Income, Housing & bills, Everyday spending, and
+Savings & investing. They start collapsed, with totals and item/source counts
+visible in each header. Paycheck deductions are inside Income. Expanding sections
+lists income by source/payday count and all defined allocations,
+including zero totals for items not due in that month. These are planned amounts,
+not actual spending. Six-month/yearly amounts appear in due months only. Loading,
+retryable request errors, and months without an applicable published revision
+have explicit states. Out-of-order responses cannot replace the newest selected
+month, and draft changes remain separate until published.

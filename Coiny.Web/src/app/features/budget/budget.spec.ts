@@ -140,6 +140,21 @@ describe('Budget setup', () => {
     http.expectOne(r => r.url.endsWith('/month')).flush(month);
     await publishing; expect(c.wizard()).toBe(false); expect(c.notice()).toContain('published');
   });
+  it('keeps the newest selected month when responses arrive out of order and exposes retryable errors', async () => {
+    const f = await render(); const c = f.componentInstance;
+    const older = c.loadPublished('2026-11-01');
+    const oldRequest = http.expectOne(r => r.url.endsWith('/month'));
+    const newer = c.loadPublished('2026-12-01');
+    http.expectOne(r => r.url.endsWith('/month')).flush({ ...month, month: '2026-12-01' });
+    await newer;
+    oldRequest.flush(month); await older;
+    expect(c.projection()!.month).toBe('2026-12-01');
+    expect(c.selectedMonth()).toBe('2026-12-01');
+    const failed = c.loadPublished('2027-01-01');
+    http.expectOne(r => r.url.endsWith('/month')).flush({}, { status: 500, statusText: 'Unavailable' });
+    await failed;
+    expect(c.monthError()).toBe(true); expect(c.projection()).toBeNull(); expect(c.monthLoading()).toBe(false);
+  });
   it('shows a future-only published plan without treating the household as new', async () => {
     const f = TestBed.createComponent(Budget); f.detectChanges();
     http.expectOne(r => r.url.endsWith('/setup')).flush({ ...setup, draft: null, hasPublishedBudget: true, firstPublishedMonth: '2026-11-01' });
@@ -148,6 +163,6 @@ describe('Budget setup', () => {
     expect(req.request.params.get('month')).toBe('2026-11-01'); req.flush(month);
     await vi.waitFor(() => expect(f.componentInstance.loading()).toBe(false)); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Edit budget');
-    expect(f.nativeElement.textContent).toContain('Published monthly plan');
+    expect(f.nativeElement.textContent).toContain('Your monthly outlook');
   });
 });

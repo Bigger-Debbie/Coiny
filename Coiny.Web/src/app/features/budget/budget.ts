@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BudgetService } from '../../core/services/budget.service';
 import { AllocationType, BudgetAllocation, BudgetDraftRequest, BudgetIncome, BudgetMonth, BudgetRevision, BudgetSchedule, BudgetSetup, BudgetStep } from '../../shared/models/budget/budget';
 import { SelectMenu, SelectOption } from '../../shared/components/select-menu/select-menu';
+import { BudgetDashboard } from './budget-dashboard';
 import { BudgetScheduleEditor } from './budget-schedule';
 
 const money = (control: AbstractControl): ValidationErrors | null => {
@@ -25,7 +26,7 @@ const scheduleValidator = (c: AbstractControl): ValidationErrors | null => {
 };
 
 @Component({
-  selector: 'app-budget', imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, SelectMenu, BudgetScheduleEditor],
+  selector: 'app-budget', imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, SelectMenu, BudgetScheduleEditor, BudgetDashboard],
   templateUrl: './budget.html', styleUrl: './budget.css',
 })
 export class Budget implements OnInit {
@@ -34,6 +35,10 @@ export class Budget implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   readonly setup = signal<BudgetSetup | null>(null);
   readonly draft = signal<BudgetRevision | null>(null);
+  readonly selectedMonth = signal('');
+  readonly monthLoading = signal(false);
+  readonly monthError = signal(false);
+  private monthRequest = 0;
   readonly projection = signal<BudgetMonth | null>(null);
   readonly wizard = signal(false);
   readonly previewLoading = signal(false);
@@ -79,12 +84,22 @@ export class Budget implements OnInit {
     } catch (e) { this.fail(e); }
     finally { this.loading.set(false); }
   }
-  private async loadPublished(month: string) { this.projection.set(await this.request(this.api.month(month))); }
+  async loadPublished(month: string) {
+    if (!validDate(month) || !month.endsWith('-01')) return;
+    const version = ++this.monthRequest;
+    this.selectedMonth.set(month); this.monthLoading.set(true); this.monthError.set(false); this.projection.set(null);
+    try {
+      const result = await this.request(this.api.month(month));
+      if (version === this.monthRequest) this.projection.set(result);
+    } catch { if (version === this.monthRequest) this.monthError.set(true); }
+    finally { if (version === this.monthRequest) this.monthLoading.set(false); }
+  }
   async start() {
     if (this.busy()) return;
     this.busy.set(true); this.error.set(''); this.notice.set('');
+    ++this.monthRequest; this.monthLoading.set(false);
     try {
-      const draft = this.draft() ?? await this.request(this.api.start(this.setup()!.currentMonth));
+      const draft = this.draft() ?? await this.request(this.api.start(this.selectedMonth() > this.setup()!.currentMonth ? this.selectedMonth() : this.setup()!.currentMonth));
       this.hydrate(draft); this.wizard.set(true);
       await this.refreshPreview(); this.focusStep();
     } catch (e) { this.fail(e); }

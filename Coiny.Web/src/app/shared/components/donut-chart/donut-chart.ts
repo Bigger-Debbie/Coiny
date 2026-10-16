@@ -17,6 +17,11 @@ export class DonutChart {
     this.hovered.set(null); this.focused.set(null); this.pinned.set(null);
   }
   @Input() total = 0;
+  @Input() centerLabel = '';
+  @Input() periodLabel = 'Selected period';
+  @Input() chartLabel = '';
+  @Input() showCounts = true;
+  @Input() unsigned = false;
   @Input() type: BreakdownType = 'Expense';
   readonly tooltipId = 'donut-tooltip-' + nextChartId++;
   readonly hovered = signal<number | null>(null);
@@ -54,7 +59,7 @@ export class DonutChart {
   }
   description(category: CategoryBreakdownItem): string {
     return category.categoryName + ': ' + new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
-      .format(category.amount) + ', ' + category.percentage.toFixed(1) + '%, ' + category.transactionCount
-      + (category.transactionCount === 1 ? ' transaction' : ' transactions');
+      .format(category.amount) + ', ' + category.percentage.toFixed(1) + '%'
+      + (this.showCounts ? ', ' + category.transactionCount + (category.transactionCount === 1 ? ' transaction' : ' transactions') : '');
   }
 }

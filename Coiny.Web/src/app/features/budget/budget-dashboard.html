@@ -1,0 +1,52 @@
+<section aria-label="Published budget dashboard">
+  <header class="dashboard-heading">
+    <div><h1 class="page-title">Your monthly outlook</h1><p>How your household’s take-home income is planned.</p></div>
+    <div class="month-picker">
+      <button type="button" class="button-ghost" aria-label="Previous month" [disabled]="loading || !adjacent(-1)" (click)="move(-1)">‹</button>
+      <div><label for="budget-month">Budget month</label><input id="budget-month" type="month" min="0001-02" max="9999-12" [disabled]="loading" [ngModel]="selectedMonth.slice(0, 7)" (ngModelChange)="change($event)" /></div>
+      <button type="button" class="button-ghost" aria-label="Next month" [disabled]="loading || !adjacent(1)" (click)="move(1)">›</button>
+    </div>
+  </header>
+  @if (loading) { <p role="status">Loading the published plan for {{ selectedMonth | date:'MMMM yyyy':'UTC' }}…</p> }
+  @else if (error) { <div class="panel" role="alert"><p>This month’s budget couldn’t load.</p><button class="button-outline" (click)="selectMonth.emit(selectedMonth)">Try again</button></div> }
+  @else if (month; as plan) {
+    @if (plan.revisionId === null) { <div class="panel"><h3>No published plan for this month</h3><p>Choose a month when your budget is in effect. Draft changes appear here after you publish them.</p></div> }
+    @else {
+      <div class="totals" aria-label="Monthly planned totals">
+        <div class="panel"><span>Take-home income</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
+        <div class="panel"><span>Planned allocations</span><strong>{{ plan.allocated | currency }}</strong></div>
+        <div class="panel" [class.over]="plan.overBudget > 0"><span>{{ plan.overBudget > 0 ? 'Over budget' : 'Unassigned' }}</span><strong>{{ (plan.overBudget > 0 ? plan.overBudget : plan.unassigned) | currency }}</strong></div>
+      </div>
+      <div class="outlook-grid">
+        <article class="panel allocation-chart">
+          <h3>Where your income is going</h3>
+          @if (total > 0) {
+            <app-donut-chart [categories]="categories" [total]="total" [centerLabel]="plan.overBudget > 0 ? 'Total planned' : 'Monthly income'"
+              [periodLabel]="(selectedMonth | date:'MMMM yyyy':'UTC') || ''" chartLabel="Planned income allocation" [showCounts]="false" [unsigned]="true" />
+          } @else { <p>No income or allocations are scheduled for this month.</p> }
+          @if (plan.overBudget > 0) { <p class="warning">Your plan exceeds take-home income by {{ plan.overBudget | currency }}. The donut shows shares of planned allocations, which total {{ plan.allocated | currency }}.</p> }
+          @else { <p class="hint">The donut includes what you’ve allocated and any income still unassigned. Hover, focus, or tap a segment for details.</p> }
+        </article>
+        <div class="detail-panels">
+          <article class="panel breakdown"><h3>Budget breakdown</h3>
+            <details class="budget-group">
+              <summary><span>Income<small>{{ plan.incomeSources.length }} {{ plan.incomeSources.length === 1 ? 'source' : 'sources' }}</small></span><strong>{{ plan.expectedIncome | currency }}</strong></summary>
+            @for (item of plan.incomeSources; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.occurrenceCount }} planned {{ item.occurrenceCount === 1 ? 'payday' : 'paydays' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
+            @empty { <p>No paydays scheduled this month.</p> }
+            @if (plan.healthInsurance || plan.retirementContributions) {
+              <div class="paycheck-details"><h4>Already deducted from paychecks</h4><div class="item"><span>Health insurance</span><strong>{{ plan.healthInsurance | currency }}</strong></div><div class="item"><span>Retirement contributions</span><strong>{{ plan.retirementContributions | currency }}</strong></div><small>For visibility only. Already excluded from take-home income and separate from the donut.</small></div>
+            }
+            </details>
+            @for (group of allocationSections; track group.key) {
+              <details class="budget-group">
+                <summary><span>{{ group.label }}<small>{{ group.items.length }} {{ group.items.length === 1 ? 'item' : 'items' }}</small></span><strong>{{ group.total | currency }}</strong></summary>
+                @for (item of group.items; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.allocationType === 'Investments' ? 'Investing' : item.allocationType }} · {{ item.occurrenceCount ? item.occurrenceCount + ' scheduled payments' : item.plannedAmount ? 'Monthly allocation' : 'Not scheduled this month' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
+                @empty { <p class="hint">No items defined in this section.</p> }
+              </details>
+            }
+          </article>
+        </div>
+      </div>
+    }
+  }
+</section>

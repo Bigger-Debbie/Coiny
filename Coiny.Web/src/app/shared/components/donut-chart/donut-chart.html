@@ -1,5 +1,5 @@
 <div class="donut-wrap">
-  <svg viewBox="0 0 320 320" role="group" [attr.aria-label]="(type === 'Expense' ? 'Expenses' : 'Income') + ' by category. Total: ' + (total | currency)">
+  <svg viewBox="0 0 320 320" role="group" [attr.aria-label]="(chartLabel || ((type === 'Expense' ? 'Expenses' : 'Income') + ' by category')) + '. Total: ' + (total | currency)">
     @for (slice of slices(); track slice.categoryId) {
       <g class="slice" role="button" tabindex="0" [class.active]="activeId() === slice.categoryId"
         [attr.aria-label]="description(slice)" [attr.aria-pressed]="pinned() === slice.categoryId"
@@ -18,15 +18,15 @@
     }
   </svg>
   <div class="center" aria-hidden="true">
-    <span>{{ type === 'Expense' ? 'Total Expenses' : 'Total Income' }}</span>
+    <span>{{ centerLabel || (type === 'Expense' ? 'Total Expenses' : 'Total Income') }}</span>
     <strong>{{ total | currency }}</strong>
-    <small>Selected period</small>
+    <small>{{ periodLabel }}</small>
   </div>
   @if (active(); as category) {
     <div class="tooltip" role="tooltip" [id]="tooltipId" [style.left]="'clamp(5.5rem, ' + category.tooltipX + '%, calc(100% - 5.5rem))'" [style.top.%]="category.tooltipY">
       <strong>{{ category.categoryName }}</strong>
       <span>{{ category.amount | currency }} · {{ category.percentage | number:'1.1-1' }}%</span>
-      <span>{{ category.transactionCount }} {{ category.transactionCount === 1 ? 'transaction' : 'transactions' }}</span>
+      @if (showCounts) { <span>{{ category.transactionCount }} {{ category.transactionCount === 1 ? 'transaction' : 'transactions' }}</span> }
     </div>
   }
 </div>
@@ -39,9 +39,9 @@
         (click)="toggle(category.categoryId)" (keydown.escape)="dismiss()">
         <span class="avatar" [style.background]="category.color"
           [style.color]="category.color === '#eb9a50' || category.color === '#d4a027' ? '#18181f' : 'white'" aria-hidden="true">{{ category.initial }}</span>
-        <span class="category"><strong>{{ category.categoryName }}</strong><small>{{ category.transactionCount }} {{ category.transactionCount === 1 ? 'transaction' : 'transactions' }}</small></span>
-        <span class="amount" [class.income]="type === 'Income'">
-          {{ type === 'Expense' ? '−' : '+' }}{{ category.amount | currency }}
+        <span class="category"><strong>{{ category.categoryName }}</strong>@if (showCounts) { <small>{{ category.transactionCount }} {{ category.transactionCount === 1 ? 'transaction' : 'transactions' }}</small> }</span>
+        <span class="amount" [class.unsigned]="unsigned" [class.income]="!unsigned && type === 'Income'">
+          {{ unsigned ? '' : type === 'Expense' ? '−' : '+' }}{{ category.amount | currency }}
           <small>{{ category.percentage | number:'1.1-1' }}%</small>
         </span>
       </button>
