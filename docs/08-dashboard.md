@@ -150,7 +150,28 @@ category filter immediately; the transaction modal loads the latest categories
 when opened. Duplicate-name errors stay visible in the form for correction.
 Institution creation and account edit/delete are separate future work.
 
-The spending-by-category donut is the next accounts-page increment.
+## Income and expense breakdown
+
+A bordered category pane sits beside Transactions on desktop and below it on
+narrow screens. It defaults to Expenses, with an Expenses/Income toggle.
+It follows the selected account and timeframe, independently of transaction-list
+search, category/type filters, and pagination. Saving an account or transaction
+refreshes it while preserving its toggle selection.
+
+`GET /api/transactions/category-breakdown` aggregates the full matching ledger
+by category, including uncleared entries. Expense/income are category types,
+not the direction of a liability balance change. Transfers are excluded.
+The center shows Total Expenses or Total Income and the amount for the selected
+period. The legend shows category names, transaction counts, signed amounts,
+and percentages, with stable colors based on category ID.
+
+Hovering a slice or legend row highlights the same category and gently enlarges
+its slice. A tooltip shows category, amount, percentage, and transaction count.
+Keyboard focus exposes the same details; Enter/Space or tap/click can pin a
+category, and Escape dismisses the details. Reduced motion disables the slice
+movement. Slice hit areas remain stationary to avoid hover jitter.
+The chart supports complete single-category rings, loading, empty-period, and
+error/retry states. Superseded requests are cancelled.
 
 ## Current routes and remaining UI work
 
@@ -158,7 +179,7 @@ The spending-by-category donut is the next accounts-page increment.
 | --- | --- |
 | `/login` | Branded login with animated coins, reduced-motion support, pause, password toggle, and validation/error states |
 | `/dashboard` | Implemented dashboard in protected layout |
-| `/accounts` | Account selection, balance trends, filtered/paginated transactions |
+| `/accounts` | Account selection, trends, filtered/paginated transactions, income/expense donut |
 | `/accounts/new` | Redirects to accounts with the Add Account modal open |
 | `/transactions/new` | Redirects to accounts with the Add Transaction modal open, retaining query parameters |
 | `/` | Redirects to dashboard inside the protected layout |
@@ -177,9 +198,12 @@ current boundary.
 
 - `Dashboard`: loading, summary/profile requests, and hero date selection.
 - `Accounts`: account selection, scoped history, filters, and server-side transaction pagination.
+- `CategoryBreakdownPanel`: independent income/expense aggregation loading and toggle state.
+- `DonutChart`: reusable SVG slices, linked legend, tooltips, and keyboard/touch interaction.
 - `CreateAccount`: opening balance/date and optional institution.
+- `CreateCategory`: household category name and Income/Expense type.
 - `SelectMenu`: shared styled, keyboard-accessible form selector.
-- `Modal`: shared native-dialog shell for account and transaction creation.
+- `Modal`: shared native-dialog shell for account, transaction, and category creation.
 - `TrendChart`: reusable dated-value plot and interaction.
 - `AccountList`: account rows and favorable/unfavorable trend presentation.
 - `TransactionList`: recent ledger rows and signed category amounts.

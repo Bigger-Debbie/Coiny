@@ -1,0 +1,50 @@
+<div class="donut-wrap">
+  <svg viewBox="0 0 320 320" role="group" [attr.aria-label]="(type === 'Expense' ? 'Expenses' : 'Income') + ' by category. Total: ' + (total | currency)">
+    @for (slice of slices(); track slice.categoryId) {
+      <g class="slice" role="button" tabindex="0" [class.active]="activeId() === slice.categoryId"
+        [attr.aria-label]="description(slice)" [attr.aria-pressed]="pinned() === slice.categoryId"
+        [attr.aria-describedby]="activeId() === slice.categoryId ? tooltipId : null"
+        [style.--dx]="slice.dx + 'px'" [style.--dy]="slice.dy + 'px'"
+        (pointerenter)="hovered.set(slice.categoryId)" (pointerleave)="hovered.set(null)"
+        (focus)="focused.set(slice.categoryId)" (blur)="focused.set(null)"
+        (click)="toggle(slice.categoryId)" (keydown)="onKey($event, slice.categoryId)">
+        <circle cx="160" cy="160" r="112" fill="none" stroke="transparent" stroke-width="54" pathLength="100"
+          [attr.stroke-dasharray]="slice.dash" [attr.stroke-dashoffset]="slice.offset" transform="rotate(-90 160 160)" pointer-events="stroke" aria-hidden="true" />
+        <g class="slice-shape" pointer-events="none">
+        <circle cx="160" cy="160" r="112" fill="none" stroke-width="38" pathLength="100"
+          [attr.stroke]="slice.color" [attr.stroke-dasharray]="slice.dash" [attr.stroke-dashoffset]="slice.offset" transform="rotate(-90 160 160)" />
+        </g>
+      </g>
+    }
+  </svg>
+  <div class="center" aria-hidden="true">
+    <span>{{ type === 'Expense' ? 'Total Expenses' : 'Total Income' }}</span>
+    <strong>{{ total | currency }}</strong>
+    <small>Selected period</small>
+  </div>
+  @if (active(); as category) {
+    <div class="tooltip" role="tooltip" [id]="tooltipId" [style.left]="'clamp(5.5rem, ' + category.tooltipX + '%, calc(100% - 5.5rem))'" [style.top.%]="category.tooltipY">
+      <strong>{{ category.categoryName }}</strong>
+      <span>{{ category.amount | currency }} · {{ category.percentage | number:'1.1-1' }}%</span>
+      <span>{{ category.transactionCount }} {{ category.transactionCount === 1 ? 'transaction' : 'transactions' }}</span>
+    </div>
+  }
+</div>
+<ul class="legend" aria-label="Category totals">
+  @for (category of slices(); track category.categoryId) {
+    <li>
+      <button type="button" [class.highlighted]="activeId() === category.categoryId" [attr.aria-label]="description(category)" [attr.aria-pressed]="pinned() === category.categoryId"
+        (pointerenter)="hovered.set(category.categoryId)" (pointerleave)="hovered.set(null)"
+        (focus)="focused.set(category.categoryId)" (blur)="focused.set(null)"
+        (click)="toggle(category.categoryId)" (keydown.escape)="dismiss()">
+        <span class="avatar" [style.background]="category.color"
+          [style.color]="category.color === '#eb9a50' || category.color === '#d4a027' ? '#18181f' : 'white'" aria-hidden="true">{{ category.initial }}</span>
+        <span class="category"><strong>{{ category.categoryName }}</strong><small>{{ category.transactionCount }} {{ category.transactionCount === 1 ? 'transaction' : 'transactions' }}</small></span>
+        <span class="amount" [class.income]="type === 'Income'">
+          {{ type === 'Expense' ? '−' : '+' }}{{ category.amount | currency }}
+          <small>{{ category.percentage | number:'1.1-1' }}%</small>
+        </span>
+      </button>
+    </li>
+  }
+</ul>

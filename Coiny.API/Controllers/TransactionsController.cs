@@ -33,6 +33,14 @@ public class TransactionsController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
     }
 
+    [HttpGet("category-breakdown")]
+    public async Task<ActionResult<CategoryBreakdownResponse>> GetCategoryBreakdown([FromQuery] CategoryBreakdownQuery query)
+    {
+        try { return Ok(await _transactionService.GetCategoryBreakdownAsync(query)); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
     [HttpPost]
     public async Task<ActionResult<TransactionResponse>> CreateTransaction(CreateTransactionRequest request)
     {

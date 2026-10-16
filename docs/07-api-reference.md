@@ -39,12 +39,13 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/categories` | 201 | Create category |
 | GET | `/api/transactions` | 200 | Household transactions, newest first |
 | GET | `/api/transactions/paged` | 200 | Filtered transaction page with total count |
+| GET | `/api/transactions/category-breakdown` | 200 | Income or expense totals grouped by category |
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
 | GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, ten recent transactions |
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
 
-Collection list responses remain JSON arrays. The separate paged transaction
-endpoint returns an object with items and pagination metadata. There are no
+Collection list responses remain JSON arrays. Paged transaction and category
+breakdown endpoints return structured objects. There are no
 public single-resource detail, update, delete, logout, refresh-token, or
 snapshot-management endpoints.
 
@@ -249,6 +250,57 @@ household are rejected with 400.
 date-descending, ID-descending order. The response contains `items` (transaction
 DTOs), `totalCount`, `page`, and `pageSize`. Pages past the end clamp to the last
 page. Empty results return page 1, totalCount 0, and an empty items array.
+
+### Income/expense category breakdown
+
+```http
+GET {{baseUrl}}/transactions/category-breakdown?accountId=1&startDate=2026-10-01&endDate=2026-10-15&categoryType=Expense
+```
+
+Requires inclusive `startDate`/`endDate` and `categoryType` (Income or Expense).
+Omit `accountId` for the whole household. Reversed/missing dates, Transfer or
+unsupported types, and foreign account IDs return 400. Date bounds use ledger
+calendar dates, including all transactions on the ending day.
+
+Response fields are `categoryType`, `totalAmount`, `transactionCount`, and
+`categories`. Each category includes `categoryId`, `categoryName`, `amount`,
+`transactionCount`, and `percentage` (0–100). Groups sort by amount descending,
+then name and ID. Amounts are aggregated using decimal arithmetic; percentages
+are unrounded in the API and formatted for display by the frontend.
+Empty results return zero total/count and an empty categories array.
+
+Example response:
+
+```json
+{
+  "categoryType": "Expense",
+  "totalAmount": 200.00,
+  "transactionCount": 5,
+  "categories": [
+    {
+      "categoryId": 1,
+      "categoryName": "Groceries",
+      "amount": 150.00,
+      "transactionCount": 3,
+      "percentage": 75
+    },
+    {
+      "categoryId": 2,
+      "categoryName": "Restaurants",
+      "amount": 50.00,
+      "transactionCount": 2,
+      "percentage": 25
+    }
+  ]
+}
+```
+
+The summary includes the entire selected ledger scope, including uncleared
+transactions. It does not accept list search/category filters or pagination.
+It groups by the transaction category type regardless of account type.
+The UI requests a range ending today in America/New_York. This ledger summary
+uses the supplied date bounds; it does not apply the trend engine's future-date
+cap. No database migration is needed for this endpoint.
 
 ### Individual account trend
 

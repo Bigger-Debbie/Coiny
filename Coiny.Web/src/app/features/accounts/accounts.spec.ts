@@ -8,6 +8,16 @@ import { By } from '@angular/platform-browser';
 import { CreateAccount } from './create-account/create-account';
 import { CreateTransaction } from '../transactions/create-transaction/create-transaction';
 import { CreateCategory } from './create-category/create-category';
+import { Component, Input } from '@angular/core';
+import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown';
+
+@Component({ selector: 'app-category-breakdown', template: '' })
+class BreakdownStub {
+  @Input() accountId: number | null = null;
+  @Input() startDate = '';
+  @Input() endDate = '';
+  @Input() refreshKey = 0;
+}
 
 const accounts = [
   { id: 1, name: 'Same name', institutionId: 1, institutionName: 'Bank', accountType: 'Checking', currentBalance: 1000, openingBalance: 900, openingBalanceDate: '2026-01-01', isActive: true },
@@ -29,6 +39,7 @@ describe('Accounts', () => {
       provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
       { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
     ] });
+    TestBed.overrideComponent(Accounts, { remove: { imports: [CategoryBreakdownPanel] }, add: { imports: [BreakdownStub] } });
     http = TestBed.inject(HttpTestingController);
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   });
@@ -190,5 +201,23 @@ describe('Accounts', () => {
     const transaction = f.debugElement.query(By.directive(CreateTransaction)).componentInstance as CreateTransaction;
     expect(transaction.categoryOptions.some(o => o.value === 8)).toBe(true);
     transaction.cancel(); f.detectChanges();
+  });
+  it('scopes the breakdown to account/range and refreshes it after saves without tying it to list filters', () => {
+    const f = render(); flushTrend(); flushPage(); f.detectChanges();
+    const panel = f.debugElement.query(By.directive(BreakdownStub)).componentInstance as BreakdownStub;
+    const initialRefresh = panel.refreshKey;
+    f.componentInstance.selectAccount('2'); flushTrend(); flushPage();
+    f.componentInstance.selectRange('1W'); flushTrend(); flushPage(); f.detectChanges();
+    expect(panel.accountId).toBe(2);
+    expect(panel.startDate).toBe(getTrendDates('1W').startDate);
+    f.componentInstance.search = 'coffee'; f.componentInstance.applyFilters(); flushPage(); f.detectChanges();
+    expect(panel.refreshKey).toBe(initialRefresh);
+    f.componentInstance.transactionCreated();
+    http.expectOne(r => r.url.endsWith('/accounts')).flush(accounts);
+    http.expectOne(r => r.url.endsWith('/categories')).flush([]);
+    http.expectOne(r => r.url.endsWith('/institutions')).flush([]);
+    flushTrend(); flushPage(); f.detectChanges();
+    expect(panel.refreshKey).toBeGreaterThan(initialRefresh);
+    expect(panel.accountId).toBe(2);
   });
 });

@@ -14,7 +14,7 @@ remain future work.
 | --- | --- | --- |
 | Authentication | Registration/login APIs, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Signup UI, password recovery, complete expired-session handling |
 | Households | Create/get current household, ownership-scoped financial services | Invitations, member management, household switching |
-| Financial data | Create/list APIs, accounts page with account creation, scoped trends, transaction creation, server-side filters and pagination | Spending breakdown, edit/delete flows, paired transfers, imports |
+| Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown | Edit/delete flows, paired transfers, imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Product and domain direction | Budgets, goals, recurring transactions, purchase planning |
@@ -61,8 +61,9 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 
 ## Next milestones
 
-The dashboard, login screen, profile menu/local logout, and first accounts page
-are implemented. Next is the account spending breakdown. Signup, password
+The dashboard, login screen, profile menu/local logout, and accounts page with
+interactive income/expense category breakdown are implemented. Account editing,
+deletion, and further reporting remain future work. Signup, password
 recovery, complete expired-session handling, and new-user setup are deferred.
 
 For current development limitations and test status, see the

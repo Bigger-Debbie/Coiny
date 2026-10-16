@@ -26,7 +26,8 @@
 .range-controls { display: flex; flex-wrap: wrap; padding: .25rem; border-radius: .65rem; background: #f7f7fb; }
 .range-controls button { background: transparent; color: var(--color-text-muted); font-size: .75rem; padding: .75rem; font-weight: 500; }
 .range-controls .selected { background: var(--color-primary); color: white; }
-.transactions-pane { margin-top: 2rem; padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.account-columns { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(19rem, 1fr); gap: 1.5rem; margin-top: 2rem; }
+.transactions-pane { display: flex; flex-direction: column; min-width: 0; padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .pane-heading, .heading-with-filter { display: flex; align-items: center; gap: .75rem; }
 .pane-heading { justify-content: space-between; flex-wrap: wrap; }
 h2 { margin: 0; font-size: 1.25rem; }
@@ -37,13 +38,14 @@ h2 { margin: 0; font-size: 1.25rem; }
 .filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1.5rem; padding: 1rem; background: #f7f7fb; border-radius: var(--radius-sm); }
 .filters > div { flex: 1 1 10rem; }
 .filters label, .filters button { font-size: .8rem; }
-.transaction-content { min-height: 12rem; }
+.transaction-content { min-height: 12rem; flex: 1; }
 .pagination-footer { border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
 .pagination { display: flex; gap: .25rem; }
 .pagination button { background: transparent; color: var(--color-primary); padding: .5rem .7rem; }
 .pagination button[aria-current="page"] { background: var(--color-primary); color: white; }
 button:disabled { opacity: .4; cursor: default; }
 a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+@media (max-width: 1050px) { .account-columns { grid-template-columns: 1fr; } }
 @media (max-width: 750px) {
   .account-hero { grid-template-columns: 1fr; gap: 1rem; }
   .account-overview { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }

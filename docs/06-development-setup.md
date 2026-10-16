@@ -132,15 +132,28 @@ npm test -- --watch=false \
   --include='src/app/shared/components/icon/**/*.spec.ts'
 ```
 
-Current verification baseline:
+For accounts, category breakdown, creation modals, and shared chart controls:
+
+```sh
+npm test -- --watch=false \
+  --include='src/app/features/accounts/**/*.spec.ts' \
+  --include='src/app/features/transactions/create-transaction/**/*.spec.ts' \
+  --include='src/app/shared/components/donut-chart/**/*.spec.ts' \
+  --include='src/app/shared/components/modal/**/*.spec.ts' \
+  --include='src/app/shared/components/select-menu/**/*.spec.ts'
+```
+
+Current verification baseline after the category-breakdown implementation:
 
 - Backend and frontend production builds pass.
-- The committed dashboard/component tests pass.
+- The dashboard, accounts, creation-form, and shared-component tests pass.
+- The full frontend run has 81 passing tests out of 82; the remaining failure
+  is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
-- Dashboard CSS currently slightly exceeds its 4 kB warning budget; the production
-  build still passes.
+- Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.03 kB
+  and 4.25 kB respectively); the production build still passes.
 - There is no committed backend test project or end-to-end browser suite yet.
   Temporary backend integration checks used during development are not repository
   tests, and `dotnet build` does not run them.
@@ -154,6 +167,7 @@ Current verification baseline:
 | Login fails after a reset | Log out through the header menu (or remove the old local-storage token) and use the newly seeded credentials |
 | Dashboard errors for a new registration | Create the user's household before financial API calls |
 | Account trends missing after an API change | Restart the API so its response includes `monthlyTrend` |
+| Category breakdown returns 404 after updating | Restart the API to load `GET /api/transactions/category-breakdown` |
 | Frontend cannot reach API | Confirm launch URL, `environment.ts`, and allowed CORS origin |
 
 Tracked API `bin/` and `obj/` files currently generate noisy Git changes after a

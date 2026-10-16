@@ -22,16 +22,18 @@ import { Modal } from '../../shared/components/modal/modal';
 import { CreateAccount } from './create-account/create-account';
 import { CreateTransaction } from '../transactions/create-transaction/create-transaction';
 import { CreateCategory } from './create-category/create-category';
+import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown';
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe, DecimalPipe, FormsModule, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory],
+  imports: [CurrencyPipe, DecimalPipe, FormsModule, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel],
   templateUrl: './accounts.html',
   styleUrl: './accounts.css',
 })
 export class Accounts implements OnInit {
   readonly modal = signal<'account' | 'transaction' | 'category' | null>(null);
   readonly notice = signal('');
+  readonly breakdownRefresh = signal(0);
   private readonly money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
   readonly accountOptions = computed<SelectOption[]>(() => [
     { value: 'all', label: 'All accounts', detail: 'Your household' },
@@ -130,6 +132,7 @@ export class Accounts implements OnInit {
         this.institutions.set(data.institutions);
         if (!data.accounts.some(a => a.id === this.selectedId())) this.selectedId.set(null);
         this.loading.set(false);
+        this.breakdownRefresh.update(value => value + 1);
         this.loadTrend();
         this.loadTransactions(1);
       },

@@ -1,0 +1,23 @@
+:host { display: block; min-width: 0; }
+.donut-wrap { position: relative; width: min(100%, 21rem); margin: 1rem auto; }
+svg { display: block; width: 100%; overflow: visible; }
+.slice { cursor: pointer; outline: none; }
+.slice-shape { transform-origin: 160px 160px; transition: transform 160ms ease; }
+.slice.active .slice-shape { transform: translate(var(--dx), var(--dy)) scale(1.025); }
+.slice:focus-visible .slice-shape { filter: drop-shadow(0 0 3px var(--color-accent)); }
+.center { position: absolute; inset: 32% 22%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; text-align: center; pointer-events: none; color: var(--color-primary); }
+.center > span { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.center > strong { font-size: clamp(1rem, 1.7vw, 1.45rem); font-weight: 500; max-width: 100%; overflow-wrap: anywhere; }
+small { font-size: .7rem; color: var(--color-text-muted); }
+.tooltip { position: absolute; z-index: 1; transform: translate(-50%, -50%); display: grid; gap: .15rem; width: 11rem; max-width: 90%; padding: .75rem; border-radius: var(--radius-sm); background: var(--color-primary); color: white; box-shadow: var(--shadow-card); pointer-events: none; font-size: .8rem; overflow-wrap: anywhere; }
+.legend { list-style: none; padding: 0; margin: 0; }
+.legend button { display: flex; align-items: center; gap: .65rem; padding: .75rem .4rem; width: 100%; color: var(--color-text); background: transparent; text-align: left; font-weight: 400; }
+.legend button.highlighted { background: #eb9a5018; }
+.legend button:hover { transform: none; }
+.legend button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.avatar { display: grid; place-items: center; flex-shrink: 0; width: 2rem; height: 2rem; border-radius: 50%; font-weight: 700; }
+.category { display: grid; gap: .15rem; min-width: 0; overflow-wrap: anywhere; }
+.category strong { font-size: .8rem; text-transform: uppercase; letter-spacing: .02em; }
+.amount { display: grid; gap: .15rem; margin-left: auto; text-align: right; font-size: .85rem; color: var(--color-danger); font-variant-numeric: tabular-nums; }
+.amount.income { color: var(--color-success); }
+@media (prefers-reduced-motion: reduce) { .slice-shape { transition: none; } .slice.active .slice-shape { transform: none; } }

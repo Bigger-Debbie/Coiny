@@ -1,0 +1,20 @@
+<section class="breakdown-pane" aria-label="Income and expense category breakdown">
+  <div class="pane-heading">
+    <h2>By Category</h2>
+    <div class="type-controls" role="group" aria-label="Breakdown type">
+      <button type="button" [class.selected]="type() === 'Expense'" [attr.aria-pressed]="type() === 'Expense'" (click)="selectType('Expense')">Expenses</button>
+      <button type="button" [class.selected]="type() === 'Income'" [attr.aria-pressed]="type() === 'Income'" (click)="selectType('Income')">Income</button>
+    </div>
+  </div>
+  <p class="period">{{ startDate | date:'MMM d, y':'UTC' }} – {{ endDate | date:'MMM d, y':'UTC' }}</p>
+  <div [attr.aria-busy]="loading()">
+    @if (loading()) { <p class="state" role="status">Loading your {{ type() === 'Expense' ? 'expenses' : 'income' }}…</p> }
+    @else if (error()) {
+      <div class="state" role="status"><p>Your breakdown couldn’t load.</p><button type="button" class="button-ghost" (click)="load()">Try again</button></div>
+    } @else if (breakdown(); as data) {
+      @if (data.totalAmount > 0 && data.categories.length) {
+        <app-donut-chart [categories]="data.categories" [total]="data.totalAmount" [type]="type()" />
+      } @else { <p class="state" role="status">No {{ type() === 'Expense' ? 'expenses' : 'income' }} in this period.</p> }
+    }
+  </div>
+</section>

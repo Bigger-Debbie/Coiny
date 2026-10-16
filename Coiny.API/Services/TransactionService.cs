@@ -102,6 +102,47 @@ public class TransactionService : ITransactionService
         return new TransactionPageResponse { Items = items, TotalCount = total, Page = page, PageSize = request.PageSize };
     }
 
+    public async Task<CategoryBreakdownResponse> GetCategoryBreakdownAsync(CategoryBreakdownQuery request)
+    {
+        if (!request.StartDate.HasValue || !request.EndDate.HasValue)
+            throw new ArgumentException("Start date and end date are required.");
+        if (request.EndDate < request.StartDate)
+            throw new ArgumentException("End date cannot be before start date.");
+        if (request.CategoryType is not (CategoryType.Income or CategoryType.Expense))
+            throw new ArgumentException("Category type must be Income or Expense.");
+
+        var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
+        if (request.AccountId.HasValue && !await _context.Accounts.AnyAsync(a =>
+            a.Id == request.AccountId && a.HouseholdId == householdId))
+            throw new InvalidOperationException("Account does not belong to the current household.");
+
+        var start = request.StartDate.Value.ToDateTime(TimeOnly.MinValue);
+        var end = request.EndDate.Value.ToDateTime(TimeOnly.MaxValue);
+        var query = _context.Transactions.AsNoTracking().Where(t =>
+            t.HouseholdId == householdId && t.Category.CategoryType == request.CategoryType &&
+            t.TransactionDate >= start && t.TransactionDate <= end);
+        if (request.AccountId.HasValue) query = query.Where(t => t.AccountId == request.AccountId);
+
+        // Aggregate the full matching ledger, independently of transaction-list pagination.
+        var groups = await query.GroupBy(t => new { t.CategoryId, t.Category.Name })
+            .Select(g => new { g.Key.CategoryId, CategoryName = g.Key.Name,
+                Amount = g.Sum(t => t.Amount), TransactionCount = g.Count() })
+            .ToListAsync();
+        var total = groups.Sum(g => g.Amount);
+        return new CategoryBreakdownResponse
+        {
+            CategoryType = request.CategoryType.Value,
+            TotalAmount = total,
+            TransactionCount = groups.Sum(g => g.TransactionCount),
+            Categories = groups.OrderByDescending(g => g.Amount).ThenBy(g => g.CategoryName).ThenBy(g => g.CategoryId)
+                .Select(g => new CategoryBreakdownItem
+                {
+                    CategoryId = g.CategoryId, CategoryName = g.CategoryName, Amount = g.Amount,
+                    TransactionCount = g.TransactionCount, Percentage = total == 0 ? 0 : g.Amount / total * 100
+                }).ToList()
+        };
+    }
+
     public async Task<TransactionResponse> CreateTransactionAsync(CreateTransactionRequest request)
     {
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
