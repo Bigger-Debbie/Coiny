@@ -34,16 +34,19 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/institutions` | 201 | Create institution |
 | GET | `/api/accounts` | 200 | Accounts, opening dates, and current balances |
 | POST | `/api/accounts` | 201 | Create account and opening-day snapshot |
+| GET | `/api/accounts/{accountId}/trend` | 200 | Daily balance trend for one owned account |
 | GET | `/api/categories` | 200 | Household categories |
 | POST | `/api/categories` | 201 | Create category |
 | GET | `/api/transactions` | 200 | Household transactions, newest first |
+| GET | `/api/transactions/paged` | 200 | Filtered transaction page with total count |
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
 | GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, ten recent transactions |
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
 
-List responses are JSON arrays. There are no public GET-by-ID, update, delete,
-logout, refresh-token, individual-account trend, or snapshot-management endpoints.
-List endpoints do not currently provide pagination.
+Collection list responses remain JSON arrays. The separate paged transaction
+endpoint returns an object with items and pagination metadata. There are no
+public single-resource detail, update, delete, logout, refresh-token, or
+snapshot-management endpoints.
 
 In Development, `/openapi/v1.json` exposes the generated contract. It is outside
 the `/api` base and is a JSON document, not a configured Swagger UI.
@@ -222,12 +225,42 @@ The date cannot precede the account's opening date. Backdated entries update
 later stored snapshots atomically. Future entries are currently accepted;
 see the [current-balance distinction](03-account-trends.md#dates-and-calculations).
 
-Create/list responses contain `id`, `institutionName`, `accountName`,
+Create/list responses contain `id`, `accountId`, `categoryId`, `institutionName`, `accountName`,
 `categoryName`, `categoryType`, `amount`, `transactionDate`, `description`,
-`merchant`, and `isCleared`. Creation does not currently populate
-`institutionName` in its response; listing resolves it. Notes are stored but are
+`merchant`, and `isCleared`. Institution name is resolved for both creation and
+listing. Notes are stored but are
 not included in these response DTOs. Listing orders by date descending, then ID
 descending.
+
+### Filtered transaction pages
+
+```http
+GET {{baseUrl}}/transactions/paged?accountId=1&startDate=2026-10-01&endDate=2026-10-15&categoryType=Expense&page=1&pageSize=10
+```
+
+All filters are optional: `accountId`, `categoryId`, `categoryType` (Income,
+Expense, Transfer), inclusive `startDate`/`endDate`, and `search` (up to 100
+characters). Search matches description, merchant, account name, or category
+name, ignoring case for ordinary English text. Filters combine with AND.
+Omit accountId for the whole household. Account/category IDs outside the current
+household are rejected with 400.
+
+`page` defaults to 1; `pageSize` defaults to 10 and accepts 1–100. Results retain
+date-descending, ID-descending order. The response contains `items` (transaction
+DTOs), `totalCount`, `page`, and `pageSize`. Pages past the end clamp to the last
+page. Empty results return page 1, totalCount 0, and an empty items array.
+
+### Individual account trend
+
+```http
+GET {{baseUrl}}/accounts/{{accountId}}/trend?startDate=2026-10-01&endDate=2026-10-15
+```
+
+Both dates are required. The response is the same TrendResult shape as the
+net-worth endpoint below. The account must belong to the current household.
+Credit cards and loans show their amount owed; their sign is not reversed.
+Future starts and reversed ranges are rejected; future ends are capped at today
+in America/New_York, using the existing trend service.
 
 ## Dashboard summary
 
@@ -307,6 +340,6 @@ changes, and neutral direction. Full calculation and carry-forward rules are in
 - Created responses currently point to collection actions, not implemented
   single-resource GET endpoints.
 
-These are current contracts, not promises of update/delete, account management,
+These are current contracts, not promises of update/delete
 or complete authentication workflows. Planned capabilities are tracked in the
 [root README](../README.md#current-status).

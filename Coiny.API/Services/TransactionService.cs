@@ -34,6 +34,8 @@ public class TransactionService : ITransactionService
             .Select(t => new TransactionResponse
             {
                 Id = t.Id,
+                AccountId = t.AccountId,
+                CategoryId = t.CategoryId,
                 InstitutionName = t.Account.Institution != null
                     ? t.Account.Institution.Name
                     : null,
@@ -47,6 +49,57 @@ public class TransactionService : ITransactionService
                 IsCleared = t.IsCleared
             })
             .ToListAsync();
+    }
+
+    public async Task<TransactionPageResponse> GetPageAsync(TransactionQuery request)
+    {
+        if (request.Page < 1 || request.PageSize is < 1 or > 100)
+            throw new ArgumentException("Page must be positive and page size must be between 1 and 100.");
+        if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate < request.StartDate)
+            throw new ArgumentException("End date cannot be before start date.");
+        var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
+        if (request.AccountId.HasValue && !await _context.Accounts.AnyAsync(a =>
+            a.Id == request.AccountId && a.HouseholdId == householdId))
+            throw new InvalidOperationException("Account does not belong to the current household.");
+        if (request.CategoryId.HasValue && !await _context.Categories.AnyAsync(c =>
+            c.Id == request.CategoryId && c.HouseholdId == householdId))
+            throw new InvalidOperationException("Category does not belong to the current household.");
+
+        var query = _context.Transactions.AsNoTracking().Where(t => t.HouseholdId == householdId);
+        if (request.AccountId.HasValue) query = query.Where(t => t.AccountId == request.AccountId);
+        if (request.CategoryId.HasValue) query = query.Where(t => t.CategoryId == request.CategoryId);
+        if (request.CategoryType.HasValue) query = query.Where(t => t.Category.CategoryType == request.CategoryType);
+        if (request.StartDate.HasValue)
+        {
+            var start = request.StartDate.Value.ToDateTime(TimeOnly.MinValue);
+            query = query.Where(t => t.TransactionDate >= start);
+        }
+        if (request.EndDate.HasValue)
+        {
+            var end = request.EndDate.Value.ToDateTime(TimeOnly.MaxValue);
+            query = query.Where(t => t.TransactionDate <= end);
+        }
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim().ToLowerInvariant();
+            query = query.Where(t => t.Description.ToLower().Contains(search) ||
+                (t.Merchant != null && t.Merchant.ToLower().Contains(search)) ||
+                t.Account.Name.ToLower().Contains(search) || t.Category.Name.ToLower().Contains(search));
+        }
+        var total = await query.CountAsync();
+        var page = Math.Min(request.Page, Math.Max(1, (int)Math.Ceiling(total / (double)request.PageSize)));
+        var items = await query.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id)
+            .Skip((page - 1) * request.PageSize).Take(request.PageSize)
+            .Select(t => new TransactionResponse
+            {
+                Id = t.Id, AccountId = t.AccountId, CategoryId = t.CategoryId,
+                AccountName = t.Account.Name,
+                InstitutionName = t.Account.Institution != null ? t.Account.Institution.Name : null,
+                CategoryName = t.Category.Name, CategoryType = t.Category.CategoryType,
+                Amount = t.Amount, TransactionDate = t.TransactionDate,
+                Description = t.Description, Merchant = t.Merchant, IsCleared = t.IsCleared
+            }).ToListAsync();
+        return new TransactionPageResponse { Items = items, TotalCount = total, Page = page, PageSize = request.PageSize };
     }
 
     public async Task<TransactionResponse> CreateTransactionAsync(CreateTransactionRequest request)
@@ -98,6 +151,10 @@ public class TransactionService : ITransactionService
         return new TransactionResponse
         {
             Id = transaction.Id,
+            AccountId = account.Id,
+            CategoryId = category.Id,
+            InstitutionName = await _context.Institutions.Where(i => i.Id == account.InstitutionId)
+                .Select(i => i.Name).FirstOrDefaultAsync(),
             AccountName = account.Name,
             CategoryName = category.Name,
             CategoryType = category.CategoryType,

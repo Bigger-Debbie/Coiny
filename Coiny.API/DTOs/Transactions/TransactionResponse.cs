@@ -5,6 +5,8 @@ namespace Coiny.API.DTOs.Transactions;
 public class TransactionResponse
 {
     public int Id { get; set; }
+    public int AccountId { get; set; }
+    public int CategoryId { get; set; }
     public string? InstitutionName { get; set; }
     public string AccountName { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;

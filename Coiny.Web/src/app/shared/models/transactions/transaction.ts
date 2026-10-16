@@ -1,5 +1,7 @@
 export interface Transaction { 
     id: number;
+    accountId: number;
+    categoryId: number;
     accountName: string;
     institutionName: string | null;
     categoryName: string;

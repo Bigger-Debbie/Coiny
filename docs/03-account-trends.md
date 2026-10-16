@@ -89,7 +89,9 @@ IDs, and an aggregation mode:
 - No selected accounts, or a range entirely before all their opening dates,
   produces no points. Otherwise every requested day is represented.
 
-This generic service is internal. There is no individual-account trend endpoint.
+The accounts page uses `GET /api/accounts/{accountId}/trend` to expose the same
+engine for one owned account. It sums that account's balance, including positive
+amounts owed for liabilities. All accounts uses the existing net-worth endpoint.
 
 ## Dates and calculations
 

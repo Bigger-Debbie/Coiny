@@ -29,8 +29,9 @@ For the known starter-test failure and focused dashboard test command, see
 | `src/app/core/services/` | API calls and token handling |
 | `src/app/core/guards/`, `interceptors/` | Route authentication and bearer header |
 | `src/app/features/dashboard/` | Hero, range selection, account list, recent transactions |
-| `src/app/features/auth/login/` | Current basic login screen |
-| `src/app/features/transactions/create-transaction/` | Existing transaction form |
+| `src/app/features/auth/login/` | Branded login, animated coins, password toggle |
+| `src/app/features/accounts/` | Account selection, scoped trends, transaction filters/pages, account creation |
+| `src/app/features/transactions/create-transaction/` | Account-aware transaction form |
 | `src/app/shared/components/` | Header, icons, reusable SVG trend chart |
 | `src/app/shared/models/` | API response/request types |
 | `src/styles/` | Colors, typography, layout, buttons, cards, forms |

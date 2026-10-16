@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Router } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { AppHeader } from './app-header';
 
@@ -18,10 +18,10 @@ describe('AppHeader profile menu', () => {
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
     });
-    navigate = vi.fn().mockResolvedValue(true);
     TestBed.configureTestingModule({ imports: [AppHeader], providers: [
-      provideHttpClient(), provideHttpClientTesting(), { provide: Router, useValue: { navigate } },
+      provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
     ] });
+    navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     http = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(AuthService);
     auth.setToken('demo-token');

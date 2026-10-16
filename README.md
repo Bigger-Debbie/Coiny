@@ -12,9 +12,9 @@ remain future work.
 
 | Area | Implemented | Still planned |
 | --- | --- | --- |
-| Authentication | Registration/login APIs, shared current-user profile, header menu/local logout, basic login screen, token storage and route guard | Polished login, signup UI, complete expired-session handling |
+| Authentication | Registration/login APIs, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Signup UI, password recovery, complete expired-session handling |
 | Households | Create/get current household, ownership-scoped financial services | Invitations, member management, household switching |
-| Financial data | Create/list institutions, accounts, categories, transactions | Management pages, edit/delete flows, paired transfers, imports |
+| Financial data | Create/list APIs, accounts page with account creation, scoped trends, transaction creation, server-side filters and pagination | Spending breakdown, edit/delete flows, paired transfers, imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Product and domain direction | Budgets, goals, recurring transactions, purchase planning |
@@ -61,11 +61,9 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 
 ## Next milestones
 
-The dashboard's hero chart, Accounts pane, and Recent Transactions pane are
-implemented, along with the header profile menu and local logout. The next
-authentication steps are complete expired-session handling, login presentation,
-registration/signup, and new-user setup. Dedicated account and transaction
-management pages follow separately.
+The dashboard, login screen, profile menu/local logout, and first accounts page
+are implemented. Next is the account spending breakdown. Signup, password
+recovery, complete expired-session handling, and new-user setup are deferred.
 
 For current development limitations and test status, see the
 [setup guide](docs/06-development-setup.md#verification).

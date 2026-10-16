@@ -30,3 +30,9 @@ button:hover,
   color: var(--color-primary);
   background: transparent;
 }
+
+.button-outline {
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}

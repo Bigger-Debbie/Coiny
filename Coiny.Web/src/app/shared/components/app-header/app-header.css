@@ -2,6 +2,7 @@
     background: var(--color-surface);
     padding-bottom: 1rem;
 }
+.navigation-link.active { color: var(--color-accent); }
 
 .header-content{
     display: flex;

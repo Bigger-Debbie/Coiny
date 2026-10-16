@@ -12,7 +12,7 @@
 .change-value.negative { color: var(--color-danger); }
 .change-icon { width: 1.15rem; height: 1.15rem; }
 .net-worth-chart { margin-top: 0.5rem; min-width: 0; }
-.net-worth-range { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding-top: 1rem; border-top: 1px solid var(--color-border); }
+.net-worth-range { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; flex-wrap: wrap; padding-top: 1rem; border-top: 1px solid var(--color-border); }
 .range-controls { display: flex; gap: 0.15rem; padding: 0.25rem; background: var(--color-background); border-radius: var(--radius-sm); }
 .range-controls button { padding: 0.55rem 0.65rem; min-height: 2.75rem; color: var(--color-text-muted); background: transparent; font-size: 0.8rem; font-weight: 400; }
 .range-controls button.selected { background: var(--color-primary); color: white; }

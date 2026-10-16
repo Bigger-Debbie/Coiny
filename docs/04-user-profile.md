@@ -34,7 +34,11 @@ interceptor attaches it as a bearer token. The route guard checks for a token an
 its expiration before entering the protected application layout; invalid or
 expired tokens are removed and navigation goes to `/login`.
 
-A basic `/login` form is implemented. There is no global handling of 401 responses
+The branded `/login` form includes a password visibility toggle, validation,
+loading feedback, and user-facing sign-in errors. Background coins drift behind
+the form, with a pause control and a static reduced-motion alternative.
+Forgot Password and Sign Up are visible and display coming-soon messages.
+There is no global handling of 401 responses
 or refresh-token flow. Do not assume an active page automatically redirects the
 moment its token expires.
 
@@ -58,9 +62,7 @@ This is client-side logout. There is no server logout/revocation endpoint;
 an already-issued JWT remains valid until it expires. Global expired-session
 handling and server-side revocation are separate work.
 
-The login UI currently reports failures to the console rather than displaying a
-complete user-facing error state. Registration is available through the API,
-not a signup screen.
+Registration is available through the API, not a signup screen.
 
 ## Dashboard personalization
 
@@ -81,7 +83,7 @@ other names are displayed as stored. The greeting does not rename a household.
 
 ## Next authentication work
 
-Complete session-expiration handling, login presentation, signup,
+Complete session-expiration handling, signup,
 and new-user household onboarding are planned. Password reset, email
 confirmation, token revocation/refresh, and member invitations have no public
 workflows yet. Login currently does not increment Identity lockout failures.

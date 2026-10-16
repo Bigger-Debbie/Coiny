@@ -1,7 +1,7 @@
 export interface Account {
     id: number;
-    institutionId: number;
-    institutionName: string;
+    institutionId: number | null;
+    institutionName: string | null;
 
     name: string; 
 

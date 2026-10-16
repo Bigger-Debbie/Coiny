@@ -25,6 +25,14 @@ public class TransactionsController : ControllerBase
         return Ok(transactions);
     }
 
+    [HttpGet("paged")]
+    public async Task<ActionResult<TransactionPageResponse>> GetPage([FromQuery] TransactionQuery query)
+    {
+        try { return Ok(await _transactionService.GetPageAsync(query)); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
     [HttpPost]
     public async Task<ActionResult<TransactionResponse>> CreateTransaction(CreateTransactionRequest request)
     {

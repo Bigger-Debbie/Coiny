@@ -99,23 +99,74 @@ Both panes alternate avatars by displayed row: orange background/blue initial,
 then blue background/orange initial. Each list starts with orange. Avatar color
 is decorative and no longer tied to account type. Rows are informational; there
 are no dashboard add-account or add-transaction buttons. Those actions belong
-on their respective management pages as those pages are built.
+on the accounts page.
 
 Both panes have loading, empty, and retry states. Financial colors are reinforced
 by signs, arrows, and accessible descriptions. Long labels/amounts wrap, and row
 details rearrange for narrower screens.
 
+## Accounts page
+
+`/accounts` defaults to All accounts and 1M. The blue selector offers individual
+accounts (including closed accounts labeled as such) and All accounts. A
+standalone Add Account button sits opposite the Accounts page heading.
+Current balance is independent of the historical range. All accounts
+shows net worth (assets minus debt); a credit card or loan shows Amount owed.
+The account card includes type/status and an institution website when available.
+Only HTTP/HTTPS website links are allowed.
+
+The page reuses the dashboard's trend chart and date ranges. Selecting an account
+scopes both history and transactions by account ID. Chart range, inclusive ledger
+date bounds, and transaction date range stay aligned. Account/range selections
+are reflected in query parameters for reloads and direct links.
+
+The Transactions heading has a filter button opening search, type, and category
+controls. Apply combines the filters; Clear removes them. Search matches
+description, merchant, category, or account name. Filtering and pagination happen
+on the server through `GET /api/transactions/paged`, with ten rows per page.
+Previous/next controls and up to five page numbers appear at the bottom, with a
+result count. Account, timeframe, and applied filter changes reset to page one.
+Superseded requests are cancelled. Loading, empty, and retry states are provided.
+
+Account, filter, and creation-form selectors use the reusable `SelectMenu`
+component: a white dropdown surface with the profile menu's border, rounded
+corners, shadow, and selected indicator. Arrow keys, Home/End, typeahead,
+Enter/Space, Escape, and outside-click dismissal are supported.
+
+Add Account opens a modal form for name, type, optional existing institution,
+opening balance, and opening date. It creates the opening snapshot through the
+existing API, refreshes the page, and selects the new account. Add Transaction
+opens a modal with the current account preselected and excludes unsupported
+transfer categories. Saving refreshes balances, trend, and transactions without
+leaving the page; timeframe and applied filters are retained.
+Creating transactions uses active accounts and active categories.
+Creation modals have a dimmed backdrop, Close and Cancel controls, native dialog focus
+containment, Escape/outside dismissal, scroll locking, and focus restoration.
+Dismissal is disabled while a save is pending.
+The secondary outlined Add Category button sits beside Add Transaction. Its
+modal accepts a name (up to 100 characters) and Income/Expense type. Categories
+belong to the household and are available across accounts. Saving updates the
+category filter immediately; the transaction modal loads the latest categories
+when opened. Duplicate-name errors stay visible in the form for correction.
+Institution creation and account edit/delete are separate future work.
+
+The spending-by-category donut is the next accounts-page increment.
+
 ## Current routes and remaining UI work
 
 | Route | Status |
 | --- | --- |
-| `/login` | Basic login form |
+| `/login` | Branded login with animated coins, reduced-motion support, pause, password toggle, and validation/error states |
 | `/dashboard` | Implemented dashboard in protected layout |
-| `/transactions/new` | Existing basic creation form; accessible directly |
+| `/accounts` | Account selection, balance trends, filtered/paginated transactions |
+| `/accounts/new` | Redirects to accounts with the Add Account modal open |
+| `/transactions/new` | Redirects to accounts with the Add Transaction modal open, retaining query parameters |
 | `/` | Redirects to dashboard inside the protected layout |
-| `/accounts`, `/transactions`, `/budget` | Planned destinations; no route implementations |
+| `/budget` | Planned destination; no route implementation |
 
-The header includes navigation markup for the planned destinations. Its dynamic
+The logo returns to the dashboard, the accounts icon opens the accounts page,
+and the separate transactions icon has been removed. The budget icon remains a
+planned destination. The header's dynamic
 initial opens a profile menu with name/email and local logout, including keyboard
 navigation and outside-click dismissal. Signup, full expired-session handling,
 and household onboarding remain planned. See
@@ -125,6 +176,10 @@ current boundary.
 ## Components and styling
 
 - `Dashboard`: loading, summary/profile requests, and hero date selection.
+- `Accounts`: account selection, scoped history, filters, and server-side transaction pagination.
+- `CreateAccount`: opening balance/date and optional institution.
+- `SelectMenu`: shared styled, keyboard-accessible form selector.
+- `Modal`: shared native-dialog shell for account and transaction creation.
 - `TrendChart`: reusable dated-value plot and interaction.
 - `AccountList`: account rows and favorable/unfavorable trend presentation.
 - `TransactionList`: recent ledger rows and signed category amounts.

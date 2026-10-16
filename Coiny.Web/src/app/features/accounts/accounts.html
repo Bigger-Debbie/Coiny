@@ -1,0 +1,129 @@
+<div class="accounts-page">
+  <div class="page-heading">
+    <h1 class="page-title">Accounts</h1>
+    <button class="button-primary" type="button" (click)="openModal('account')">＋ Add Account</button>
+  </div>
+  @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+  @if (loading()) {
+    <p role="status">Loading your accounts…</p>
+  } @else if (loadError()) {
+    <div role="status"><p>Your accounts couldn’t load.</p><button class="button-primary" (click)="loadOverview()">Try again</button></div>
+  } @else {
+    <section class="account-hero" aria-label="Account overview">
+      <aside class="account-overview">
+        <div class="account-picker">
+          <label for="account-picker">Choose account</label>
+          <app-select-menu inputId="account-picker" label="Choose account" [inverse]="true" [options]="accountOptions()"
+            [ngModel]="selectedId() === null ? 'all' : '' + selectedId()" (ngModelChange)="selectAccount($event)" />
+          <span>{{ selectedAccount()?.institutionName || (selectedId() === null ? 'Your household' : 'No institution') }}</span>
+        </div>
+        <div class="balance-card">
+          <span class="balance-label">{{ selectedId() === null ? 'Net Worth' : isDebt() ? 'Amount owed' : 'Current balance' }}</span>
+          <strong class="balance">{{ balance() | currency }}</strong>
+          @if (trend(); as result) {
+            @if (result.absoluteChange !== null) {
+              <div class="balance-change" [class.positive]="result.absoluteChange !== 0 && favorable()"
+                [class.negative]="result.absoluteChange !== 0 && !favorable()">
+                @if (result.direction !== 'Neutral') { <app-icon [name]="result.direction === 'Up' ? 'up' : 'down'" /> }
+                <span>{{ result.absoluteChange > 0 ? '+' : result.absoluteChange < 0 ? '−' : '' }}{{ magnitude(result.absoluteChange) | currency }}
+                  @if (result.percentageChange !== null) {
+                    ({{ result.percentageChange > 0 ? '+' : result.percentageChange < 0 ? '−' : '' }}{{ magnitude(result.percentageChange) | number:'1.1-1' }}%)
+                  }
+                </span>
+              </div>
+            }
+          }
+          <small>Change over selected period</small>
+          @if (selectedAccount(); as account) {
+            <div class="account-meta">
+              <span>Account Type: {{ account.accountType === 'CreditCard' ? 'Credit card' : account.accountType }}</span>
+              @if (website(); as url) {
+                <a [href]="url" target="_blank" rel="noopener noreferrer">Institution website ↗</a>
+              }
+            </div>
+          }
+        </div>
+      </aside>
+      <div class="trend-panel">
+        <div class="chart" [attr.aria-busy]="trendLoading()">
+          @if (trendLoading()) { <p class="chart-state" role="status">Loading balance history…</p> }
+          @else if (trendError()) {
+            <div class="chart-state" role="status"><p>Your trend couldn’t load.</p><button (click)="loadTrend()">Retry trend</button></div>
+          } @else if (trend(); as result) {
+            @if (result.points.length) {
+              <app-trend-chart [points]="result.points" [label]="selectedId() === null ? 'Net worth history' : 'Account balance history'" />
+            } @else { <p class="chart-state" role="status">No account history for this period. Choose a longer range or add an account.</p> }
+          }
+        </div>
+        <div class="range-footer">
+          <div class="range-controls" role="group" aria-label="Account date range">
+            @for (item of ranges; track item) {
+              <button [class.selected]="range() === item" [attr.aria-pressed]="range() === item" (click)="selectRange(item)">{{ item }}</button>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="transactions-pane" aria-labelledby="transactions-heading">
+      <div class="pane-heading">
+        <div class="heading-with-filter">
+          <h2 id="transactions-heading">Transactions</h2>
+          <button type="button" class="filter-toggle" [class.active]="hasFilters()" [attr.aria-expanded]="filterOpen()"
+            aria-controls="transaction-filters" aria-label="Filter transactions" (click)="filterOpen.set(!filterOpen())">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z" /></svg>
+          </button>
+        </div>
+        <div class="pane-actions">
+          <button class="button-outline" type="button" (click)="openModal('category')">＋ Add Category</button>
+          <button class="button-primary" type="button" (click)="openModal('transaction')">＋ Add Transaction</button>
+        </div>
+      </div>
+      <p class="period-label">{{ dates().startDate }} – {{ dates().endDate }} · {{ selectedAccount()?.name || 'All accounts' }}</p>
+      @if (filterOpen()) {
+        <form id="transaction-filters" class="filters" (ngSubmit)="applyFilters()">
+          <div><label for="search">Search</label><input id="search" name="search" type="search" maxlength="100" [(ngModel)]="search" placeholder="Description, merchant, category…" /></div>
+          <div><label for="type">Type</label><app-select-menu inputId="type" label="Transaction type" name="type" [options]="typeOptions" [(ngModel)]="categoryType" /></div>
+          <div><label for="category">Category</label><app-select-menu inputId="category" label="Category" name="category" [options]="categoryOptions()" [(ngModel)]="categoryId" /></div>
+          <button type="submit" class="button-primary">Apply filters</button>
+          <button type="button" class="button-ghost" (click)="clearFilters()">Clear</button>
+        </form>
+      }
+      @if (hasFilters() && !filterOpen()) { <p class="filter-summary">Filters applied <button class="button-ghost" (click)="clearFilters()">Clear filters</button></p> }
+      <div class="transaction-content" [attr.aria-busy]="transactionLoading()">
+        @if (transactionLoading()) { <p role="status">Loading transactions…</p> }
+        @else if (transactionError()) {
+          <div role="status"><p>Your transactions couldn’t load.</p><button (click)="loadTransactions()">Retry transactions</button></div>
+        } @else if (page(); as result) {
+          @if (result.items.length) { <app-transaction-list [transactions]="result.items" /> }
+          @else { <p role="status">No transactions match this account, timeframe, and filters.</p> }
+        }
+      </div>
+      <div class="pagination-footer">
+        <small role="status">{{ firstResult() }}–{{ lastResult() }} of {{ page()?.totalCount ?? 0 }} transactions</small>
+        <nav class="pagination" aria-label="Transaction pages">
+          <button aria-label="Previous page" [disabled]="transactionLoading() || currentPage() <= 1" (click)="loadTransactions(currentPage() - 1)">‹</button>
+          @for (number of pageNumbers(); track number) {
+            <button [attr.aria-current]="currentPage() === number ? 'page' : null" [disabled]="transactionLoading()"
+              (click)="loadTransactions(number)">{{ number }}</button>
+          }
+          <button aria-label="Next page" [disabled]="transactionLoading() || currentPage() >= totalPages()" (click)="loadTransactions(currentPage() + 1)">›</button>
+        </nav>
+      </div>
+    </section>
+  }
+  @if (modal() === 'account') {
+    <app-modal title="Add Account" [busy]="accountForm.saving()" (dismiss)="closeModal()">
+      <app-create-account #accountForm [embedded]="true" (saved)="accountCreated($event)" (cancelled)="closeModal()" />
+    </app-modal>
+  }
+  @if (modal() === 'transaction') {
+    <app-modal title="Add Transaction" [busy]="transactionForm.saving()" (dismiss)="closeModal()">
+      <app-create-transaction #transactionForm [embedded]="true" [accountId]="selectedId()" (saved)="transactionCreated()" (cancelled)="closeModal()" />
+    </app-modal>
+  }
+  @if (modal() === 'category') {
+    <app-modal title="Add Category" [busy]="categoryForm.saving()" (dismiss)="closeModal()">
+      <app-create-category #categoryForm (saved)="categoryCreated($event)" (cancelled)="closeModal()" />
+    </app-modal>
+  }
+</div>

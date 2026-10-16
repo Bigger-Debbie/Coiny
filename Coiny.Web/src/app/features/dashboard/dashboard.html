@@ -50,7 +50,6 @@
         }
       </div>
       <div class="net-worth-range">
-        <span class="chart-caption">Daily closing balance</span>
         <div class="range-controls" role="group" aria-label="Net worth date range">
           @for (range of ranges; track range) {
             <button type="button" [class.selected]="selectedRange() === range" [attr.aria-pressed]="selectedRange() === range"

@@ -1,9 +1,9 @@
 import { Routes } from '@angular/router';
 import { Login } from './features/auth/login/login';
 import { Dashboard } from './features/dashboard/dashboard';
-import { CreateTransaction } from './features/transactions/create-transaction/create-transaction';
 import { authGuard } from './core/guards/auth-guard';
 import { AppLayout } from './layouts/app-layout/app-layout';
+import { Accounts } from './features/accounts/accounts';
 
 export const routes: Routes = [
     {
@@ -15,13 +15,15 @@ export const routes: Routes = [
         component: AppLayout,
         canActivate: [authGuard],
         children: [
+        { path: 'accounts/new', redirectTo: ({ queryParams }) => '/accounts?' + new URLSearchParams({ ...queryParams, create: 'account' }).toString() },
+        { path: 'accounts', component: Accounts },
         {
             path: 'dashboard',
             component: Dashboard
         },
         {
             path: 'transactions/new',
-            component: CreateTransaction
+            redirectTo: ({ queryParams }) => '/accounts?' + new URLSearchParams({ ...queryParams, create: 'transaction' }).toString()
         },
         {
             path: '',

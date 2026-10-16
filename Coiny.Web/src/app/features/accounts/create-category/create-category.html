@@ -1,0 +1,24 @@
+<p>Categories are shared across your household’s accounts.</p>
+<form #form="ngForm" (ngSubmit)="save(form)" novalidate>
+  <fieldset [disabled]="saving()">
+    <div>
+      <label for="category-name">Category name</label>
+      <input id="category-name" name="name" required maxlength="100" [(ngModel)]="model.name" #name="ngModel"
+        [attr.aria-invalid]="(name.invalid || !model.name.trim()) && (name.touched || form.submitted)" aria-describedby="category-name-error" />
+      <span id="category-name-error">
+        @if ((name.invalid || !model.name.trim()) && (name.touched || form.submitted)) {
+          <small class="error">Enter a category name.</small>
+        }
+      </span>
+    </div>
+    <div>
+      <label for="new-category-type">Type</label>
+      <app-select-menu inputId="new-category-type" label="Category type" name="categoryType" [options]="types" [(ngModel)]="model.categoryType" />
+    </div>
+  </fieldset>
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  <div class="actions">
+    <button type="submit" class="button-primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save Category' }}</button>
+    <button type="button" class="button-ghost" [disabled]="saving()" (click)="cancel()">Cancel</button>
+  </div>
+</form>

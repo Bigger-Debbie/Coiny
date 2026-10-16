@@ -1,0 +1,22 @@
+<button #trigger type="button" class="select-trigger" [class.inverse]="inverse" [id]="inputId"
+  role="combobox" aria-haspopup="listbox" [attr.aria-label]="label"
+  [attr.aria-controls]="inputId + '-options'" [attr.aria-expanded]="open()"
+  [attr.aria-activedescendant]="open() && options.length ? inputId + '-option-' + active() : null"
+  [disabled]="disabled()" (click)="toggle()" (keydown)="onKeydown($event)">
+  <span>{{ selected?.label || 'Select…' }}</span><span class="chevron" aria-hidden="true">⌄</span>
+</button>
+@if (open()) {
+  <div class="options" role="listbox" [id]="inputId + '-options'" [attr.aria-label]="label"
+    [style.left.px]="position().left" [style.top.px]="position().top"
+    [style.width.px]="position().width" [style.max-height.px]="position().height"
+    [style.transform]="position().above ? 'translateY(-100%)' : null">
+    @for (option of options; track option.value; let i = $index) {
+      <div role="option" class="option" [id]="inputId + '-option-' + i"
+        [attr.aria-selected]="value() === option.value" [class.highlighted]="active() === i"
+        (pointermove)="active.set(i)" (mousedown)="$event.preventDefault()" (click)="choose(option)">
+        <span class="option-text"><strong>{{ option.label }}</strong>@if (option.detail) { <small>{{ option.detail }}</small> }</span>
+        @if (value() === option.value) { <span aria-hidden="true">✓</span> }
+      </div>
+    } @empty { <p class="empty">No options available</p> }
+  </div>
+}

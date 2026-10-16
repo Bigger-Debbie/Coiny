@@ -1,12 +1,12 @@
 import { ChangeDetectorRef, Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [Icon],
+  imports: [Icon, RouterLink, RouterLinkActive],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })

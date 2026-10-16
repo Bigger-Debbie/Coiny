@@ -1,0 +1,52 @@
+:host { display: block; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin: .5rem 0 1.5rem; }
+.page-title { font: inherit; font-size: 1.4rem; margin: 0; }
+.page-heading > button, .pane-actions > button { font-size: .75rem; }
+.pane-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.notice { color: var(--color-success); font-size: .85rem; }
+.account-hero { display: grid; grid-template-columns: minmax(15rem, 22%) minmax(0, 1fr); gap: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--color-border); }
+.account-overview { min-width: 0; display: flex; flex-direction: column; gap: .75rem; }
+.account-picker { background: var(--color-primary); color: white; padding: 1rem; border-radius: var(--radius-md); }
+.account-picker label { font-size: .7rem; color: #ffffffb3; margin: 0; }
+.account-picker > span { display: block; font-size: .8rem; overflow-wrap: anywhere; }
+.balance-card { flex: 1; display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; }
+.balance-label, small { color: var(--color-text-muted); font-size: .75rem; }
+.balance { display: block; font-size: clamp(1.6rem, 2.3vw, 2.2rem); font-weight: 400; color: var(--color-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.balance-change { display: flex; gap: .35rem; align-items: center; font-size: .8rem; color: var(--color-text-muted); margin-top: .25rem; }
+.balance-change app-icon { width: 1rem; height: 1rem; flex-shrink: 0; }
+.positive { color: var(--color-success); }
+.negative { color: var(--color-danger); }
+.account-meta { display: grid; gap: .2rem; padding-top: .75rem; margin-top: auto; border-top: 1px solid var(--color-border); font-size: .8rem; }
+.account-meta a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
+.trend-panel { min-width: 0; display: flex; flex-direction: column; }
+.chart { flex: 1; min-height: 16rem; display: grid; }
+.chart app-trend-chart { height: 100%; }
+.chart-state { align-self: center; text-align: center; color: var(--color-text-muted); }
+.range-footer { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .75rem; padding-top: 1rem; border-top: 1px solid var(--color-border); }
+.range-controls { display: flex; flex-wrap: wrap; padding: .25rem; border-radius: .65rem; background: #f7f7fb; }
+.range-controls button { background: transparent; color: var(--color-text-muted); font-size: .75rem; padding: .75rem; font-weight: 500; }
+.range-controls .selected { background: var(--color-primary); color: white; }
+.transactions-pane { margin-top: 2rem; padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.pane-heading, .heading-with-filter { display: flex; align-items: center; gap: .75rem; }
+.pane-heading { justify-content: space-between; flex-wrap: wrap; }
+h2 { margin: 0; font-size: 1.25rem; }
+.filter-toggle { display: grid; place-items: center; padding: .5rem; background: transparent; color: var(--color-primary); }
+.filter-toggle svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+.filter-toggle.active { background: #eb9a5030; }
+.period-label, .filter-summary { font-size: .8rem; color: var(--color-text-muted); margin: 1rem 0; }
+.filters { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 1.5rem; padding: 1rem; background: #f7f7fb; border-radius: var(--radius-sm); }
+.filters > div { flex: 1 1 10rem; }
+.filters label, .filters button { font-size: .8rem; }
+.transaction-content { min-height: 12rem; }
+.pagination-footer { border-top: 1px solid var(--color-border); padding-top: 1rem; margin-top: 1rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.pagination { display: flex; gap: .25rem; }
+.pagination button { background: transparent; color: var(--color-primary); padding: .5rem .7rem; }
+.pagination button[aria-current="page"] { background: var(--color-primary); color: white; }
+button:disabled { opacity: .4; cursor: default; }
+a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+@media (max-width: 750px) {
+  .account-hero { grid-template-columns: 1fr; gap: 1rem; }
+  .account-overview { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .transactions-pane { padding: 1rem; }
+}
+@media (max-width: 450px) { .account-overview { grid-template-columns: 1fr; } .range-controls button { padding: .6rem; } }

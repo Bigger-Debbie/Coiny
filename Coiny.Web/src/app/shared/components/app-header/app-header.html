@@ -1,28 +1,19 @@
 <header class="app-header">
     <div class="content-container header-content">
-        <div class="brand">
+        <a class="brand" routerLink="/dashboard" aria-label="Coiny dashboard">
             <img src="/assets/icons/favicon.svg" alt="Coiny Logo" class="brand-logo">
             <span class="brand-name">COINY</span>
-        </div>
+        </a>
         <nav class="navigation">
             <a
                 class="navigation-link"
                 routerLink="/accounts"
+                routerLinkActive="active"
                 aria-label="Accounts">
 
                 <app-icon
                     class="navigation-icon"
                     name="accounts">
-                </app-icon>
-            </a>
-            <a 
-                class="navigation-link"
-                routerLink="/transactions"
-                aria-label="Transactions">
-
-                <app-icon
-                    class="navigation-icon"
-                    name="transactions">
                 </app-icon>
             </a>
             <a 
