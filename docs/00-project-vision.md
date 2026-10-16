@@ -21,7 +21,8 @@ its data foundation; collaboration features such as invitations are still planne
 - Are we making progress toward our goals?
 
 The first three questions guide the current account, transaction, and dashboard
-work. Budgeting, affordability, and goal planning are future capabilities.
+work. Budgeting now has an initial backend schema; its setup and dashboard,
+affordability, and goal planning remain future capabilities.
 
 ## Product pillars
 

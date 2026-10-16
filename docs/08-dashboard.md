@@ -187,7 +187,9 @@ error/retry states. Superseded requests are cancelled.
 
 The logo returns to the dashboard, the accounts icon opens the accounts page,
 and the separate transactions icon has been removed. The budget icon remains a
-planned destination. The header's dynamic
+planned destination. Its backend model foundation and agreed wizard/dashboard
+sequence are described in [household budgeting](09-household-budgeting.md).
+The header's dynamic
 initial opens a profile menu with name/email and local logout, including keyboard
 navigation and outside-click dismissal. Signup, full expired-session handling,
 and household onboarding remain planned. See

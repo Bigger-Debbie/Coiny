@@ -49,6 +49,10 @@ breakdown endpoints return structured objects. There are no
 public single-resource detail, update, delete, logout, refresh-token, or
 snapshot-management endpoints.
 
+Household budgeting exposes the [setup, draft, preview, publication, and monthly
+projection endpoints](#household-budgeting) below. Calendar events are included in
+monthly projections; they describe planned occurrences.
+
 In Development, `/openapi/v1.json` exposes the generated contract. It is outside
 the `/api` base and is a JSON document, not a configured Swagger UI.
 
@@ -395,3 +399,114 @@ changes, and neutral direction. Full calculation and carry-forward rules are in
 These are current contracts, not promises of update/delete
 or complete authentication workflows. Planned capabilities are tracked in the
 [root README](../README.md#current-status).
+
+
+## Household budgeting
+
+All routes require a bearer token and current household membership. Household IDs
+are resolved from the authenticated user; clients do not supply them. Apply the
+pending budget migrations with the [database setup command](06-development-setup.md#restore-and-initialize)
+before testing these endpoints. No sample budget is seeded.
+
+| Method | Route | Success | Purpose |
+| --- | --- | --- | --- |
+| GET | `/api/budgets/setup` | 200 | Household setup status and resumable draft |
+| GET | `/api/budgets/draft` | 200 or 204 | Full saved draft, or no content when absent |
+| POST | `/api/budgets/draft` | 200 | Start or resume the household draft |
+| PUT | `/api/budgets/draft/{draftId}` | 200 | Replace all draft definitions and save the wizard step |
+| GET | `/api/budgets/draft/{draftId}/preview?month=2026-11-01&expectedEditVersion=1` | 200 | Project a saved draft without publication |
+| POST | `/api/budgets/draft/{draftId}/publish` | 200 | Validate and publish the reviewed draft |
+| GET | `/api/budgets/month?month=2026-11-01` | 200 | Published monthly plan and scheduled events |
+
+Start with `{}` for the current America/New_York month, or:
+
+```json
+{
+  "effectiveFromMonth": "2026-11-01"
+}
+```
+
+Starting again resumes an existing draft unchanged, even if a different month was
+requested. A new draft copies the applicable published plan, if any.
+
+The setup response contains `currentMonth`, `hasPublishedBudget`,
+`firstPublishedMonth`, `currentRevisionId`, and `draft` (full revision or null).
+A future-only published plan has `hasPublishedBudget: true` and a null
+`currentRevisionId`; setup is complete even though the plan is not effective yet.
+A saved draft can coexist with a published plan. Setup reads create no records.
+
+Save the full draft, including entries from other steps:
+
+```json
+{
+  "expectedEditVersion": 0,
+  "effectiveFromMonth": "2026-11-01",
+  "setupStep": "Review",
+  "incomeSources": [
+    {
+      "name": "Salary",
+      "amount": 2000,
+      "schedule": {
+        "frequency": "EveryTwoWeeks",
+        "startDate": "2026-10-02"
+      }
+    }
+  ],
+  "allocations": [
+    {
+      "name": "Rent",
+      "amount": 1500,
+      "allocationType": "Housing",
+      "schedule": {
+        "frequency": "Monthly",
+        "startDate": "2026-11-01",
+        "dayOfMonth": 15
+      }
+    },
+    {
+      "name": "Groceries",
+      "amount": 600,
+      "allocationType": "Spending"
+    }
+  ]
+}
+```
+
+All five top-level save fields are required. Use explicit empty arrays for
+unfinished steps; omitted arrays are rejected rather than clearing saved work.
+Income entries require name, amount, and schedule; allocations require name,
+amount, and allocation type. Schedules require frequency and start date.
+The [budget rules](09-household-budgeting.md) define allowed enums, recurrence
+fields, amount precision, and publication requirements.
+
+Start/save/publish return the complete revision: `id`, `revisionNumber`,
+`editVersion`, `effectiveFromMonth`, `state`, `setupStep`, `publishedAt`,
+`incomeSources`, and `allocations`. Save and publication increment `editVersion`;
+use the latest returned value on the next request. Publish with:
+
+```json
+{
+  "expectedEditVersion": 1
+}
+```
+
+Preview requires both query parameters and a month on or after the draft's
+effective month. It returns `draftId`, `editVersion`, and `month`, containing the
+same projection shape as the published month endpoint. Preview is read-only and
+can show an incomplete draft; publication performs the completeness checks.
+
+Monthly results include `month`, `revisionId`, `expectedIncome`, `allocated`,
+`unassigned`, `overBudget`, `incomeSources`, `allocations`, and `events`.
+Each monthly item has ID, name, allocation type (null for income), planned amount,
+and occurrence count. Events have date, item ID/name, income flag, allocation type,
+and per-occurrence amount. Without an applicable published revision, the published
+month endpoint returns a null revision ID and empty, zero-valued results.
+Draft previews never change these published results or create transactions.
+
+Invalid dates, amounts, schedules, incomplete publication, missing required fields,
+and malformed queries return 400. Month dates must be the first day of a month.
+Missing authentication returns 401; an authenticated user without household
+membership receives 403. A missing, foreign, or already-published draft ID returns
+404. Stale edit versions return 409: reload the draft and reconcile changes before
+retrying. Domain errors use Problem Details; binding errors use Validation Problem
+Details. Over-budget plans are allowed and report the excess separately.

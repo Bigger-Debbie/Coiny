@@ -17,7 +17,7 @@ remain future work.
 | Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown | Edit/delete flows, paired transfers, imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Product and domain direction | Budgets, goals, recurring transactions, purchase planning |
+| Planning | Budget schema, recurrence, draft/preview/publish API, monthly plan projections | Setup wizard, allocation chart, calendar, goals, forecasting |
 
 ## Get started
 
@@ -35,6 +35,7 @@ Default local URLs:
 
 ```text
 Coiny.API/       ASP.NET Core API, domain models, services, EF migrations
+Coiny.API.Tests/ Repeatable backend recurrence, workflow, and migration tests
 Coiny.Web/       Angular app, shared UI, styles, and frontend tests
 Coiny.slnx      .NET solution
 docs/           Product, domain, behavior, setup, and API documentation
@@ -57,13 +58,17 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Development setup](docs/06-development-setup.md) | Configuration, startup, checks, and troubleshooting |
 | [API and Postman reference](docs/07-api-reference.md) | All current endpoints, payloads, and testing workflow |
 | [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
+| [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones
 
 The dashboard, login screen, profile menu/local logout, and accounts page with
-interactive income/expense category breakdown are implemented. Account editing,
-deletion, and further reporting remain future work. Signup, password
+interactive income/expense category breakdown are implemented. Household budgeting
+now has models, recurrence, a draft/preview/publish API, and backend tests.
+Next is its setup wizard, followed by the allocation chart, calendar,
+and budget editing.
+Account editing, deletion, and further reporting remain future work. Signup, password
 recovery, complete expired-session handling, and new-user setup are deferred.
 
 For current development limitations and test status, see the

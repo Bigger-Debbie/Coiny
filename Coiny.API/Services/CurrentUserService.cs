@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Coiny.API.Services;
 
+public class HouseholdMembershipRequiredException() : InvalidOperationException("User does not belong to a household.");
+
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -37,7 +39,7 @@ public class CurrentUserService : ICurrentUserService
             .FirstOrDefaultAsync(hm => hm.UserId == userId);
 
         if (householdMember is null)
-            throw new InvalidOperationException("User does not beling to a household");
+            throw new HouseholdMembershipRequiredException();
 
         return householdMember.HouseholdId;
     }

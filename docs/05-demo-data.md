@@ -7,6 +7,10 @@ The seed command is explicit, runs only in `Development`, applies pending
 migrations, and exits without starting the HTTP server. Normal API startup never
 creates sample data. A populated database is rejected rather than overwritten.
 
+The current seed does not create a household budget. On a fresh seed, migrations
+create the budget tables, but the household has no budget revisions, income
+sources, or allocations yet.
+
 ## Seed an empty database
 
 Run from the repository root. An explicit connection string ensures the CLI and

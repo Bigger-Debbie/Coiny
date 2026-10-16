@@ -23,6 +23,8 @@ public static class ApplicationServceExtensions
         services.AddScoped<IAccountTrendService, AccountTrendService>();
         services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<ITrendService, TrendService>();
+        services.AddSingleton<IBudgetScheduleService, BudgetScheduleService>();
+        services.AddScoped<IBudgetService, BudgetService>();
 
         return services;
     }

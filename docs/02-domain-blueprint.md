@@ -18,9 +18,17 @@ separately below. EF models live in `Coiny.API/Models/` and are registered throu
 | `Category` | Household-owned transaction classification with `Income`, `Expense`, or `Transfer` type |
 | `Transaction` | Required household, account, and category; positive amount, date, description, optional merchant/notes, cleared flag |
 | `AccountBalanceSnapshot` | Account's derived closing balance on one calendar day |
+| `HouseholdBudget` | One household-owned budget plan, with draft/published revisions |
+| `BudgetRevision` | Complete version of income and allocations, effective month, publication state, saved wizard step |
+| `BudgetIncomeSource` | Expected take-home amount per occurrence and required owned schedule |
+| `BudgetAllocation` | Planned use of income with monthly amount or per-occurrence amount plus optional schedule |
 
 Domain entities inherit integer `Id` and UTC `CreatedAt` from `BaseEntity`.
 `ApplicationUser` inherits Identity's string ID instead.
+`BudgetSchedule` is an owned value with frequency, date bounds, and monthly day
+numbers; it has no independent table or public ID. Budget services implement
+recurrence, draft/publication, and monthly projections, but are not exposed
+through an API yet. See [household budgeting](09-household-budgeting.md).
 
 ```mermaid
 erDiagram
@@ -34,6 +42,10 @@ erDiagram
     Account ||--o{ Transaction : records
     Category ||--o{ Transaction : classifies
     Account ||--o{ AccountBalanceSnapshot : projects
+    Household ||--o| HouseholdBudget : plans
+    HouseholdBudget ||--o{ BudgetRevision : versions
+    BudgetRevision ||--o{ BudgetIncomeSource : expects
+    BudgetRevision ||--o{ BudgetAllocation : allocates
 ```
 
 ## Ownership and membership
@@ -79,7 +91,7 @@ currently filter inactive accounts.
 
 | Concept | Intended purpose |
 | --- | --- |
-| Budget | Planned category spending over a period |
+| Budget workflows | Resumable setup, publication, effective-month selection, planned allocations and calendar |
 | Goal | Savings target, debt payoff, or other financial objective |
 | Recurring transaction | Scheduled income or expense pattern |
 | Paired transfer | Atomic movement between accounts, including card payments |

@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="Coiny.API/Coiny.API.csproj" />
+  <Project Path="Coiny.API.Tests/Coiny.API.Tests.csproj" />
 </Solution>

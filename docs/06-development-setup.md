@@ -114,6 +114,7 @@ From the repository root:
 
 ```sh
 dotnet build Coiny.slnx
+dotnet test Coiny.API.Tests/Coiny.API.Tests.csproj
 ```
 
 From `Coiny.Web`:
@@ -154,9 +155,16 @@ Current verification baseline after the category-breakdown implementation:
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
 - Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.03 kB
   and 4.25 kB respectively); the production build still passes.
-- There is no committed backend test project or end-to-end browser suite yet.
-  Temporary backend integration checks used during development are not repository
-  tests, and `dotnet build` does not run them.
+- The backend suite has 46 passing xUnit tests for recurrence, household-scoped
+  draft/publication workflows, optimistic conflicts, atomic rollback, and
+  migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
+  See the [backend test guide](../Coiny.API.Tests/README.md).
+- There is no end-to-end browser suite yet. Earlier temporary backend checks are
+  separate from the repository tests; `dotnet build` does not run either.
+- Budget foundation verification used 29 isolated SQLite schema checks, including
+  migration apply/rollback/reapply, preservation of preexisting financial rows,
+  draft/revision constraints, recurrence fields, and exact decimal round trips.
+  See [household budgeting](09-household-budgeting.md) for implemented boundaries.
 
 ## Troubleshooting and repository housekeeping
 

@@ -1,0 +1,165 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Coiny.API.Controllers;
+using Coiny.API.DTOs.Budgets;
+using Coiny.API.Interfaces;
+using Coiny.API.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace Coiny.API.Tests;
+
+public class BudgetApiTests
+{
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) {
+        Converters = { new JsonStringEnumConverter() },
+    };
+    private const string CompleteDraft = """
+        {"expectedEditVersion":0,"effectiveFromMonth":"2026-11-01","setupStep":"Review",
+         "incomeSources":[{"name":"Salary","amount":2000,"schedule":{"frequency":"EveryTwoWeeks","startDate":"2026-10-02"}}],
+         "allocations":[{"name":"Groceries","amount":600,"allocationType":"Spending"}]}
+        """;
+    private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
+
+    [Fact]
+    public async Task HttpWorkflowSupportsResumePreviewPublishAndFutureSetupStatus()
+    {
+        await using var host = await Api.Create();
+        var client = host.Client;
+        var setup = await client.GetFromJsonAsync<BudgetSetupStatusResponse>("/api/budgets/setup", Json);
+        Assert.False(setup!.HasPublishedBudget);
+        Assert.Null(setup.Draft);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.GetAsync("/api/budgets/draft")).StatusCode);
+        var draft = await (await client.PostAsync("/api/budgets/draft", Body("{\"effectiveFromMonth\":\"2026-11-01\"}")))
+            .Content.ReadFromJsonAsync<BudgetRevisionResponse>(Json);
+        var path = $"/api/budgets/draft/{draft!.Id}";
+        var savedResponse = await client.PutAsync(path, Body(CompleteDraft));
+        savedResponse.EnsureSuccessStatusCode();
+        var saved = (await savedResponse.Content.ReadFromJsonAsync<BudgetRevisionResponse>(Json))!;
+        Assert.Equal(1, saved.EditVersion);
+        var resumed = await (await client.PostAsync("/api/budgets/draft", Body("{}")))
+            .Content.ReadFromJsonAsync<BudgetRevisionResponse>(Json);
+        Assert.Equal(saved.Id, resumed!.Id);
+        Assert.Equal(1, resumed.EditVersion);
+        var preview = await client.GetFromJsonAsync<BudgetDraftPreviewResponse>(path + "/preview?month=2026-11-01&expectedEditVersion=1", Json);
+        Assert.Equal(4000, preview!.Month.ExpectedIncome);
+        Assert.Equal(3400, preview.Month.Unassigned);
+        Assert.Null((await client.GetFromJsonAsync<BudgetMonthResponse>("/api/budgets/month?month=2026-11-01", Json))!.RevisionId);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsync(path, Body(CompleteDraft))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsync(path + "/publish", Body("{\"expectedEditVersion\":0}"))).StatusCode);
+        (await client.PostAsync(path + "/publish", Body("{\"expectedEditVersion\":1}"))).EnsureSuccessStatusCode();
+        setup = await client.GetFromJsonAsync<BudgetSetupStatusResponse>("/api/budgets/setup", Json);
+        Assert.True(setup!.HasPublishedBudget);
+        Assert.Equal(new DateOnly(2026,11,1), setup.FirstPublishedMonth);
+        Assert.Null(setup.CurrentRevisionId);
+        Assert.Null(setup.Draft);
+        Assert.Equal(4000, (await client.GetFromJsonAsync<BudgetMonthResponse>("/api/budgets/month?month=2026-11-01", Json))!.ExpectedIncome);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.PutAsync(path, Body(CompleteDraft))).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/budgets/month")]
+    [InlineData("/api/budgets/month?month=bad")]
+    [InlineData("/api/budgets/month?month=2026-10-02")]
+    [InlineData("/api/budgets/draft/1/preview?month=2026-11-01")]
+    [InlineData("/api/budgets/draft/1/preview?month=2026-11-01&expectedEditVersion=-1")]
+    public async Task InvalidQueriesReturnBadRequest(string url)
+    {
+        await using var host = await Api.Create();
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync(url)).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("expectedEditVersion")]
+    [InlineData("allocations")]
+    [InlineData("incomeSources")]
+    [InlineData("setupStep")]
+    public async Task MissingFieldsCannotSilentlyEraseDraft(string field)
+    {
+        await using var host = await Api.Create();
+        var draft = await host.Database.Service().StartDraftAsync(new(2026,11,1));
+        var json = System.Text.Json.Nodes.JsonNode.Parse(CompleteDraft)!;
+        json.AsObject().Remove(field);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PutAsync($"/api/budgets/draft/{draft.Id}", Body(json.ToJsonString()))).StatusCode);
+        Assert.Equal(0, (await host.Database.Service().GetDraftAsync())!.EditVersion);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsync($"/api/budgets/draft/{draft.Id}/publish", Body("{}"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task AuthenticationAndHouseholdIsolationAreEnforced()
+    {
+        await using var host = await Api.Create();
+        var draft = await host.Database.Service().StartDraftAsync(new(2026,11,1));
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/budgets/setup")).StatusCode);
+        host.Client.DefaultRequestHeaders.Add("Test-Household", "2");
+        Assert.Equal(HttpStatusCode.NotFound, (await host.Client.PutAsync($"/api/budgets/draft/{draft.Id}", Body(CompleteDraft))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await host.Client.GetAsync($"/api/budgets/draft/{draft.Id}/preview?month=2026-11-01&expectedEditVersion=0")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await host.Client.PostAsync($"/api/budgets/draft/{draft.Id}/publish", Body("{\"expectedEditVersion\":0}"))).StatusCode);
+        Assert.Null((await host.Client.GetFromJsonAsync<BudgetSetupStatusResponse>("/api/budgets/setup", Json))!.Draft);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        host.Client.DefaultRequestHeaders.Add("Test-Household", "none");
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/api/budgets/setup")).StatusCode);
+    }
+
+    private sealed class Api(BudgetTestDatabase database, WebApplication app) : IAsyncDisposable
+    {
+        public BudgetTestDatabase Database => database;
+        public HttpClient Client { get; } = app.GetTestClient();
+        public static async Task<Api> Create()
+        {
+            var db = await BudgetTestDatabase.CreateAsync();
+            var builder = WebApplication.CreateBuilder();
+            builder.WebHost.UseTestServer();
+            builder.Logging.ClearProviders();
+            builder.Services.AddControllers().AddApplicationPart(typeof(BudgetsController).Assembly)
+                .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+            builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => {});
+            builder.Services.AddAuthorization();
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<IBudgetService>(services => {
+                var household = services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!
+                    .User.FindFirstValue("household")!;
+                return household == "none" ? new BudgetService(db.Context(), new MissingHousehold(), new BudgetScheduleService(), db.Clock)
+                    : db.Service(int.Parse(household));
+            });
+            var app = builder.Build();
+            app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
+            await app.StartAsync();
+            var api = new Api(db, app);
+            api.Client.DefaultRequestHeaders.Add("Test-Household", "1");
+            return api;
+        }
+        public async ValueTask DisposeAsync()
+        {
+            Client.Dispose(); await app.DisposeAsync(); await database.DisposeAsync();
+        }
+    }
+    private sealed class MissingHousehold : ICurrentUserService
+    {
+        public string? GetUserId() => "test";
+        public bool IsAuthenticated() => true;
+        public Task<int> GetCurrentHouseholdIdAsync() => throw new HouseholdMembershipRequiredException();
+    }
+    private sealed class TestAuth(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+        : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    {
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var household = Request.Headers["Test-Household"].ToString();
+            return Task.FromResult(string.IsNullOrEmpty(household) ? AuthenticateResult.NoResult() :
+                AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(
+                    new ClaimsIdentity([new Claim("household", household)], "Test")), "Test")));
+        }
+    }
+}
