@@ -22,7 +22,7 @@ internal static class BudgetScheduleMapping
             "ScheduleFrequency" IS NOT NULL AND "ScheduleStartDate" IS NOT NULL
             AND ("ScheduleEndDate" IS NULL OR "ScheduleEndDate" >= "ScheduleStartDate")
             AND (
-                ("ScheduleFrequency" IN (0, 1) AND "ScheduleDayOfMonth" IS NULL AND "ScheduleSecondDayOfMonth" IS NULL)
+                ("ScheduleFrequency" IN (0, 1, 4, 5) AND "ScheduleDayOfMonth" IS NULL AND "ScheduleSecondDayOfMonth" IS NULL)
                 OR ("ScheduleFrequency" = 2 AND "ScheduleDayOfMonth" BETWEEN 1 AND 31
                     AND "ScheduleSecondDayOfMonth" > "ScheduleDayOfMonth" AND "ScheduleSecondDayOfMonth" <= 31)
                 OR ("ScheduleFrequency" = 3 AND "ScheduleDayOfMonth" BETWEEN 1 AND 31 AND "ScheduleSecondDayOfMonth" IS NULL)

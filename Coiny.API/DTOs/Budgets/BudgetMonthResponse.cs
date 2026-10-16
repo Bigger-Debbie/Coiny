@@ -6,6 +6,8 @@ public class BudgetMonthResponse
 {
     public DateOnly Month { get; init; }
     public int? RevisionId { get; init; }
+    public decimal HealthInsurance { get; init; }
+    public decimal RetirementContributions { get; init; }
     public decimal ExpectedIncome { get; init; }
     public decimal Allocated { get; init; }
     public decimal Unassigned { get; init; }
@@ -20,6 +22,8 @@ public class BudgetMonthlyItem
     public int Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public BudgetAllocationType? AllocationType { get; init; }
+    public decimal HealthInsurance { get; init; }
+    public decimal RetirementContributions { get; init; }
     public decimal PlannedAmount { get; init; }
     public int OccurrenceCount { get; init; }
 }

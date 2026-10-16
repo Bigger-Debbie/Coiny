@@ -39,6 +39,43 @@ public class BudgetServiceTests
         Assert.Equal(BudgetRevisionState.Draft, (await db.Service().GetDraftAsync())!.State);
     }
 
+    [Fact]
+    public async Task PaycheckDetailsRemainInformationalAndSurvivePublicationAndCloning()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync();
+        var draft = await db.Service().StartDraftAsync();
+        var request = Request();
+        request.IncomeSources[0].HealthInsurancePerPaycheck = 125.25m;
+        request.IncomeSources[0].RetirementContributionPerPaycheck = 200;
+        request.Allocations.Add(new() { Name = "Car insurance", Amount = 1200, AllocationType = BudgetAllocationType.Bills,
+            Schedule = new() { Frequency = BudgetFrequency.EverySixMonths, StartDate = new(2026,10,15) } });
+        request.Allocations.Add(new() { Name = "Annual insurance", Amount = 100, AllocationType = BudgetAllocationType.Bills,
+            Schedule = new() { Frequency = BudgetFrequency.Yearly, StartDate = new(2026,10,15) } });
+        var saved = await db.Service().SaveDraftAsync(draft.Id, request);
+        Assert.Equal(125.25m, Assert.Single((await db.Service().GetDraftAsync())!.IncomeSources).HealthInsurancePerPaycheck);
+        var preview = (await db.Service().PreviewDraftAsync(draft.Id, saved.EditVersion, new(2026,10,1))).Month;
+        Assert.Equal(6000, preview.ExpectedIncome);
+        Assert.Equal(4000, preview.Allocated);
+        Assert.Equal(2000, preview.Unassigned);
+        Assert.Equal(375.75m, preview.HealthInsurance);
+        Assert.Equal(600, preview.RetirementContributions);
+        await db.Service().PublishDraftAsync(draft.Id, saved.EditVersion);
+        var november = await db.Service().GetMonthAsync(new(2026,11,1));
+        Assert.Equal(250.50m, november.HealthInsurance);
+        Assert.Equal(400, november.RetirementContributions);
+        Assert.DoesNotContain(november.Events, e => e.Name.Contains("insurance"));
+        Assert.Contains((await db.Service().GetMonthAsync(new(2027,4,1))).Events, e => e.Name == "Car insurance");
+        var clone = await db.Service().StartDraftAsync(new(2026,11,1));
+        Assert.Equal(200, Assert.Single(clone.IncomeSources).RetirementContributionPerPaycheck);
+        var update = Request(clone.EditVersion, new(2026,11,1));
+        update.IncomeSources[0].HealthInsurancePerPaycheck = -1;
+        await Assert.ThrowsAsync<ArgumentException>(() => db.Service().SaveDraftAsync(clone.Id, update));
+        update.IncomeSources[0].HealthInsurancePerPaycheck = 0;
+        update.IncomeSources[0].RetirementContributionPerPaycheck = .001m;
+        await Assert.ThrowsAsync<ArgumentException>(() => db.Service().SaveDraftAsync(clone.Id, update));
+        Assert.Empty(await db.Context().Transactions.ToListAsync());
+    }
+
     private static BudgetDraftRequest Request(int version = 0, DateOnly? month = null) => new() {
         ExpectedEditVersion = version, EffectiveFromMonth = month ?? new(2026,10,1), SetupStep = BudgetSetupStep.Review,
         IncomeSources = [new() { Name = " Salary ", Amount = 2000, Schedule = new() {

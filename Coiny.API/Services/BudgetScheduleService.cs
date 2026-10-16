@@ -13,10 +13,10 @@ public class BudgetScheduleService : IBudgetScheduleService
             throw new ArgumentException("A supported frequency and start date are required.");
         if (schedule.EndDate < schedule.StartDate)
             throw new ArgumentException("Schedule end date cannot precede its start date.");
-        if (schedule.Frequency is BudgetFrequency.Weekly or BudgetFrequency.EveryTwoWeeks)
+        if (schedule.Frequency is BudgetFrequency.Weekly or BudgetFrequency.EveryTwoWeeks or BudgetFrequency.EverySixMonths or BudgetFrequency.Yearly)
         {
             if (schedule.DayOfMonth.HasValue || schedule.SecondDayOfMonth.HasValue)
-                throw new ArgumentException("Weekly schedules use the start date, not monthly day numbers.");
+                throw new ArgumentException("This frequency repeats from the start date and does not use monthly day numbers.");
         }
         else
         {
@@ -48,6 +48,12 @@ public class BudgetScheduleService : IBudgetScheduleService
             var first = start.DayNumber + (remainder == 0 ? 0 : interval - remainder);
             for (var day = first; day <= end.DayNumber; day += interval)
                 dates.Add(DateOnly.FromDayNumber(day));
+        }
+        else if (schedule.Frequency is BudgetFrequency.EverySixMonths or BudgetFrequency.Yearly)
+        {
+            var elapsedMonths = (month.Year - schedule.StartDate.Year) * 12 + month.Month - schedule.StartDate.Month;
+            var interval = schedule.Frequency == BudgetFrequency.EverySixMonths ? 6 : 12;
+            if (elapsedMonths >= 0 && elapsedMonths % interval == 0) AddMonthlyDay(schedule.StartDate.Day);
         }
         else
         {

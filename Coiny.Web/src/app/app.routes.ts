@@ -3,6 +3,7 @@ import { Login } from './features/auth/login/login';
 import { Dashboard } from './features/dashboard/dashboard';
 import { authGuard } from './core/guards/auth-guard';
 import { AppLayout } from './layouts/app-layout/app-layout';
+import type { Budget } from './features/budget/budget';
 import { Accounts } from './features/accounts/accounts';
 
 export const routes: Routes = [
@@ -17,6 +18,7 @@ export const routes: Routes = [
         children: [
         { path: 'accounts/new', redirectTo: ({ queryParams }) => '/accounts?' + new URLSearchParams({ ...queryParams, create: 'account' }).toString() },
         { path: 'accounts', component: Accounts },
+        { path: 'budget', loadComponent: () => import('./features/budget/budget').then(m => m.Budget), canDeactivate: [(component: Budget) => component.canLeave()] },
         {
             path: 'dashboard',
             component: Dashboard

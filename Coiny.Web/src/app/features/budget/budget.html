@@ -1,0 +1,124 @@
+<section class="budget-page">
+  <header class="page-heading"><div><h1>Household budget</h1><p>Give your income a plan.</p></div></header>
+  @if (loading()) { <p role="status">Loading your household budget…</p> }
+  @else {
+    @if (notice()) { <p class="success" role="status">{{ notice() }}</p> }
+    @if (error()) {
+      <div class="message error" role="alert"><p>{{ error() }}</p>
+        @if (conflict()) { <p>The shared draft changed or was published. Reload it before making further changes.</p><button class="button-outline" [disabled]="busy()" (click)="reloadDraft()">Reload household draft</button> }
+        @else if (!setup()) { <button class="button-outline" (click)="load()">Try again</button> }
+        @else if (wizard() && !projection()) { <button class="button-outline" [disabled]="busy()" (click)="retryPreview()">Retry saved preview</button> }
+      </div>
+    }
+    @if (setup(); as status) {
+      @if (!wizard()) {
+        <div class="intro panel">
+          <div><h2>{{ status.hasPublishedBudget ? 'Your household plan' : 'Let’s build your household budget' }}</h2>
+            <p>{{ status.hasPublishedBudget ? 'Your published plan is shared with your household. Edit a draft to make changes from a chosen month.' : 'Start with take-home income, plan your bills and spending, then decide what to save or invest.' }}</p>
+            <p>You can save and return at any step. These are plans; no money is moved and no transactions are created.</p>
+            @if (draft(); as saved) { <p class="draft-note">Saved draft · {{ steps[steps.length - 1].key === saved.setupStep ? 'Ready for review' : 'Setup in progress' }} · Effective {{ saved.effectiveFromMonth | date:'MMMM yyyy':'UTC' }}</p> }
+          </div>
+          <button class="button-primary" [disabled]="busy()" (click)="start()">{{ busy() ? 'Opening…' : draft() ? 'Continue setup' : status.hasPublishedBudget ? 'Edit budget' : 'Set up your budget' }}</button>
+        </div>
+      } @else {
+        <ol class="steps" aria-label="Budget setup progress">
+          @for (item of steps; track item.key; let i = $index) {
+            <li [class.current]="step() === i" [attr.aria-current]="step() === i ? 'step' : null"><span>{{ i + 1 }}</span>{{ item.label }}</li>
+          }
+        </ol>
+      }
+      <div class="budget-layout" [class.setup-layout]="wizard()">
+        @if (wizard()) {
+          <form class="panel editor" [formGroup]="form" (ngSubmit)="save(step() < 4 ? step() + 1 : 4)" novalidate>
+            <fieldset [disabled]="busy() || conflict()">
+              <h2 #stepHeading tabindex="-1">{{ steps[step()].label }}</h2><p>{{ steps[step()].description }}</p>
+              @if (step() === 0) {
+                <p class="hint">Use the amount that reaches your account. Monthly income follows actual paydays, including extra-paycheck months.</p>
+                @for (source of income.controls; track source; let i = $index) {
+                  <article class="entry" [formGroup]="group(source)">
+                    <header><h3>Income source {{ i + 1 }}</h3><button type="button" class="button-ghost" (click)="income.removeAt(i)" [attr.aria-label]="'Remove income source ' + (i + 1)">Remove</button></header>
+                    <div class="fields"><div><label [for]="'income-name-' + i">Name</label><input [id]="'income-name-' + i" formControlName="name" maxlength="100" placeholder="e.g. Alex’s salary" /></div>
+                      <div><label [for]="'income-amount-' + i">Take-home amount per paycheck</label><input [id]="'income-amount-' + i" type="number" min="0" step="0.01" formControlName="amount" /></div></div>
+                    <details class="paycheck-details" [open]="source.value.healthInsurancePerPaycheck != null || source.value.retirementContributionPerPaycheck != null">
+                      <summary>Paycheck details (optional)</summary>
+                      <p class="hint">Already deducted from this paycheck. Record these for visibility; your take-home income and available budget won’t be reduced again. Leave blank if you don’t want to track them.</p>
+                      <div class="fields">
+                        <div><label [for]="'health-' + i">Health insurance per paycheck</label><input [id]="'health-' + i" type="number" min="0" step="0.01" formControlName="healthInsurancePerPaycheck" /></div>
+                        <div><label [for]="'retirement-' + i">Retirement contribution per paycheck</label><input [id]="'retirement-' + i" type="number" min="0" step="0.01" formControlName="retirementContributionPerPaycheck" /></div>
+                      </div>
+                    </details>
+                    <app-budget-schedule [income]="true" [group]="schedule(source)" [id]="'income-' + i" />
+                    @if (source.invalid && (source.touched || attempted())) { <p class="error">Enter a name, a nonnegative amount with up to two decimals, and valid dates. Monthly days must be 1–31; the second day must follow the first.</p> }
+                  </article>
+                } @empty { <p class="empty">No income sources yet. You can save an empty step and return later.</p> }
+                <button type="button" class="button-outline" (click)="addIncome()">+ Add income source</button>
+              } @else if (step() < 4) {
+                @for (allocation of allocations.controls; track allocation; let i = $index) {
+                  @if (visibleAllocation(allocation)) {
+                    <article class="entry" [formGroup]="group(allocation)">
+                      <header><h3>{{ allocation.value.name || 'New allocation' }}</h3><button type="button" class="button-ghost" (click)="allocations.removeAt(i)" [attr.aria-label]="'Remove allocation ' + (allocation.value.name || (i + 1))">Remove</button></header>
+                      <div class="fields"><div><label [for]="'allocation-name-' + i">Name</label><input [id]="'allocation-name-' + i" formControlName="name" maxlength="100" [placeholder]="step() === 1 ? 'e.g. Mortgage or Electric' : step() === 2 ? 'e.g. Groceries or Dining out' : 'e.g. Emergency fund or Retirement'" /></div>
+                        <div><label [for]="'allocation-amount-' + i">{{ allocation.value.schedule ? 'Amount per payment' : 'Monthly amount' }}</label><input [id]="'allocation-amount-' + i" type="number" min="0" step="0.01" formControlName="amount" /></div>
+                        @if (step() !== 2) { <div><label [for]="'allocation-type-' + i">Allocation type</label><app-select-menu [inputId]="'allocation-type-' + i" label="Allocation type" formControlName="allocationType" [options]="step() === 1 ? billTypes : savingsTypes" /></div> }
+                      </div>
+                      @if (step() === 3) { <label class="checkbox"><input type="checkbox" [checked]="!!allocation.value.schedule" (change)="toggleSchedule(allocation, $event)" />Schedule individual contributions</label> }
+                      @if (allocation.value.schedule) { <app-budget-schedule [group]="schedule(allocation)" [id]="'allocation-' + i" /> }
+                      @if (allocation.invalid && (allocation.touched || attempted())) { <p class="error">Enter a name, a nonnegative amount with up to two decimals, and a valid schedule if selected.</p> }
+                    </article>
+                  }
+                }
+                <button type="button" class="button-outline" (click)="addAllocation()">+ {{ step() === 1 ? 'Add housing or bill' : step() === 2 ? 'Add spending allocation' : 'Add savings or investment' }}</button>
+              } @else {
+                <p class="hint">Save any final changes to refresh the review. Publication requires at least one positive income source and schedules for housing and bills.</p>
+                @if (projection(); as month) {
+                  <h3>Income</h3>
+                  @for (item of month.incomeSources; track item.id) { <div class="review-row"><span>{{ item.name }}<small>{{ item.occurrenceCount }} planned paydays</small>
+                    @if (item.healthInsurance || item.retirementContributions) { <small>Already deducted this month: health insurance {{ (item.healthInsurance || 0) | currency }} · retirement {{ (item.retirementContributions || 0) | currency }}</small> }</span><strong>{{ item.plannedAmount | currency }}</strong></div> } @empty { <p>No income sources. Go back to add one before publishing.</p> }
+                  <h3>Allocations</h3>
+                  @for (item of month.allocations; track item.id) { <div class="review-row"><span>{{ item.name }}<small>{{ item.allocationType }} · {{ item.occurrenceCount ? item.occurrenceCount + ' scheduled payments' : 'Monthly allocation' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> } @empty { <p>No allocations. Your income will remain unassigned.</p> }
+                }
+              }
+            </fieldset>
+            <div class="wizard-actions">
+              @if (step() > 0) { <button type="button" class="button-ghost" [disabled]="busy() || conflict()" (click)="save(step() - 1)">Back</button> }
+              <button type="button" class="button-outline" [disabled]="busy() || conflict()" (click)="save(step(), true)">Save & exit</button>
+              <button type="submit" class="button-primary" [disabled]="busy() || conflict()">{{ busy() ? 'Saving…' : step() < 4 ? 'Save & continue' : 'Save review' }}</button>
+              @if (step() === 4) { <button type="button" class="button-accent" [disabled]="busy() || dirty || conflict() || !publishableMonth || !projection()" (click)="publish()">Publish budget</button> }
+            </div>
+          </form>
+        }
+        @if (wizard() || projection()) {
+          <aside class="panel summary" aria-label="Monthly budget summary">
+            <p class="eyebrow">{{ wizard() ? 'Saved draft preview' : 'Published monthly plan' }}</p>
+            @if (wizard()) {
+              <fieldset class="effective-month" [formGroup]="form" [disabled]="busy() || conflict()">
+                <label for="effective-month">Budget starts in</label><input id="effective-month" type="month" formControlName="effectiveMonth" aria-describedby="effective-month-help" />
+                <small id="effective-month-help">Choose the first month for this plan. Usually, that’s this month. Earlier published months stay unchanged.</small>
+                @if (!publishableMonth) { <p class="error">Choose the current month or a future month before publishing.</p> }
+              </fieldset>
+            }
+            @if (previewLoading()) { <p role="status">Updating your saved monthly totals…</p> }
+            @if (projection(); as month) {
+            <h2>{{ month.month | date:'MMMM yyyy':'UTC' }}</h2>
+
+            <dl><div><dt>Expected take-home income</dt><dd>{{ month.expectedIncome | currency }}</dd></div><div><dt>Total allocated</dt><dd>{{ month.allocated | currency }}</dd></div>
+              <div class="remaining"><dt>Unassigned</dt><dd>{{ month.unassigned | currency }}</dd></div>
+              @if (month.overBudget > 0) { <div class="error"><dt>Over budget</dt><dd>{{ month.overBudget | currency }}</dd></div> }
+            </dl>
+            @if (month.overBudget > 0) { <p class="error">Your plan exceeds expected income. You can still publish it and adjust it later.</p> }
+            @if (month.healthInsurance || month.retirementContributions) {
+              <h3>Already deducted from paychecks</h3>
+              <div class="review-row"><span>Health insurance</span><strong>{{ month.healthInsurance | currency }}</strong></div>
+              <div class="review-row"><span>Retirement contributions</span><strong>{{ month.retirementContributions | currency }}</strong></div>
+              <small>For visibility only. These amounts don’t change your available budget.</small>
+            }
+            <p class="hint">Income reflects actual scheduled paydays in this month. Planned amounts do not represent payments already made.</p>
+            @if (!wizard()) { <h3>Defined allocations</h3>@for (item of month.allocations; track item.id) { <div class="review-row"><span>{{ item.name }}<small>{{ item.allocationType }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> } @empty { <p>No allocations defined.</p> } }
+            } @else if (!previewLoading()) { <p role="status">Your saved totals aren’t available yet. Retry the saved preview to load them.</p> }
+            @if (wizard() && dirty) { <p class="unsaved" role="status">Unsaved changes · Save to refresh these totals.</p> }
+          </aside>
+        }
+      </div>
+    }
+  }
+</section>

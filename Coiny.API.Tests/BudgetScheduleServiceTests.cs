@@ -8,6 +8,26 @@ public class BudgetScheduleServiceTests
 {
     private readonly BudgetScheduleService service = new();
 
+    [Fact]
+    public void SixMonthlyAndYearlyUseOriginalAnchorAcrossShortMonthsAndYears()
+    {
+        var sixMonthly = new BudgetSchedule { Frequency = BudgetFrequency.EverySixMonths, StartDate = new(2026,8,31) };
+        Assert.Empty(service.GetOccurrences(sixMonthly, new(2026,7,1)));
+        Assert.Equal(new DateOnly(2027,2,28), Assert.Single(service.GetOccurrences(sixMonthly, new(2027,2,1))));
+        Assert.Empty(service.GetOccurrences(sixMonthly, new(2027,3,1)));
+        Assert.Equal(new DateOnly(2027,8,31), Assert.Single(service.GetOccurrences(sixMonthly, new(2027,8,1))));
+        sixMonthly.EndDate = new(2027,2,27);
+        Assert.Empty(service.GetOccurrences(sixMonthly, new(2027,2,1)));
+        var yearly = new BudgetSchedule { Frequency = BudgetFrequency.Yearly, StartDate = new(2024,2,29) };
+        Assert.Equal(new DateOnly(2025,2,28), Assert.Single(service.GetOccurrences(yearly, new(2025,2,1))));
+        Assert.Equal(new DateOnly(2028,2,29), Assert.Single(service.GetOccurrences(yearly, new(2028,2,1))));
+        Assert.Empty(service.GetOccurrences(yearly, new(2028,3,1)));
+        yearly.DayOfMonth = 15;
+        Assert.Throws<ArgumentException>(() => service.Validate(yearly));
+        yearly.DayOfMonth = null; yearly.StartDate = DateOnly.MaxValue;
+        Assert.Equal(DateOnly.MaxValue, Assert.Single(service.GetOccurrences(yearly, new(9999,12,1))));
+    }
+
     [Theory]
     [InlineData(2026, 10, 2, 16, 30)]
     [InlineData(2027, 1, 8, 22, 0)]

@@ -68,14 +68,20 @@ describe('AppHeader profile menu', () => {
     expect(fixture.componentInstance.menuOpen()).toBe(false);
     outside.remove();
   });
-  it('logs out locally, clears the profile, closes the menu and replaces the login route', () => {
+  it('logs out locally, clears the profile, closes the menu and replaces the login route', async () => {
     loadProfile(); open();
-    fixture.nativeElement.querySelector('[role="menuitem"]').click(); fixture.detectChanges();
+    await fixture.componentInstance.logout(); fixture.detectChanges();
     expect(auth.getToken()).toBeNull();
     expect(auth.currentUser()).toBeNull();
     expect(auth.isAuthenticated()).toBe(false);
     expect(fixture.componentInstance.menuOpen()).toBe(false);
     expect(navigate).toHaveBeenCalledWith(['/login'], { replaceUrl: true });
+  });
+  it('keeps the session when a page guard cancels logout navigation', async () => {
+    loadProfile(); open(); navigate.mockResolvedValue(false);
+    await fixture.componentInstance.logout();
+    expect(auth.getToken()).toBe('demo-token');
+    expect(auth.currentUser()?.firstName).toBe('Alex');
   });
   it('uses a generic avatar for missing names and keeps logout available after a profile error', () => {
     http.expectOne(r => r.url.endsWith('/auth/me')).flush('Unavailable', { status: 500, statusText: 'Server error' });

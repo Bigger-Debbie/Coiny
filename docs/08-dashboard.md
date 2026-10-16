@@ -183,12 +183,12 @@ error/retry states. Superseded requests are cancelled.
 | `/accounts/new` | Redirects to accounts with the Add Account modal open |
 | `/transactions/new` | Redirects to accounts with the Add Transaction modal open, retaining query parameters |
 | `/` | Redirects to dashboard inside the protected layout |
-| `/budget` | Planned destination; no route implementation |
+| `/budget` | Household budget setup wizard, saved draft review, publication, and monthly summary |
 
 The logo returns to the dashboard, the accounts icon opens the accounts page,
-and the separate transactions icon has been removed. The budget icon remains a
-planned destination. Its backend model foundation and agreed wizard/dashboard
-sequence are described in [household budgeting](09-household-budgeting.md).
+and the separate transactions icon has been removed. The budget icon opens the
+household budgeting page. Its setup workflow and dashboard delivery sequence
+are described in [household budgeting](09-household-budgeting.md).
 The header's dynamic
 initial opens a profile menu with name/email and local logout, including keyboard
 navigation and outside-click dismissal. Signup, full expired-session handling,

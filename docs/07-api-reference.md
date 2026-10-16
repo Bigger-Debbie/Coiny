@@ -510,3 +510,21 @@ membership receives 403. A missing, foreign, or already-published draft ID retur
 404. Stale edit versions return 409: reload the draft and reconcile changes before
 retrying. Domain errors use Problem Details; binding errors use Validation Problem
 Details. Over-budget plans are allowed and report the excess separately.
+
+
+### Optional paycheck details and extended frequencies
+
+Income input/response objects also accept nullable `healthInsurancePerPaycheck`
+and `retirementContributionPerPaycheck`. Omit or leave null to skip tracking.
+These are already deducted from take-home pay, recorded per scheduled paycheck;
+they do not change available income, allocations, or unassigned money. Negative
+amounts or more than two decimal places are rejected. Tax withholding is not tracked.
+Monthly responses and income monthly items expose `healthInsurance` and
+`retirementContributions`, calculated using that month's actual payday count.
+
+`EverySixMonths` and `Yearly` are additional schedule frequencies. Both use
+`startDate` as their anchor and require `dayOfMonth`/`secondDayOfMonth` to be
+absent or null. They accept the same optional inclusive `endDate`. The original
+anchor day is clamped for short months without changing later occurrences.
+A full six-month/yearly payment is included only in its due month, not amortized.
+Existing endpoint paths and required fields are unchanged.

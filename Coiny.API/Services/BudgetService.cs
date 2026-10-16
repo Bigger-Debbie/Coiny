@@ -82,7 +82,8 @@ public class BudgetService(
         if (baseline is not null)
         {
             foreach (var source in baseline.IncomeSources)
-                draft.IncomeSources.Add(new() { Name = source.Name, Amount = source.Amount, Schedule = Copy(source.Schedule) });
+                draft.IncomeSources.Add(new() { Name = source.Name, Amount = source.Amount, HealthInsurancePerPaycheck = source.HealthInsurancePerPaycheck,
+                    RetirementContributionPerPaycheck = source.RetirementContributionPerPaycheck, Schedule = Copy(source.Schedule) });
             foreach (var allocation in baseline.Allocations)
                 draft.Allocations.Add(new() { Name = allocation.Name, Amount = allocation.Amount,
                     AllocationType = allocation.AllocationType, Schedule = allocation.Schedule is null ? null : Copy(allocation.Schedule) });
@@ -113,7 +114,9 @@ public class BudgetService(
         await context.BudgetIncomeSources.Where(i => i.BudgetRevisionId == draftId).ExecuteDeleteAsync();
         await context.BudgetAllocations.Where(a => a.BudgetRevisionId == draftId).ExecuteDeleteAsync();
         draft.IncomeSources = request.IncomeSources.Select(i => new BudgetIncomeSource {
-            BudgetRevisionId = draftId, Name = i.Name.Trim(), Amount = i.Amount, Schedule = Schedule(i.Schedule),
+            BudgetRevisionId = draftId, Name = i.Name.Trim(), Amount = i.Amount,
+            HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck, RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck,
+            Schedule = Schedule(i.Schedule),
         }).ToList();
         draft.Allocations = request.Allocations.Select(a => new BudgetAllocation {
             BudgetRevisionId = draftId, Name = a.Name.Trim(), Amount = a.Amount, AllocationType = a.AllocationType,
@@ -180,7 +183,9 @@ public class BudgetService(
         foreach (var source in revision.IncomeSources.OrderBy(i => i.Id))
         {
             var dates = schedules.GetOccurrences(source.Schedule, month);
-            income.Add(new() { Id = source.Id, Name = source.Name, OccurrenceCount = dates.Count, PlannedAmount = source.Amount * dates.Count });
+            income.Add(new() { Id = source.Id, Name = source.Name, OccurrenceCount = dates.Count, PlannedAmount = source.Amount * dates.Count,
+                HealthInsurance = (source.HealthInsurancePerPaycheck ?? 0) * dates.Count,
+                RetirementContributions = (source.RetirementContributionPerPaycheck ?? 0) * dates.Count });
             foreach (var date in dates)
                 events.Add(new() { Date = date, ItemId = source.Id, Name = source.Name, IsIncome = true, Amount = source.Amount });
         }
@@ -199,6 +204,7 @@ public class BudgetService(
             Month = month, RevisionId = revision.Id, ExpectedIncome = totalIncome, Allocated = allocated,
             Unassigned = Math.Max(0, totalIncome - allocated), OverBudget = Math.Max(0, allocated - totalIncome),
             IncomeSources = income, Allocations = allocations,
+            HealthInsurance = income.Sum(i => i.HealthInsurance), RetirementContributions = income.Sum(i => i.RetirementContributions),
             Events = events.OrderBy(e => e.Date).ThenBy(e => e.IsIncome ? 0 : 1).ThenBy(e => e.Name).ThenBy(e => e.ItemId).ToList(),
         };
     }
@@ -237,6 +243,8 @@ public class BudgetService(
         {
             if (source is null || source.Schedule is null) throw new ArgumentException("Each income source requires a schedule.");
             ValidateNameAndAmount(source.Name, source.Amount);
+            if (source.HealthInsurancePerPaycheck.HasValue) ValidateNameAndAmount(source.Name, source.HealthInsurancePerPaycheck.Value);
+            if (source.RetirementContributionPerPaycheck.HasValue) ValidateNameAndAmount(source.Name, source.RetirementContributionPerPaycheck.Value);
             schedules.Validate(Schedule(source.Schedule));
         }
         foreach (var allocation in request.Allocations)
@@ -260,7 +268,8 @@ public class BudgetService(
     private static BudgetScheduleInput Input(BudgetSchedule s) => new() {
         Frequency = s.Frequency, StartDate = s.StartDate, EndDate = s.EndDate, DayOfMonth = s.DayOfMonth, SecondDayOfMonth = s.SecondDayOfMonth,
     };
-    private static BudgetIncomeInput Income(BudgetIncomeSource i) => new() { Name = i.Name, Amount = i.Amount, Schedule = Input(i.Schedule) };
+    private static BudgetIncomeInput Income(BudgetIncomeSource i) => new() { Name = i.Name, Amount = i.Amount, HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck,
+        RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck, Schedule = Input(i.Schedule) };
     private static BudgetAllocationInput Allocation(BudgetAllocation a) => new() {
         Name = a.Name, Amount = a.Amount, AllocationType = a.AllocationType, Schedule = a.Schedule is null ? null : Input(a.Schedule),
     };

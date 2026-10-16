@@ -71,9 +71,8 @@ export class AppHeader implements OnInit {
     this.avatarButton?.nativeElement.focus();
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
     this.menuOpen.set(false);
-    this.auth.logout();
-    void this.router.navigate(['/login'], { replaceUrl: true });
+    if (await this.router.navigate(['/login'], { replaceUrl: true })) this.auth.logout();
   }
 }

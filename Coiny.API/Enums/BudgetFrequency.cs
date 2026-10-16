@@ -5,5 +5,7 @@ public enum BudgetFrequency
     Weekly,
     EveryTwoWeeks,
     TwiceMonthly,
-    Monthly
+    Monthly,
+    EverySixMonths,
+    Yearly
 }

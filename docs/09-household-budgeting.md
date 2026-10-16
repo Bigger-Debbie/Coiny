@@ -6,7 +6,8 @@
 
 The backend models, migrations, recurrence calculator, and household-scoped
 draft/publish/month-projection services and authenticated HTTP endpoints are implemented.
-The setup wizard and budgeting dashboard remain to be built.
+The frontend setup wizard and a simple published-plan summary are implemented.
+The allocation chart, calendar, and richer budgeting dashboard remain to be built.
 The existing account/category breakdown is a summary of recorded transactions;
 it is separate from the planned-income allocation chart described here.
 
@@ -16,7 +17,7 @@ it is separate from the planned-income allocation chart described here.
 - Setup is based on whether the household has completed a budget, rather than
   whether a particular user is new. Incomplete setup can be resumed.
 - Support multiple take-home income sources, with weekly, every-two-weeks,
-  twice-monthly, and monthly pay schedules.
+  twice-monthly, monthly, every-six-months, and yearly schedules.
 - Monthly expected income comes from actual scheduled paydays in that month,
   including three-paycheck months for every-two-weeks schedules.
 - Allocate income to housing, bills, flexible spending, savings, and investing.
@@ -31,7 +32,7 @@ it is separate from the planned-income allocation chart described here.
   earlier plan versions for history.
 
 The backend now implements the calculation and draft/publication rules below.
-The wizard and dashboard will present these results in later increments.
+The wizard presents saved draft previews; the summary presents published monthly plans.
 
 ## Model
 
@@ -39,7 +40,7 @@ The wizard and dashboard will present these results in later increments.
 | --- | --- |
 | `HouseholdBudget` | One household-owned root with its revisions |
 | `BudgetRevision` | Revision number, edit version, effective first-of-month date, Draft/Published state, saved setup step, publication timestamp |
-| `BudgetIncomeSource` | Name, expected take-home amount per occurrence, required schedule |
+| `BudgetIncomeSource` | Name, take-home amount per occurrence, optional health-insurance/retirement amounts already deducted per paycheck, required schedule |
 | `BudgetAllocation` | Name, allocation type, amount, optional schedule |
 | `BudgetSchedule` | Frequency, start/anchor date, optional inclusive end date, applicable monthly day numbers |
 
@@ -85,6 +86,7 @@ Zero amounts are allowed in drafts; published income sources must be positive.
 | EveryTwoWeeks | StartDate anchors the two-week cycle; monthly day fields are absent |
 | TwiceMonthly | StartDate bounds the schedule; DayOfMonth and SecondDayOfMonth are 1–31, with the second greater than the first |
 | Monthly | StartDate bounds the schedule; DayOfMonth is 1–31 and SecondDayOfMonth is absent |
+| EverySixMonths / Yearly | StartDate anchors the original month/day; both monthly day fields are absent |
 
 EndDate is optional and cannot precede StartDate. A schedule is an EF owned
 value stored on its income/allocation row, not a separately managed record.
@@ -146,6 +148,21 @@ zero-valued results. Otherwise:
 - Scheduled events contain date, item ID/name, income/allocation classification,
   and amount. Unscheduled allocations have zero occurrences and create no events.
 
+Optional `HealthInsurancePerPaycheck` and `RetirementContributionPerPaycheck` record
+amounts already deducted before take-home pay. They may be omitted/null or zero;
+when provided they follow the same nonnegative, two-decimal precision rules as
+other amounts. They are saved, returned, and copied into later drafts. Monthly
+`HealthInsurance` and `RetirementContributions` totals multiply each amount by
+actual scheduled paydays, both per source and household-wide. They do not reduce
+ExpectedIncome or Unassigned, increase Allocated, or create extra calendar events.
+Tax withholding and employer contributions are not modeled by these fields.
+
+Six-month/yearly schedules use the original start month/day on every occurrence.
+For example, August 31 every six months clamps to February 28/29 and then returns
+to August 31. February 29 yearly returns to February 29 in leap years. Bounds are
+inclusive and weekends stay unchanged. The full payment belongs to the due month;
+monthly saving toward it is a separate savings allocation.
+
 The projection creates no transactions and does not mark anything paid or overdue.
 
 ## Storage constraints and migration
@@ -166,6 +183,11 @@ The database enforces:
 The foundation migration creates four budget tables and their indexes/constraints.
 `AddBudgetDraftEditVersion` adds the edit-version field/check. Neither migration
 alters financial ledger definitions, creates sample budgets, or resets data.
+`AddPaycheckDetailsAndExtendedBudgetSchedules` adds two nullable income columns
+and expands the schedule checks. Existing definitions are preserved with null
+paycheck details. Rolling back this migration removes those details and requires
+removing or changing six-month/yearly schedules first, since the older schema
+does not accept them.
 See [migration setup](06-development-setup.md#restore-and-initialize) for the
 explicit database-update command.
 
@@ -187,8 +209,56 @@ server, JWT key, or live database required. See the
 1. Models, EF configuration, and reviewed migration — implemented.
 2. Recurrence calculation and revision/draft workflows, including household access
    checks and publication validation — implemented.
-3. A resumable household setup wizard — API implemented; frontend next.
+3. A resumable household setup wizard and its API — implemented.
 4. The monthly income-allocation donut with Unassigned/over-budget presentation.
 5. Calendar, upcoming scheduled items, and pay schedules.
 6. Budget overview/editing with effective-month changes.
 7. Forecasting and plan-versus-actual reporting later.
+
+
+## Frontend setup and review
+
+The authenticated `/budget` route opens the household's setup status. New plans
+start only when **Set up your budget** is selected. **Continue setup** resumes the
+shared saved step and definitions. A published plan exposes **Edit budget**,
+which starts a draft copied from the applicable revision. A future-only published
+plan is shown for its first effective month; it does not restart onboarding.
+
+The five steps are Income, Housing & bills, Everyday spending, Savings & investing,
+and Review. Income is per paycheck; housing/bills require schedules. Spending is
+monthly. Savings/investing can be monthly or scheduled per contribution.
+The **Budget starts in** month input lives in the saved-draft summary panel
+throughout setup. Step-specific examples and guidance explain take-home pay,
+estimating changing bills, flexible monthly spending, and avoiding double-counting
+payroll savings deductions. Weekly/every-two-weeks schedules use **First payday** or **First payment date**
+to identify the repeating cycle. Six-month/yearly schedules also use that first
+date and do not show monthly day fields. The optional **Paycheck details** section
+records health insurance and retirement contributions per paycheck, explicitly
+already deducted from take-home income. Monthly/twice-monthly schedules use **Schedule
+starts on** for the earliest included date and separate monthly payday/payment-day
+fields, with visible explanations and examples. Past drafts can still be saved,
+but must move to the current/future month before publication.
+
+**Save & continue**, **Back**, and **Save & exit** save the complete draft,
+including entries from other steps. Back also saves before moving. Empty steps
+can be saved; incomplete individual rows must be completed or removed. This first
+version uses explicit saves rather than autosaving each keystroke.
+
+The running summary is explicitly a **saved draft preview**, calculated by the
+API for the saved effective month. Unsaved edits display a notice and do not
+change the totals until saved. The summary panel and month input remain visible
+while a small loading message replaces the totals during preview refreshes. Review shows per-source income and per-allocation
+monthly amounts. **Save review** records final changes; **Publish budget** is
+disabled while edits are unsaved, the month is past, or the preview is unavailable.
+The backend checks completeness at publication and allows over-budget plans.
+
+Leaving with unsaved edits asks for confirmation; refresh/close uses the browser's
+standard warning. Navigation is blocked during a write. Logout clears the session
+only after navigation succeeds, so canceling the leave warning keeps the session.
+Stale or missing drafts block further writes and offer **Reload household draft**;
+reloading asks before discarding unsaved edits. The client never retries a stale
+save by silently replacing its edit version.
+
+Publication shows a simple monthly totals/allocations summary. Planned calendar
+occurrences do not create transactions or imply payment completion. The allocation
+donut, calendar, and forecasting are separate future increments.

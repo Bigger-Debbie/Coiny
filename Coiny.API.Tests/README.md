@@ -13,6 +13,8 @@ server or JWT signing key, or change the development user's data.
 
 Coverage includes:
 
+- Paycheck detail persistence/cloning and informational totals, six-month/yearly
+  occurrences, leap-year anchors, end bounds, and payment-month allocations.
 - Anchored weekly/every-two-weeks schedules and three-paycheck months.
 - Twice-monthly/monthly schedules, short months, leap years, inclusive date
   bounds, maximum calendar dates, and invalid definitions.
@@ -27,7 +29,7 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 46 passing tests. Build output and TestResults are ignored
+The current suite has 48 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the

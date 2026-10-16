@@ -34,6 +34,8 @@ public class BudgetIncomeInput
     public string Name { get; set; } = string.Empty;
     [JsonRequired]
     public decimal Amount { get; set; }
+    public decimal? HealthInsurancePerPaycheck { get; set; }
+    public decimal? RetirementContributionPerPaycheck { get; set; }
     [JsonRequired]
     public BudgetScheduleInput Schedule { get; set; } = new();
 }

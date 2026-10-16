@@ -186,7 +186,7 @@ namespace Coiny.API.Data.Migrations
 
                             t.HasCheckConstraint("CK_BudgetAllocations_Name", "length(trim(\"Name\")) BETWEEN 1 AND 100");
 
-                            t.HasCheckConstraint("CK_BudgetAllocations_Schedule", "(\"ScheduleFrequency\" IS NULL AND \"ScheduleStartDate\" IS NULL AND \"ScheduleEndDate\" IS NULL\nAND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL) OR COALESCE((\"ScheduleFrequency\" IS NOT NULL AND \"ScheduleStartDate\" IS NOT NULL\nAND (\"ScheduleEndDate\" IS NULL OR \"ScheduleEndDate\" >= \"ScheduleStartDate\")\nAND (\n    (\"ScheduleFrequency\" IN (0, 1) AND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL)\n    OR (\"ScheduleFrequency\" = 2 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31\n        AND \"ScheduleSecondDayOfMonth\" > \"ScheduleDayOfMonth\" AND \"ScheduleSecondDayOfMonth\" <= 31)\n    OR (\"ScheduleFrequency\" = 3 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31 AND \"ScheduleSecondDayOfMonth\" IS NULL)\n)), 0)");
+                            t.HasCheckConstraint("CK_BudgetAllocations_Schedule", "(\"ScheduleFrequency\" IS NULL AND \"ScheduleStartDate\" IS NULL AND \"ScheduleEndDate\" IS NULL\nAND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL) OR COALESCE((\"ScheduleFrequency\" IS NOT NULL AND \"ScheduleStartDate\" IS NOT NULL\nAND (\"ScheduleEndDate\" IS NULL OR \"ScheduleEndDate\" >= \"ScheduleStartDate\")\nAND (\n    (\"ScheduleFrequency\" IN (0, 1, 4, 5) AND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL)\n    OR (\"ScheduleFrequency\" = 2 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31\n        AND \"ScheduleSecondDayOfMonth\" > \"ScheduleDayOfMonth\" AND \"ScheduleSecondDayOfMonth\" <= 31)\n    OR (\"ScheduleFrequency\" = 3 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31 AND \"ScheduleSecondDayOfMonth\" IS NULL)\n)), 0)");
 
                             t.HasCheckConstraint("CK_BudgetAllocations_Type", "\"AllocationType\" BETWEEN 0 AND 4");
                         });
@@ -208,9 +208,17 @@ namespace Coiny.API.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("HealthInsurancePerPaycheck")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("RetirementContributionPerPaycheck")
+                        .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -221,9 +229,13 @@ namespace Coiny.API.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_BudgetIncomeSources_Amount", "CAST(\"Amount\" AS REAL) >= 0");
 
+                            t.HasCheckConstraint("CK_BudgetIncomeSources_HealthInsurance", "\"HealthInsurancePerPaycheck\" IS NULL OR CAST(\"HealthInsurancePerPaycheck\" AS REAL) >= 0");
+
                             t.HasCheckConstraint("CK_BudgetIncomeSources_Name", "length(trim(\"Name\")) BETWEEN 1 AND 100");
 
-                            t.HasCheckConstraint("CK_BudgetIncomeSources_Schedule", "COALESCE((\"ScheduleFrequency\" IS NOT NULL AND \"ScheduleStartDate\" IS NOT NULL\nAND (\"ScheduleEndDate\" IS NULL OR \"ScheduleEndDate\" >= \"ScheduleStartDate\")\nAND (\n    (\"ScheduleFrequency\" IN (0, 1) AND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL)\n    OR (\"ScheduleFrequency\" = 2 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31\n        AND \"ScheduleSecondDayOfMonth\" > \"ScheduleDayOfMonth\" AND \"ScheduleSecondDayOfMonth\" <= 31)\n    OR (\"ScheduleFrequency\" = 3 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31 AND \"ScheduleSecondDayOfMonth\" IS NULL)\n)), 0)");
+                            t.HasCheckConstraint("CK_BudgetIncomeSources_RetirementContribution", "\"RetirementContributionPerPaycheck\" IS NULL OR CAST(\"RetirementContributionPerPaycheck\" AS REAL) >= 0");
+
+                            t.HasCheckConstraint("CK_BudgetIncomeSources_Schedule", "COALESCE((\"ScheduleFrequency\" IS NOT NULL AND \"ScheduleStartDate\" IS NOT NULL\nAND (\"ScheduleEndDate\" IS NULL OR \"ScheduleEndDate\" >= \"ScheduleStartDate\")\nAND (\n    (\"ScheduleFrequency\" IN (0, 1, 4, 5) AND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL)\n    OR (\"ScheduleFrequency\" = 2 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31\n        AND \"ScheduleSecondDayOfMonth\" > \"ScheduleDayOfMonth\" AND \"ScheduleSecondDayOfMonth\" <= 31)\n    OR (\"ScheduleFrequency\" = 3 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31 AND \"ScheduleSecondDayOfMonth\" IS NULL)\n)), 0)");
                         });
                 });
 
