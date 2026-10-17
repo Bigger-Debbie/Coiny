@@ -8,10 +8,12 @@
         <span class="transaction-amount" [class.income]="transaction.categoryType === 'Income'" [class.expense]="transaction.categoryType === 'Expense'">
           @if (transaction.categoryType === 'Income' || transaction.categoryType === 'Expense') {
             <app-icon class="amount-icon" [name]="transaction.categoryType === 'Income' ? 'up' : 'down'" />
+          } @else if (transaction.categoryType === 'Transfer' && transaction.transferDirection) {
+            <app-icon class="amount-icon" name="transactions" />
           }
-          <span>{{ transaction.categoryType === 'Income' ? '+' : transaction.categoryType === 'Expense' ? '−' : '' }}{{ magnitude(transaction.amount) | currency }}</span>
+          <span>{{ sign(transaction) }}{{ magnitude(transaction.amount) | currency }}</span>
         </span>
-        @if (transaction.categoryType === 'Transfer') {<small>Transfer</small>}
+        @if (transaction.categoryType === 'Transfer') {<small class="transfer-label">{{ transferLabel(transaction) }}</small>}
       </div>
       <div class="transaction-details">
         <span>{{ transaction.description.trim() || transaction.categoryName }}</span>

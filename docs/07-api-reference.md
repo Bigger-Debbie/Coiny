@@ -48,6 +48,10 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/transactions/paged` | 200 | Filtered transaction page with total count |
 | GET | `/api/transactions/category-breakdown` | 200 | Income or expense totals grouped by category |
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
+| POST | `/api/transfers` | 201 | Create both sides of a manual transfer atomically |
+| POST | `/api/transfers/entries` | 201 | Record one unlinked or external transfer entry |
+| POST | `/api/transfers/links` | 200 | Link two existing transfer entries without changing balances |
+| DELETE | `/api/transfers/links/{transactionId}` | 204 | Unlink both sides, preserving entries and balances |
 | GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, ten recent transactions |
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
 | GET | `/api/budgets/setup` | 200 | Budget setup status and resumable draft |
@@ -234,8 +238,93 @@ Name is required; the service rejects a duplicate name in the household
 case-insensitively. Responses contain `id`, `name`, `categoryType`, `isSystem`,
 and `isActive`.
 
-Types are `Income`, `Expense`, and `Transfer`. Transfer categories can be created,
-but using one to create a transaction is currently rejected.
+Types are `Income`, `Expense`, and `Transfer`. Use the dedicated transfer endpoints
+for Transfer entries; ordinary transaction creation rejects Transfer categories.
+
+## Account transfers
+
+These endpoints require authentication and current household membership. Apply
+`AddAccountTransfers` first. Transfer amounts are positive, with at most two decimal
+places. Dates cannot precede the affected accounts' opening dates. As with ordinary
+transactions, future dates are currently accepted. Accounts must be active and owned
+by the current household. A household Transfer category is reused or created automatically.
+
+`POST /api/transfers` creates two linked entries and their snapshots in one database
+transaction. Both entries initially use the same date and cleared status:
+
+```json
+{
+  "fromAccountId": 1,
+  "toAccountId": 2,
+  "amount": 500.00,
+  "date": "2026-10-16",
+  "description": "Move money to spending",
+  "notes": null,
+  "isCleared": true
+}
+```
+
+Description is optional (defaults to Transfer), maximum 250 characters; notes are
+optional, maximum 1000. From and To must differ. Returns `outgoing` and `incoming`,
+each using the transaction response shape.
+
+`POST /api/transfers/entries` records only one account's bank entry, for future CSV
+imports or external movements. It does not create an entry in any other account:
+
+```json
+{
+  "accountId": 1,
+  "amount": 500.00,
+  "date": "2026-10-16",
+  "direction": "Out",
+  "counterparty": "Unknown",
+  "description": "Funds Transfer",
+  "notes": null,
+  "isCleared": true
+}
+```
+
+Direction must be In or Out. Counterparty is Unknown (default) or External;
+Linked cannot be supplied here. Description is required. Returns one transaction.
+
+`POST /api/transfers/links` links existing entries:
+
+```json
+{
+  "firstTransactionId": 101,
+  "secondTransactionId": 102
+}
+```
+
+Both must be unlinked transfers in the current household, on different accounts,
+with equal amounts and opposite directions. Posting dates may differ and are
+preserved. An explicitly external entry can be linked when the user later tracks
+the other account. Returns outgoing/incoming. No entries, balance effects, or
+snapshots are added by linking. No automatic matching is performed.
+
+`DELETE /api/transfers/links/101` unlinks both entries, sets each counterparty to
+Unknown, and preserves all amounts, dates, cleared flags, and snapshots. This
+does not undo or delete a transfer's financial effects.
+
+List, paged, dashboard recent-transaction, and transfer responses expose nullable
+`transferDirection` (In/Out), `transferCounterparty` (Unknown/External/Linked),
+`pairedTransactionId`, `counterpartyAccountId`, and `counterpartyAccountName`.
+Responses also include `accountType` and nullable `counterpartyAccountType`, using
+the account enum strings. These support Contribution/Payment display labels without
+changing the Transfer classification. Account type is populated for ordinary entries
+too; counterparty account type is null when no pair exists.
+These are null on ordinary income/expense entries. Unlinked transfers have null
+pair/account fields. Transfers stay outside Income/Expense category breakdowns.
+Increases/decreases in liability accounts use positive amounts owed: a transfer
+into a credit card reduces debt; the corresponding transfer out of checking reduces cash.
+
+Errors: 400 invalid accounts, dates, amounts, directions, or incompatible pairs;
+401 unauthenticated; 403 no household membership; 404 missing/foreign transfer
+entry; 409 already-linked/not-linked entries or a concurrent link change.
+Domain errors use Problem Details; malformed bodies use validation responses.
+The Add Transaction modal supports manual paired, unknown, and external entries.
+Link/unlink APIs are implemented; the matching UI and CSV import follow on the
+feature branch.
 
 ## Transaction payload
 

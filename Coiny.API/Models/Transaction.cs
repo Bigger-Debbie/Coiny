@@ -1,3 +1,5 @@
+using Coiny.API.Enums;
+
 namespace Coiny.API.Models;
 
 public class Transaction : BaseEntity
@@ -14,4 +16,8 @@ public class Transaction : BaseEntity
     public string? Merchant { get; set; }
     public string? Notes { get; set; }
     public bool IsCleared { get; set; }
+    public TransferDirection? TransferDirection { get; set; }
+    public TransferCounterparty? TransferCounterparty { get; set; }
+    public int? PairedTransactionId { get; set; }
+    public Transaction? PairedTransaction { get; set; }
 }

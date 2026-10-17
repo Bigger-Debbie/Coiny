@@ -31,23 +31,7 @@ public class TransactionService : ITransactionService
             .Include(t => t.Category)
             .OrderByDescending(t => t.TransactionDate)
             .ThenByDescending(t => t.Id)
-            .Select(t => new TransactionResponse
-            {
-                Id = t.Id,
-                AccountId = t.AccountId,
-                CategoryId = t.CategoryId,
-                InstitutionName = t.Account.Institution != null
-                    ? t.Account.Institution.Name
-                    : null,
-                AccountName = t.Account.Name,
-                CategoryName = t.Category.Name,
-                CategoryType = t.Category.CategoryType,
-                Amount = t.Amount,
-                TransactionDate = t.TransactionDate,
-                Description = t.Description,
-                Merchant = t.Merchant,
-                IsCleared = t.IsCleared
-            })
+            .Select(TransactionProjection.Response)
             .ToListAsync();
     }
 
@@ -90,15 +74,7 @@ public class TransactionService : ITransactionService
         var page = Math.Min(request.Page, Math.Max(1, (int)Math.Ceiling(total / (double)request.PageSize)));
         var items = await query.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id)
             .Skip((page - 1) * request.PageSize).Take(request.PageSize)
-            .Select(t => new TransactionResponse
-            {
-                Id = t.Id, AccountId = t.AccountId, CategoryId = t.CategoryId,
-                AccountName = t.Account.Name,
-                InstitutionName = t.Account.Institution != null ? t.Account.Institution.Name : null,
-                CategoryName = t.Category.Name, CategoryType = t.Category.CategoryType,
-                Amount = t.Amount, TransactionDate = t.TransactionDate,
-                Description = t.Description, Merchant = t.Merchant, IsCleared = t.IsCleared
-            }).ToListAsync();
+            .Select(TransactionProjection.Response).ToListAsync();
         return new TransactionPageResponse { Items = items, TotalCount = total, Page = page, PageSize = request.PageSize };
     }
 
@@ -168,7 +144,7 @@ public class TransactionService : ITransactionService
             throw new InvalidOperationException("Category does not belong to the current household.");
 
         if (category.CategoryType == CategoryType.Transfer)
-            throw new InvalidOperationException("Transfers require paired account transactions and are not supported yet.");
+            throw new InvalidOperationException("Use the transfer endpoints to record transfer entries.");
 
         var transaction = new Transaction
         {
@@ -197,6 +173,7 @@ public class TransactionService : ITransactionService
             InstitutionName = await _context.Institutions.Where(i => i.Id == account.InstitutionId)
                 .Select(i => i.Name).FirstOrDefaultAsync(),
             AccountName = account.Name,
+            AccountType = account.AccountType,
             CategoryName = category.Name,
             CategoryType = category.CategoryType,
             Amount = transaction.Amount,

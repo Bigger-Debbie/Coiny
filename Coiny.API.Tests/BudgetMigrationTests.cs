@@ -50,16 +50,19 @@ public class BudgetMigrationTests
         context.Accounts.Add(new() { Id = 1, HouseholdId = 1, Name = "Checking", AccountType = AccountType.Checking,
             OpeningBalance = 100, OpeningBalanceDate = new(2026,10,1) });
         context.Categories.Add(new() { Id = 1, HouseholdId = 1, Name = "Groceries", CategoryType = CategoryType.Expense, IsActive = true });
-        context.Transactions.Add(new() { AccountId = 1, HouseholdId = 1, CategoryId = 1, Amount = 12.34m,
-            TransactionDate = new(2026,10,16), Description = "Existing groceries" });
         await context.SaveChangesAsync();
+        // Seed the historical schema without asking today's model to write newer columns.
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO Transactions (AccountId, HouseholdId, CategoryId, Amount, TransactionDate, Description, IsCleared, CreatedAt)
+            VALUES (1, 1, 1, '12.34', '2026-10-16', 'Existing groceries', 0, '2026-10-16');
+            """);
         context.ChangeTracker.Clear();
         await migrator.MigrateAsync();
         Assert.False(context.Database.HasPendingModelChanges());
         Assert.Equal(12.34m, (await context.Transactions.SingleAsync()).Amount);
         await migrator.MigrateAsync(BeforeBudgets);
         Assert.Equal(100, (await context.Accounts.SingleAsync()).OpeningBalance);
-        Assert.Equal(12.34m, (await context.Transactions.SingleAsync()).Amount);
+        Assert.Equal(12.34m, await context.Database.SqlQueryRaw<decimal>("SELECT Amount AS Value FROM Transactions").SingleAsync());
         await migrator.MigrateAsync();
         Assert.Empty(await context.HouseholdBudgets.ToListAsync());
         Assert.Single(await context.Transactions.ToListAsync());

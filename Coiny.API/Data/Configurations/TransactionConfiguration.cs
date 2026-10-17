@@ -8,6 +8,14 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
 {
     public void Configure(EntityTypeBuilder<Transaction> builder)
     {
+        builder.HasOne(t => t.PairedTransaction).WithMany()
+            .HasForeignKey(t => t.PairedTransactionId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(t => t.PairedTransactionId).IsUnique();
+        builder.Property(t => t.PairedTransactionId).IsConcurrencyToken();
+        builder.ToTable(t => t.HasCheckConstraint("CK_Transaction_TransferMetadata",
+            "(TransferDirection IS NULL AND TransferCounterparty IS NULL AND PairedTransactionId IS NULL) OR " +
+            "(TransferDirection IS NOT NULL AND TransferCounterparty IS NOT NULL AND TransferDirection IN (0,1) AND TransferCounterparty IN (0,1) AND PairedTransactionId IS NULL) OR " +
+            "(TransferDirection IS NOT NULL AND TransferCounterparty IS NOT NULL AND TransferDirection IN (0,1) AND TransferCounterparty = 2 AND PairedTransactionId IS NOT NULL AND PairedTransactionId <> Id)"));
         builder.Property(t => t.Amount)
             .HasColumnType("decimal(18,2)")
             .IsRequired();

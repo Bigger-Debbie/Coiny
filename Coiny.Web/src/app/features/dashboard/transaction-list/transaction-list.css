@@ -15,6 +15,7 @@
 .transaction-amount.income { color: var(--color-success); }
 .transaction-amount.expense { color: var(--color-danger); }
 .amount-icon { width: 1rem; height: 1rem; }
+.transfer-label { display: block; overflow-wrap: anywhere; margin-top: .25rem; }
 .transaction-details { text-align: right; font-size: 0.8rem; }
 .transaction-details strong { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.025em; }
 time, small { color: var(--color-text-muted); font-size: 0.7rem; }

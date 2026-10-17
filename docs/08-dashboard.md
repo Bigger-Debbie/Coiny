@@ -139,8 +139,8 @@ name and optional HTTP/HTTPS website, saves it for the household, and selects it
 without losing the account draft. Accounts can also be created without an institution.
 It creates the opening snapshot through the
 existing API, refreshes the page, and selects the new account. Add Transaction
-opens a modal with the current account preselected and excludes unsupported
-transfer categories. Saving refreshes balances, trend, and transactions without
+opens a modal with the current account preselected and an Expense/Income/Transfer
+selector. Income/Expense filters the categories to the selected type. Saving refreshes balances, trend, and transactions without
 leaving the page; timeframe and applied filters are retained.
 Creating transactions uses active accounts and active categories.
 The transaction form also offers inline Add Category with a name and Income/Expense
@@ -154,7 +154,36 @@ modal accepts a name (up to 100 characters) and Income/Expense type. Categories
 belong to the household and are available across accounts. Saving updates the
 category filter immediately; the transaction modal loads the latest categories
 when opened. Duplicate-name errors stay visible in the form for correction.
-Institution creation and account edit/delete are separate future work.
+Account edit/delete remains future work.
+
+### Transfers
+
+Selecting Transfer replaces the category and merchant fields with transfer choices.
+Between Coiny accounts uses From/To account selectors and creates both entries
+atomically. The selected account defaults to From. Destinations exclude that account;
+the server also rejects self-transfers. A payment to a credit card or loan reduces
+the amount owed. The date must be on/after both opening dates. Description is optional;
+amount must be positive with at most two decimal places. The cleared checkbox applies
+to both entries for a paired transfer.
+
+External and unknown-counterparty modes offer Money in/out and create only the selected
+account's entry. Unknown entries can be linked later; no second entry is inferred.
+Linking/unlinking APIs are available, while the matching UI comes with the import work.
+Failures preserve the draft and show the API's explanation. The modal cannot close
+while a transaction or inline category save is pending.
+
+Dashboard and accounts share transaction rows: transfers use neutral colors and the
+transfer icon, signed amounts for In/Out, and labels such as Transfer to Spending,
+Transfer in · Not linked, or Transfer out · External account. These signs describe
+money direction, not the change in a liability's amount owed. Transfers are excluded
+from the Income/Expense donut.
+
+Incoming transfers from checking, savings, or cash into Investment/Retirement display
+Contribution from [account]. Incoming transfers to CreditCard/Loan display Payment
+from [account]. Other linked movements retain Transfer from/to, including movements
+between investment/retirement accounts. Unknown or external sources retain Transfer
+because their account type is not known. These are display labels, not tax contribution
+records, and do not change the underlying Transfer classification or calculations.
 
 ## Income and expense breakdown
 

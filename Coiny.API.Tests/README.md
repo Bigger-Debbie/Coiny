@@ -13,6 +13,11 @@ server or JWT signing key, or change the development user's data.
 
 Coverage includes:
 
+- Atomic manual transfers, liability payments, unlinked/external entries, different
+  posting dates, reporting exclusion, link/unlink without financial changes,
+  incompatible/foreign pairs, stale-link concurrency, backdated snapshots, and
+  rollback of both entries and snapshots on storage failure.
+
 - Household-scoped member rosters, owner-only removal, protected owners, preserved
   login/financial data, access after removal, and transactional invitation revocation.
 
@@ -39,7 +44,7 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 69 passing tests. Build output and TestResults are ignored
+The current suite has 77 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the

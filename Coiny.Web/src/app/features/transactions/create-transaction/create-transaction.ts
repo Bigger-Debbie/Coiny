@@ -6,6 +6,8 @@ import { forkJoin } from 'rxjs';
 import { AccountService } from '../../../core/services/account.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { TransactionService } from '../../../core/services/transaction.service';
+import { TransferService } from '../../../core/services/transfer.service';
+import { Observable } from 'rxjs';
 import { Account } from '../../../shared/models/account/account';
 import { Category } from '../../../shared/models/category/category';
 import { CreateTransactionRequest } from '../../../shared/models/transactions/create-transaction-request';
@@ -28,11 +30,31 @@ export class CreateTransaction implements OnInit {
     return [{ value: 0, label: 'Select account' }, ...this.accounts.map(a => ({ value: a.id, label: a.name, detail: a.institutionName ?? 'No institution' }))];
   }
   get categoryOptions(): SelectOption[] {
-    return [{ value: 0, label: 'Select category' }, ...this.categories.map(c => ({ value: c.id, label: c.name, detail: c.categoryType }))];
+    return [{ value: 0, label: 'Select category' }, ...this.categories.filter(c => c.categoryType === this.kind).map(c => ({ value: c.id, label: c.name, detail: c.categoryType }))];
+  }
+  kind: 'Expense' | 'Income' | 'Transfer' = 'Expense';
+  transferMode: 'Internal' | 'Unknown' | 'External' = 'Internal';
+  toAccountId = 0;
+  direction: 'In' | 'Out' = 'Out';
+  readonly kinds: SelectOption[] = ['Expense', 'Income', 'Transfer'].map(value => ({ value, label: value }));
+  readonly transferModes: SelectOption[] = [
+    { value: 'Internal', label: 'Between Coiny accounts' },
+    { value: 'External', label: 'Account outside Coiny' },
+    { value: 'Unknown', label: 'Other account unknown — link later' },
+  ];
+  readonly directions: SelectOption[] = [{ value: 'Out', label: 'Money out' }, { value: 'In', label: 'Money in' }];
+  get destinationOptions(): SelectOption[] { return this.accountOptions.filter(a => a.value !== this.request.accountId); }
+  changeKind(kind: 'Expense' | 'Income' | 'Transfer'): void {
+    this.kind = kind;
+    this.request.categoryId = 0;
+    this.closeCategory();
+    if (kind !== 'Transfer') this.categoryType = kind;
+    this.error.set('');
   }
   private readonly accountService = inject(AccountService);
   private readonly categoryService = inject(CategoryService);
   private readonly transactionService = inject(TransactionService);
+  private readonly transferService = inject(TransferService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
@@ -58,7 +80,10 @@ export class CreateTransaction implements OnInit {
     description: '', merchant: null, notes: null, isCleared: false,
   };
   get openingDate(): string | null {
-    return this.accounts.find(a => a.id === this.request.accountId)?.openingBalanceDate ?? null;
+    const dates = this.accounts.filter(a => a.id === this.request.accountId ||
+      (this.kind === 'Transfer' && this.transferMode === 'Internal' && a.id === this.toAccountId))
+      .map(a => a.openingBalanceDate).sort();
+    return dates.at(-1) ?? null;
   }
 
   ngOnInit(): void { this.loadOptions(); }
@@ -79,13 +104,32 @@ export class CreateTransaction implements OnInit {
   }
 
   save(form: NgForm): void {
-    if (form.invalid || this.request.accountId <= 0 || this.request.categoryId <= 0 ||
-      this.request.amount <= 0 || !this.request.description.trim() || this.busy() || this.addingCategory() ||
-      (this.openingDate && this.request.transactionDate < this.openingDate)) return;
+    if (this.busy() || this.addingCategory()) return;
+    const transfer = this.kind === 'Transfer';
+    if (form.invalid || !this.accounts.some(a => a.id === this.request.accountId) || this.request.amount <= 0 ||
+      !Number.isFinite(this.request.amount) || Math.abs(this.request.amount * 100 - Math.round(this.request.amount * 100)) > 0.000001 ||
+      (!transfer && (!this.request.description.trim() || !this.categories.some(c => c.id === this.request.categoryId && c.categoryType === this.kind))) ||
+      (transfer && this.transferMode === 'Internal' && (this.toAccountId === this.request.accountId || !this.accounts.some(a => a.id === this.toAccountId))) ||
+      !this.request.transactionDate || (this.openingDate && this.request.transactionDate < this.openingDate)) {
+      this.error.set('Check the accounts, category, amount (up to two decimal places), and date. The date must be on or after the opening date of each account.');
+      return;
+    }
     this.saving.set(true);
     this.error.set('');
-    this.transactionService.CreateTransaction({ ...this.request, description: this.request.description.trim() })
-      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    const description = this.request.description.trim();
+    let operation: Observable<unknown>;
+    if (!transfer) operation = this.transactionService.CreateTransaction({ ...this.request, description });
+    else if (this.transferMode === 'Internal') operation = this.transferService.create({
+      fromAccountId: this.request.accountId, toAccountId: this.toAccountId,
+      amount: this.request.amount, date: this.request.transactionDate,
+      description: description || null, notes: this.request.notes, isCleared: this.request.isCleared,
+    });
+    else operation = this.transferService.createEntry({
+      accountId: this.request.accountId, direction: this.direction, counterparty: this.transferMode,
+      amount: this.request.amount, date: this.request.transactionDate,
+      description: description || 'Transfer', notes: this.request.notes, isCleared: this.request.isCleared,
+    });
+    operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.saving.set(false);
           if (this.embedded) this.saved.emit();
@@ -93,7 +137,7 @@ export class CreateTransaction implements OnInit {
         },
         error: response => {
           this.saving.set(false);
-          this.error.set(typeof response.error === 'string' ? response.error : 'Your transaction couldn’t be saved. Check the details and try again.');
+          this.error.set(typeof response.error === 'string' ? response.error : response.error?.detail || 'Your transaction couldn’t be saved. Check the details and try again.');
         },
       });
   }
@@ -123,6 +167,7 @@ export class CreateTransaction implements OnInit {
         next: category => {
           this.categories = [...this.categories, category].sort((a, b) => a.name.localeCompare(b.name));
           this.request.categoryId = category.id;
+          this.kind = category.categoryType as 'Income' | 'Expense';
           this.categorySaving.set(false);
           this.closeCategory();
         },

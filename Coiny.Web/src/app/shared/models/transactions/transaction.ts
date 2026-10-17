@@ -1,4 +1,6 @@
-export interface Transaction { 
+import { TransferDetails } from './transfer';
+
+export interface Transaction extends TransferDetails {
     id: number;
     accountId: number;
     categoryId: number;

@@ -6,15 +6,33 @@
 <form #form="ngForm" (ngSubmit)="save(form)">
   <fieldset [disabled]="busy()">
   <div>
-    <label for="accountId">Account</label>
+    <label for="transaction-kind">Transaction type</label>
+    <app-select-menu inputId="transaction-kind" label="Transaction type" name="kind" [options]="kinds" [ngModel]="kind" (ngModelChange)="changeKind($event)" />
+  </div>
+  @if (kind === 'Transfer') {
+    <div><label for="transfer-mode">Transfer between</label><app-select-menu inputId="transfer-mode" label="Transfer between" name="transferMode" [options]="transferModes" [(ngModel)]="transferMode" /></div>
+    <p class="transfer-hint">Transfers move money without counting as income or spending.</p>
+    @if (transferMode !== 'Internal') {
+      <div><label for="transfer-direction">Direction</label><app-select-menu inputId="transfer-direction" label="Transfer direction" name="direction" [options]="directions" [(ngModel)]="direction" /></div>
+    }
+  }
+  <div>
+    <label for="accountId">{{ kind === 'Transfer' && transferMode === 'Internal' ? 'From account' : 'Account' }}</label>
     <app-select-menu inputId="accountId" label="Account" name="accountId" [options]="accountOptions" [(ngModel)]="request.accountId" />
   </div>
-
+  @if (kind === 'Transfer') {
+    @if (transferMode === 'Internal') {
+      <div><label for="to-account">To account</label><app-select-menu inputId="to-account" label="To account" name="toAccountId" [options]="destinationOptions" [(ngModel)]="toAccountId" /></div>
+      <p class="transfer-hint">Creates an entry in both accounts. For a credit card or loan payment, choose the debt account as To account. If both bank entries are already recorded, they should be linked instead of adding another transfer.</p>
+    } @else {
+      <p class="transfer-hint">Records only this account’s entry. {{ transferMode === 'Unknown' ? 'The other side can be linked later.' : 'The other account is not tracked in Coiny.' }}</p>
+    }
+  } @else {
   <div>
     <label for="categoryId">Category</label>
     <app-select-menu inputId="categoryId" label="Category" name="categoryId" [options]="categoryOptions" [(ngModel)]="request.categoryId" />
     @if (!addingCategory()) {
-      @if (!categories.length) { <p>No categories yet. Add one to get started.</p> }
+      @if (categoryOptions.length === 1) { <p>No {{ kind.toLowerCase() }} categories yet. Add one to get started.</p> }
       <button class="button-ghost category-add" type="button" (click)="addingCategory.set(true)">+ Add Category</button>
     }
     @else {
@@ -29,6 +47,7 @@
       </div>
     }
   </div>
+  }
 
   <div>
     <label for="amount">Amount</label>
@@ -56,17 +75,18 @@
   </div>
 
   <div>
-    <label for="description">Description</label>
+    <label for="description">{{ kind === 'Transfer' ? 'Description (optional)' : 'Description' }}</label>
     <input
       id="description"
       name="description"
       type="text"
       maxlength="250"
       [(ngModel)]="request.description"
-      required
+      [required]="kind !== 'Transfer'"
     />
   </div>
 
+  @if (kind !== 'Transfer') {
   <div>
     <label for="merchant">Merchant</label>
     <input
@@ -77,6 +97,7 @@
       [(ngModel)]="request.merchant"
     />
   </div>
+  }
 
   <div>
     <label for="notes">Notes</label>
@@ -95,16 +116,16 @@
         name="isCleared"
         [(ngModel)]="request.isCleared"
       />
-      Cleared
+      {{ kind === 'Transfer' && transferMode === 'Internal' ? 'Cleared in both accounts' : 'Cleared' }}
     </label>
   </div>
 
   </fieldset>
-  @if (form.submitted && (request.accountId <= 0 || request.categoryId <= 0 || !request.description.trim())) {
+  @if (kind !== 'Transfer' && form.submitted && (request.accountId <= 0 || request.categoryId <= 0 || !request.description.trim())) {
     <p class="error" role="alert">Choose an account and category, and enter a description.</p>
   }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-  <button class="button-primary" type="submit" [disabled]="busy() || addingCategory()">{{ saving() ? 'Saving…' : 'Save Transaction' }}</button>
+  <button class="button-primary" type="submit" [disabled]="busy() || addingCategory()">{{ saving() ? 'Saving…' : kind === 'Transfer' ? 'Save Transfer' : 'Save Transaction' }}</button>
   <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
 </form>
 }

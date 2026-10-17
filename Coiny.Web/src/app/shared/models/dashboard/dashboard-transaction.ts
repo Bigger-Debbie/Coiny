@@ -1,4 +1,6 @@
-export interface DashboardTransaction {
+import { TransferDetails } from '../transactions/transfer';
+
+export interface DashboardTransaction extends TransferDetails {
     id: number;
     accountName: string;
     institutionName: string | null;

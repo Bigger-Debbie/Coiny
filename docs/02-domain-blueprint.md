@@ -16,7 +16,7 @@ separately below. EF models live in `Coiny.API/Models/` and are registered throu
 | `Institution` | Household-owned bank/provider; has accounts |
 | `Account` | Household-owned account, optional institution, opening balance/date, transactions, and snapshots |
 | `Category` | Household-owned transaction classification with `Income`, `Expense`, or `Transfer` type |
-| `Transaction` | Required household, account, and category; positive amount, date, description, optional merchant/notes, cleared flag |
+| `Transaction` | Required household, account, and category; positive amount, date, description, optional merchant/notes, cleared flag; transfers add In/Out direction, Unknown/External/Linked counterparty, and optional unique paired-entry reference |
 | `AccountBalanceSnapshot` | Account's derived closing balance on one calendar day |
 | `HouseholdBudget` | One household-owned budget plan, with draft/published revisions |
 | `BudgetRevision` | Complete version of income and allocations, effective month, publication state, saved wizard step |
@@ -97,7 +97,6 @@ currently filter inactive accounts.
 | Budget workflows | Resumable setup, publication, effective-month selection, planned allocations and calendar |
 | Goal | Savings target, debt payoff, or other financial objective |
 | Recurring transaction | Scheduled income or expense pattern |
-| Paired transfer | Atomic movement between accounts, including card payments |
 | Category hierarchy | Parent/child classifications |
 | Transaction audit | Attribution and designed correction history |
 

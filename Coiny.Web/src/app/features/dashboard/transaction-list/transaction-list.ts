@@ -13,6 +13,27 @@ export class TransactionList {
   @Input() transactions: readonly DashboardTransaction[] = [];
   readonly magnitude = Math.abs;
 
+  sign(transaction: DashboardTransaction): string {
+    if (transaction.categoryType === 'Transfer') return transaction.transferDirection === 'In' ? '+' : transaction.transferDirection === 'Out' ? '−' : '';
+    return transaction.categoryType === 'Income' ? '+' : transaction.categoryType === 'Expense' ? '−' : '';
+  }
+  transferLabel(transaction: DashboardTransaction): string {
+    const direction = transaction.transferDirection === 'In' ? 'in' : transaction.transferDirection === 'Out' ? 'out' : '';
+    if (transaction.counterpartyAccountName) {
+      if (transaction.transferDirection === 'In') {
+        if (['Investment', 'Retirement'].includes(transaction.accountType ?? '') &&
+          ['Checking', 'Savings', 'Cash'].includes(transaction.counterpartyAccountType ?? ''))
+          return `Contribution from ${transaction.counterpartyAccountName}`;
+        if (['CreditCard', 'Loan'].includes(transaction.accountType ?? ''))
+          return `Payment from ${transaction.counterpartyAccountName}`;
+      }
+      return `Transfer ${transaction.transferDirection === 'In' ? 'from' : 'to'} ${transaction.counterpartyAccountName}`;
+    }
+    if (transaction.transferCounterparty === 'External') return `Transfer ${direction} · External account`;
+    if (transaction.transferCounterparty === 'Unknown') return `Transfer ${direction} · Not linked`;
+    return 'Transfer';
+  }
+
   initial(transaction: DashboardTransaction): string {
     return Array.from(transaction.institutionName?.trim() || transaction.accountName.trim())[0]?.toUpperCase() || '?';
   }

@@ -80,6 +80,8 @@ the same atomic workflows as normal API calls. The seed restores its temporary
 authenticated context when it finishes.
 
 This is a useful UI/behavior fixture, not complete household accounting. Paired
-transfers and credit-card payments are omitted because they are not implemented.
+transfers and credit-card payments are omitted from this seed. The transfer backend
+and Add Transaction modal now support them separately; CSV import and matching UI
+are still being built.
 To test in isolation, set `ConnectionStrings__DefaultConnection` to an absolute
 SQLite path in a separate disposable directory.

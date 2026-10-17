@@ -86,13 +86,20 @@ public class DashboardService : IDashboardService
             {
                 Id = transaction.Id,
                 AccountName = transaction.AccountName,
+                AccountType = transaction.AccountType,
                 InstitutionName = transaction.InstitutionName,
                 CategoryName = transaction.CategoryName,
                 CategoryType = transaction.CategoryType,
                 Amount = transaction.Amount,
                 TransactionDate = transaction.TransactionDate,
                 Description = transaction.Description,
-                Merchant = transaction.Merchant
+                Merchant = transaction.Merchant,
+                TransferDirection = transaction.TransferDirection,
+                TransferCounterparty = transaction.TransferCounterparty,
+                PairedTransactionId = transaction.PairedTransactionId,
+                CounterpartyAccountId = transaction.CounterpartyAccountId,
+                CounterpartyAccountName = transaction.CounterpartyAccountName,
+                CounterpartyAccountType = transaction.CounterpartyAccountType
             })
             .ToList();
 

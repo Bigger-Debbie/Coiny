@@ -14,7 +14,7 @@ experience remain future work.
 | --- | --- | --- |
 | Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Password recovery, complete expired-session handling |
 | Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
-| Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown | Edit/delete flows, paired transfers, imports |
+| Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown; manual paired/external/unlinked transfer UI and backend link/unlink | Transfer matching UI, edit/delete flows, CSV imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Budget schema, recurrence, draft/preview/publish API, setup wizard, monthly allocation donut, breakdown, income-period bills, and calendar | Goals, forecasting |

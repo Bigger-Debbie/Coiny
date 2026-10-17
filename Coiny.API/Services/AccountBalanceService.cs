@@ -29,7 +29,7 @@ public class AccountBalanceService : IAccountBalanceService
         foreach (var transaction in transactions)
         {
             balance += AccountBalanceCalculator.GetBalanceChange(
-                account.AccountType, transaction.Category.CategoryType, transaction.Amount);
+                account.AccountType, transaction.Category.CategoryType, transaction.Amount, transaction.TransferDirection);
         }
 
         return balance;

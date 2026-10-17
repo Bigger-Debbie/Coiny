@@ -51,4 +51,40 @@ describe('TransactionList', () => {
     expect(rows[0].querySelector('.amount-details').textContent).toContain('Transfer');
     expect(rows[0].querySelector('.transaction-amount').textContent.trim()).toBe('$92.35');
   });
+  it('shows transfer direction and counterparty without income/expense coloring', () => {
+    const f = render([
+      transaction({ categoryType: 'Transfer', transferDirection: 'Out', transferCounterparty: 'Linked', counterpartyAccountName: 'Spending' }),
+      transaction({ id: 2, categoryType: 'Transfer', transferDirection: 'In', transferCounterparty: 'Unknown' }),
+      transaction({ id: 3, categoryType: 'Transfer', transferDirection: 'Out', transferCounterparty: 'External' }),
+    ]);
+    const rows = f.nativeElement.querySelectorAll('.transaction-row');
+    expect(rows[0].textContent).toContain('Transfer to Spending');
+    expect(rows[0].querySelector('.transaction-amount').textContent).toContain('−$92.35');
+    expect(rows[1].textContent).toContain('Transfer in · Not linked');
+    expect(rows[1].querySelector('.transaction-amount').textContent).toContain('+$92.35');
+    expect(rows[2].textContent).toContain('External account');
+    expect(f.nativeElement.querySelector('.income, .expense')).toBeNull();
+  });
+  it.each([
+    ['Retirement', 'Checking', 'In', 'Contribution from Bills'],
+    ['Investment', 'Savings', 'In', 'Contribution from Bills'],
+    ['Retirement', 'Cash', 'In', 'Contribution from Bills'],
+    ['Retirement', 'Investment', 'In', 'Transfer from Bills'],
+    ['Investment', 'Retirement', 'In', 'Transfer from Bills'],
+    ['Retirement', 'Retirement', 'In', 'Transfer from Bills'],
+    ['CreditCard', 'Checking', 'In', 'Payment from Bills'],
+    ['Loan', 'Savings', 'In', 'Payment from Bills'],
+    ['Checking', 'Retirement', 'Out', 'Transfer to Bills'],
+    ['Checking', 'Savings', 'In', 'Transfer from Bills'],
+  ])('labels %s receiving/sending %s (%s) correctly', (accountType, counterpartyAccountType, direction, expected) => {
+    const f = render([transaction({ categoryType: 'Transfer', accountType, counterpartyAccountType,
+      transferDirection: direction as 'In' | 'Out', counterpartyAccountName: 'Bills', transferCounterparty: 'Linked' })]);
+    expect(f.nativeElement.querySelector('.transfer-label').textContent).toBe(expected);
+    expect(f.nativeElement.querySelector('.income, .expense')).toBeNull();
+  });
+  it('does not infer a contribution when the source account is unknown', () => {
+    const f = render([transaction({ categoryType: 'Transfer', accountType: 'Retirement',
+      transferDirection: 'In', transferCounterparty: 'Unknown' })]);
+    expect(f.nativeElement.querySelector('.transfer-label').textContent).toBe('Transfer in · Not linked');
+  });
 });

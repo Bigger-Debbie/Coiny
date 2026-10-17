@@ -53,7 +53,8 @@ public class AccountBalanceSnapshotService : IAccountBalanceSnapshotService
             {
                 transaction.TransactionDate,
                 transaction.Amount,
-                transaction.Category.CategoryType
+                transaction.Category.CategoryType,
+                transaction.TransferDirection
             })
             .ToListAsync();
 
@@ -67,7 +68,7 @@ public class AccountBalanceSnapshotService : IAccountBalanceSnapshotService
             {
                 var transaction = transactions[transactionIndex++];
                 balance += AccountBalanceCalculator.GetBalanceChange(
-                    account.AccountType, transaction.CategoryType, transaction.Amount);
+                    account.AccountType, transaction.CategoryType, transaction.Amount, transaction.TransferDirection);
             }
 
             snapshot.Balance = balance;

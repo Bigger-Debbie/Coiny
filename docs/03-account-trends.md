@@ -20,9 +20,14 @@ Liability balances represent positive amounts owed. Net worth subtracts them
 from assets. Liquid funds sum checking, savings, and cash; retirement sums
 retirement accounts; debt sums credit cards and loans.
 
-`Transfer` exists as a category type, but creating transfer transactions is
-rejected until paired transfers are implemented. An income-category credit on a
-liability is not a complete model of a checking-to-card payment.
+Transfer entries use an explicit In/Out direction: In has the same balance effect
+as Income, Out the same effect as Expense. They remain classified as Transfer and
+are excluded from income/expense reports. Dedicated transfer endpoints create an
+atomic pair or one unlinked/external entry; ordinary transaction creation still
+rejects Transfer categories. Checking-to-card payments reduce cash and debt together.
+Linking/unlinking existing entries changes metadata only, never balances or snapshots.
+Different bank posting dates are preserved, so balances can reflect money in transit
+between those dates. Each entry must respect its own account's opening date.
 
 `IsCleared` is recorded but does not exclude a transaction from balance or trend
 calculations. The current app has no currency-selection or conversion model;
