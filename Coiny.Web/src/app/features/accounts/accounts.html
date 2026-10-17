@@ -115,12 +115,12 @@
     </div>
   }
   @if (modal() === 'account') {
-    <app-modal title="Add Account" [busy]="accountForm.saving()" (dismiss)="closeModal()">
+    <app-modal title="Add Account" [busy]="accountForm.busy()" (dismiss)="closeModal()">
       <app-create-account #accountForm [embedded]="true" (saved)="accountCreated($event)" (cancelled)="closeModal()" />
     </app-modal>
   }
   @if (modal() === 'transaction') {
-    <app-modal title="Add Transaction" [busy]="transactionForm.saving()" (dismiss)="closeModal()">
+    <app-modal title="Add Transaction" [busy]="transactionForm.busy()" (dismiss)="closeModal()">
       <app-create-transaction #transactionForm [embedded]="true" [accountId]="selectedId()" (saved)="transactionCreated()" (cancelled)="closeModal()" />
     </app-modal>
   }

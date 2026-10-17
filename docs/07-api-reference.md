@@ -17,7 +17,7 @@ Authorization: Bearer <token>
 
 Financial services derive the current household from the authenticated user.
 Create a household before calling financial endpoints for a newly registered user.
-The current app supports one household per user through its creation workflow.
+The current app supports one household per user through creation or invitation redemption.
 
 ## Endpoint inventory
 
@@ -50,6 +50,14 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
 | GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, ten recent transactions |
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
+| GET | `/api/budgets/setup` | 200 | Budget setup status and resumable draft |
+| GET | `/api/budgets/draft` | 200 or 204 | Saved draft, or no content when absent |
+| POST | `/api/budgets/draft` | 200 | Start or resume the household draft |
+| PUT | `/api/budgets/draft/{draftId}` | 200 | Replace draft definitions and save wizard progress |
+| GET | `/api/budgets/draft/{draftId}/preview` | 200 | Preview draft for a month and edit version |
+| POST | `/api/budgets/draft/{draftId}/publish` | 200 | Publish the reviewed draft |
+| GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
+| GET | `/api/budgets/income-period` | 200 | Current household or individual income period and scheduled bills |
 
 Collection list responses remain JSON arrays. Paged transaction and category
 breakdown endpoints return structured objects. Financial records have no public
@@ -74,6 +82,13 @@ Create environment variables:
 | `institutionId` | ID returned by institution creation/listing |
 | `accountId` | ID returned by account creation/listing |
 | `categoryId` | ID returned by category creation/listing |
+| `householdId` | Target ID returned by invitation preview |
+| `membershipId` | Membership ID from the household roster; not an Identity user ID |
+| `joinCode` | Fresh owner-generated invitation code; expires after 10 minutes |
+| `draftId` | ID returned by starting/resuming a budget draft |
+| `editVersion` | Latest draft edit version returned by start/save/publish |
+| `month` | First day of the requested month, e.g. `2026-11-01` |
+| `sourceKey` | Optional income source GUID from budget responses |
 
 Use collection-level Bearer Token authorization with `{{token}}`. Set login and
 registration requests to **No Auth**. An optional post-response script on login
@@ -93,6 +108,17 @@ Do not register the seeded email again.
 For a fresh user: register → create household → optionally create institution →
 create accounts and categories → create transactions → inspect dashboard/trends.
 Use returned IDs rather than assuming they match the examples.
+
+To join instead: the owner signs in and generates a code with
+`POST /households/invitations` (no body). Sign in as the new user, preview the
+code, then redeem with the returned household ID after confirming the target.
+Use separate owner/new-user Postman environments so their tokens are not mixed up.
+The code appears only in the generation response; status cannot retrieve it.
+
+For budgets: start/resume draft → save full definitions → preview with the latest
+edit version → publish → fetch month and income period. See the payloads below.
+The inline Add Institution and Add Category UI flows use the existing
+`POST /institutions` and `POST /categories` endpoints; no additional routes were added.
 
 ## Authentication payloads
 
@@ -424,6 +450,7 @@ before testing these endpoints. No sample budget is seeded.
 | GET | `/api/budgets/draft/{draftId}/preview?month=2026-11-01&expectedEditVersion=1` | 200 | Project a saved draft without publication |
 | POST | `/api/budgets/draft/{draftId}/publish` | 200 | Validate and publish the reviewed draft |
 | GET | `/api/budgets/month?month=2026-11-01` | 200 | Published monthly plan and scheduled events |
+| GET | `/api/budgets/income-period?asOf=2026-10-16` | 200 | Current income period, schedule choices, bills, and contributions |
 
 Start with `{}` for the current America/New_York month, or:
 

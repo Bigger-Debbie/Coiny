@@ -5,5 +5,8 @@ fieldset { padding: 0; margin: 0 0 1.5rem; border: 0; display: grid; gap: 1.25re
 input[type="checkbox"] { width: auto; margin-right: .5rem; }
 form > button + button { margin-left: .75rem; }
 .error { color: var(--color-danger); }
+.category-add { margin-top: .75rem; }
+.category-editor { display: grid; gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.category-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
 button:disabled { opacity: .5; cursor: wait; }
 @media (max-width: 600px) { :host { padding: 1.25rem; } }

@@ -9,8 +9,9 @@ import { HouseholdService } from '../../core/services/household.service';
 import { HouseholdInvitationService, InvitationPreview } from '../../core/services/household-invitation.service';
 import { householdError } from './household-errors';
 import { AppFooter } from '../../shared/components/app-footer/app-footer';
+import { CoinBackground } from '../../shared/components/coin-background/coin-background';
 
-@Component({ selector: 'app-household-setup', imports: [FormsModule, DatePipe, AppFooter], templateUrl: './household-setup.html', styleUrl: './households.css' })
+@Component({ selector: 'app-household-setup', imports: [FormsModule, DatePipe, AppFooter, CoinBackground], templateUrl: './household-setup.html', styleUrl: './households.css' })
 export class HouseholdSetup implements OnInit {
   private readonly households = inject(HouseholdService);
   private readonly invitations = inject(HouseholdInvitationService);

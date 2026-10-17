@@ -15,4 +15,7 @@ export class InstitutionService {
   getInstitutions() {
     return this.http.get<Institution[]>(`${environemnt.apiUrl}/institutions`);
   }
+  createInstitution(request: { name: string; website: string | null }) {
+    return this.http.post<Institution>(`${environemnt.apiUrl}/institutions`, request);
+  }
 }

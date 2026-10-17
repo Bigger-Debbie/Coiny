@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -32,6 +32,12 @@ export class CreateAccount implements OnInit {
   readonly loading = signal(true);
   readonly loadError = signal(false);
   readonly saving = signal(false);
+  readonly institutionSaving = signal(false);
+  readonly busy = computed(() => this.saving() || this.institutionSaving());
+  readonly addingInstitution = signal(false);
+  readonly institutionError = signal('');
+  institutionName = '';
+  institutionWebsite = '';
   readonly error = signal('');
   readonly today = getTrendDates('1D').endDate;
   readonly model: CreateAccountRequest = {
@@ -49,7 +55,7 @@ export class CreateAccount implements OnInit {
   }
 
   save(form: NgForm): void {
-    if (form.invalid || !this.model.name.trim() || this.model.openingBalanceDate > this.today || this.saving()) return;
+    if (form.invalid || !this.model.name.trim() || this.model.openingBalanceDate > this.today || this.busy() || this.addingInstitution()) return;
     this.saving.set(true);
     this.error.set('');
     this.accountService.createAccount({ ...this.model, name: this.model.name.trim() })
@@ -66,8 +72,45 @@ export class CreateAccount implements OnInit {
       });
   }
   cancel(): void {
-    if (this.saving()) return;
+    if (this.busy()) return;
     if (this.embedded) this.cancelled.emit();
     else void this.router.navigate(['/accounts']);
+  }
+  closeInstitution(): void {
+    if (this.busy()) return;
+    this.addingInstitution.set(false);
+    this.institutionName = '';
+    this.institutionWebsite = '';
+    this.institutionError.set('');
+  }
+  saveInstitution(): void {
+    if (this.busy()) return;
+    const name = this.institutionName.trim();
+    const website = this.institutionWebsite.trim();
+    if (!name || name.length > 100) {
+      this.institutionError.set('Enter an institution name of up to 100 characters.'); return;
+    }
+    if (website && (website.length > 250 || !this.validWebsite(website))) {
+      this.institutionError.set('Enter a website starting with https:// or http://, or leave it blank.'); return;
+    }
+    this.institutionSaving.set(true);
+    this.institutionError.set('');
+    this.institutionService.createInstitution({ name, website: website || null })
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: institution => {
+          this.institutions.update(items => [...items, institution].sort((a, b) => a.name.localeCompare(b.name)));
+          this.model.institutionId = institution.id;
+          this.institutionSaving.set(false);
+          this.closeInstitution();
+        },
+        error: () => {
+          this.institutionSaving.set(false);
+          this.institutionError.set('Your institution couldn’t be saved. Please try again.');
+        },
+      });
+  }
+  private validWebsite(value: string): boolean {
+    try { return ['http:', 'https:'].includes(new URL(value).protocol); }
+    catch { return false; }
   }
 }

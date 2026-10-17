@@ -4,7 +4,7 @@
 @else if (loadError()) { <div role="status"><p>Your accounts and categories couldn’t load.</p><button (click)="loadOptions()">Try again</button></div> }
 @else {
 <form #form="ngForm" (ngSubmit)="save(form)">
-  <fieldset [disabled]="saving()">
+  <fieldset [disabled]="busy()">
   <div>
     <label for="accountId">Account</label>
     <app-select-menu inputId="accountId" label="Account" name="accountId" [options]="accountOptions" [(ngModel)]="request.accountId" />
@@ -13,6 +13,21 @@
   <div>
     <label for="categoryId">Category</label>
     <app-select-menu inputId="categoryId" label="Category" name="categoryId" [options]="categoryOptions" [(ngModel)]="request.categoryId" />
+    @if (!addingCategory()) {
+      @if (!categories.length) { <p>No categories yet. Add one to get started.</p> }
+      <button class="button-ghost category-add" type="button" (click)="addingCategory.set(true)">+ Add Category</button>
+    }
+    @else {
+      <div class="category-editor" aria-label="New category">
+        <div><label for="new-category-name">Category name</label><input id="new-category-name" maxlength="100" [(ngModel)]="categoryName" [ngModelOptions]="{standalone: true}" placeholder="e.g. Groceries" /></div>
+        <div><label for="new-category-type">Category type</label><app-select-menu inputId="new-category-type" label="Category type" [options]="categoryTypes" [(ngModel)]="categoryType" [ngModelOptions]="{standalone: true}" /></div>
+        @if (categoryError()) { <p class="error" role="alert">{{ categoryError() }}</p> }
+        <div class="category-actions">
+          <button class="button-primary" type="button" (click)="saveCategory()">{{ categorySaving() ? 'Saving…' : 'Save Category' }}</button>
+          <button class="button-ghost" type="button" (click)="closeCategory()">Cancel Category</button>
+        </div>
+      </div>
+    }
   </div>
 
   <div>
@@ -89,7 +104,7 @@
     <p class="error" role="alert">Choose an account and category, and enter a description.</p>
   }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-  <button class="button-primary" type="submit" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save Transaction' }}</button>
-  <button type="button" [disabled]="saving()" (click)="cancel()">Cancel</button>
+  <button class="button-primary" type="submit" [disabled]="busy() || addingCategory()">{{ saving() ? 'Saving…' : 'Save Transaction' }}</button>
+  <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
 </form>
 }

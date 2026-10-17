@@ -45,4 +45,34 @@ describe('CreateTransaction', () => {
     request.flush({ id: 5 });
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/accounts'], { queryParams: { accountId: 2 } });
   });
+  it('creates and selects a category without losing the transaction draft', async () => {
+    const f = render(); await f.whenStable(); const c = f.componentInstance;
+    Object.assign(c.request, { amount: 45, description: 'Lunch', merchant: 'Cafe' });
+    c.addingCategory.set(true); c.categoryName = ' Dining '; c.categoryType = 'Expense';
+    c.saveCategory(); c.saveCategory();
+    const request = http.expectOne(r => r.method === 'POST' && r.url.endsWith('/categories'));
+    expect(request.request.body).toEqual({ name: 'Dining', categoryType: 'Expense' });
+    expect(c.busy()).toBe(true);
+    c.closeCategory(); expect(c.addingCategory()).toBe(true);
+    c.cancel(); expect(TestBed.inject(Router).navigate).not.toHaveBeenCalled();
+    request.flush({ id: 3, name: 'Dining', categoryType: 'Expense', isActive: true });
+    expect(c.request).toMatchObject({ accountId: 2, categoryId: 3, amount: 45, description: 'Lunch', merchant: 'Cafe' });
+    expect(c.categories.map(category => category.id)).toContain(3);
+    expect(c.addingCategory()).toBe(false);
+    expect(c.busy()).toBe(false);
+  });
+  it('validates names and keeps a failed income category draft available to retry', async () => {
+    const f = render(); await f.whenStable(); const c = f.componentInstance;
+    c.addingCategory.set(true); c.saveCategory();
+    expect(c.categoryError()).toContain('name');
+    http.expectNone(r => r.method === 'POST');
+    c.categoryName = 'Bonus'; c.categoryType = 'Income'; c.saveCategory();
+    const request = http.expectOne(r => r.method === 'POST');
+    expect(request.request.body.categoryType).toBe('Income');
+    request.flush({}, { status: 500, statusText: 'Error' });
+    expect(c.categoryName).toBe('Bonus'); expect(c.categoryType).toBe('Income');
+    expect(c.addingCategory()).toBe(true); expect(c.busy()).toBe(false);
+    expect(c.categoryError()).toContain('try again');
+    c.closeCategory(); expect(c.request.categoryId).toBe(0);
+  });
 });

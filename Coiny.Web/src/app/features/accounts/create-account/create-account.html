@@ -5,14 +5,30 @@
   @else if (loadError()) { <div role="status"><p>Your institutions couldn’t load.</p><button (click)="loadInstitutions()">Try again</button></div> }
   @else {
     <form #form="ngForm" (ngSubmit)="save(form)" novalidate>
-      <fieldset [disabled]="saving()">
+      <fieldset [disabled]="busy()">
         <div><label for="account-name">Account name</label><input id="account-name" name="name" required maxlength="100" [(ngModel)]="model.name" #name="ngModel" />
           @if ((name.invalid || !model.name.trim()) && (name.touched || form.submitted)) { <small class="error">Enter an account name.</small> }
         </div>
         <div><label for="account-type">Account type</label><app-select-menu inputId="account-type" label="Account type"
           name="accountType" [options]="typeOptions" [(ngModel)]="model.accountType" /></div>
         <div><label for="institution">Institution</label><app-select-menu inputId="institution" label="Institution"
-          name="institutionId" [options]="institutionOptions" [(ngModel)]="model.institutionId" /></div>
+          name="institutionId" [options]="institutionOptions" [(ngModel)]="model.institutionId" />
+          @if (!addingInstitution()) {
+            @if (!institutions().length) { <p>No institutions yet. Add one below or continue without one.</p> }
+            <button class="button-ghost institution-add" type="button" (click)="addingInstitution.set(true)">+ Add Institution</button>
+          }
+          @else {
+            <div class="institution-editor" aria-label="New institution">
+              <div><label for="institution-name">Institution name</label><input id="institution-name" maxlength="100" [(ngModel)]="institutionName" [ngModelOptions]="{standalone: true}" placeholder="e.g. First Commerce Credit Union" /></div>
+              <div><label for="institution-website">Website (optional)</label><input id="institution-website" type="url" maxlength="250" [(ngModel)]="institutionWebsite" [ngModelOptions]="{standalone: true}" placeholder="https://www.example.com" /></div>
+              @if (institutionError()) { <p class="error" role="alert">{{ institutionError() }}</p> }
+              <div class="actions">
+                <button class="button-primary" type="button" (click)="saveInstitution()">{{ institutionSaving() ? 'Saving…' : 'Save Institution' }}</button>
+                <button class="button-ghost" type="button" (click)="closeInstitution()">Cancel Institution</button>
+              </div>
+            </div>
+          }
+        </div>
         <div><label for="opening-balance">{{ model.accountType === 'CreditCard' || model.accountType === 'Loan' ? 'Opening amount owed' : 'Opening balance' }}</label>
           <input id="opening-balance" name="openingBalance" type="number" required min="0" step="0.01" [(ngModel)]="model.openingBalance" #balance="ngModel" />
           @if (balance.invalid && (balance.touched || form.submitted)) { <small class="error">Enter a balance of zero or more.</small> }
@@ -23,8 +39,8 @@
       </fieldset>
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
       <div class="actions">
-        <button class="button-primary" type="submit" [disabled]="saving() || model.openingBalanceDate > today">{{ saving() ? 'Saving…' : 'Save Account' }}</button>
-        <button class="button-ghost" type="button" [disabled]="saving()" (click)="cancel()">Cancel</button>
+        <button class="button-primary" type="submit" [disabled]="busy() || addingInstitution() || model.openingBalanceDate > today">{{ saving() ? 'Saving…' : 'Save Account' }}</button>
+        <button class="button-ghost" type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
       </div>
     </form>
   }

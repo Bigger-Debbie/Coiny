@@ -4,8 +4,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../core/services/auth.service';
 import { AppFooter } from '../../../shared/components/app-footer/app-footer';
+import { CoinBackground } from '../../../shared/components/coin-background/coin-background';
 
-@Component({ selector: 'app-signup', imports: [FormsModule, RouterLink, AppFooter], templateUrl: './signup.html', styleUrls: ['../login/login.css', './signup.css'] })
+@Component({ selector: 'app-signup', imports: [FormsModule, RouterLink, AppFooter, CoinBackground], templateUrl: './signup.html', styleUrls: ['../login/login.css', './signup.css'] })
 export class Signup {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);

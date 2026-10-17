@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -39,6 +39,15 @@ export class CreateTransaction implements OnInit {
   readonly loading = signal(true);
   readonly loadError = signal(false);
   readonly saving = signal(false);
+  readonly categorySaving = signal(false);
+  readonly busy = computed(() => this.saving() || this.categorySaving());
+  readonly addingCategory = signal(false);
+  readonly categoryError = signal('');
+  categoryName = '';
+  categoryType: 'Expense' | 'Income' = 'Expense';
+  readonly categoryTypes: SelectOption[] = [
+    { value: 'Expense', label: 'Expense' }, { value: 'Income', label: 'Income' },
+  ];
   readonly error = signal('');
   accounts: Account[] = [];
   categories: Category[] = [];
@@ -71,7 +80,7 @@ export class CreateTransaction implements OnInit {
 
   save(form: NgForm): void {
     if (form.invalid || this.request.accountId <= 0 || this.request.categoryId <= 0 ||
-      this.request.amount <= 0 || !this.request.description.trim() || this.saving() ||
+      this.request.amount <= 0 || !this.request.description.trim() || this.busy() || this.addingCategory() ||
       (this.openingDate && this.request.transactionDate < this.openingDate)) return;
     this.saving.set(true);
     this.error.set('');
@@ -90,8 +99,38 @@ export class CreateTransaction implements OnInit {
   }
 
   cancel(): void {
-    if (this.saving()) return;
+    if (this.busy()) return;
     if (this.embedded) this.cancelled.emit();
     else void this.router.navigate(['/accounts'], { queryParams: { accountId: this.returnAccountId } });
+  }
+  closeCategory(): void {
+    if (this.busy()) return;
+    this.addingCategory.set(false);
+    this.categoryName = '';
+    this.categoryType = 'Expense';
+    this.categoryError.set('');
+  }
+  saveCategory(): void {
+    if (this.busy()) return;
+    const name = this.categoryName.trim();
+    if (!name || name.length > 100) {
+      this.categoryError.set('Enter a category name of up to 100 characters.'); return;
+    }
+    this.categorySaving.set(true);
+    this.categoryError.set('');
+    this.categoryService.createCategory({ name, categoryType: this.categoryType })
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: category => {
+          this.categories = [...this.categories, category].sort((a, b) => a.name.localeCompare(b.name));
+          this.request.categoryId = category.id;
+          this.categorySaving.set(false);
+          this.closeCategory();
+        },
+        error: response => {
+          this.categorySaving.set(false);
+          this.categoryError.set(typeof response.error === 'string'
+            ? response.error : 'Your category couldn’t be saved. Please try again.');
+        },
+      });
   }
 }

@@ -37,4 +37,34 @@ describe('CreateAccount', () => {
     request.flush({ id: 9 });
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/accounts'], { queryParams: { accountId: 9 } });
   });
+  it('creates and selects an institution while preserving the account draft and blocking dismissal', async () => {
+    const f = await render();
+    const c = f.componentInstance;
+    c.model.name = 'My checking';
+    c.addingInstitution.set(true);
+    c.institutionName = ' New Bank ';
+    c.institutionWebsite = ' https://bank.example ';
+    c.saveInstitution(); c.saveInstitution();
+    const request = http.expectOne(r => r.method === 'POST' && r.url.endsWith('/institutions'));
+    expect(request.request.body).toEqual({ name: 'New Bank', website: 'https://bank.example' });
+    expect(c.busy()).toBe(true);
+    c.closeInstitution(); expect(c.addingInstitution()).toBe(true);
+    request.flush({ id: 2, name: 'New Bank', website: 'https://bank.example', isActive: true });
+    expect(c.model.institutionId).toBe(2);
+    expect(c.model.name).toBe('My checking');
+    expect(c.addingInstitution()).toBe(false);
+    expect(c.busy()).toBe(false);
+  });
+  it('validates institution details and retains the draft after a failed save', async () => {
+    const f = await render(); const c = f.componentInstance;
+    c.saveInstitution();
+    expect(c.institutionError()).toContain('name');
+    c.institutionName = 'Bank'; c.institutionWebsite = 'javascript:alert(1)'; c.saveInstitution();
+    http.expectNone(r => r.method === 'POST');
+    c.institutionWebsite = ''; c.saveInstitution();
+    http.expectOne(r => r.method === 'POST').flush({}, { status: 500, statusText: 'Error' });
+    expect(c.institutionName).toBe('Bank');
+    expect(c.institutionError()).toContain('try again');
+    expect(c.busy()).toBe(false);
+  });
 });

@@ -5,6 +5,8 @@ p { color: var(--color-text-muted); font-size: .9rem; }
 fieldset { border: 0; padding: 0; margin: 1.5rem 0; display: grid; gap: 1.25rem; }
 .error { color: var(--color-danger); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.institution-add { margin-top: .75rem; }
+.institution-editor { display: grid; gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 button:disabled { opacity: .5; cursor: wait; }
 a:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
 @media (max-width: 600px) { .create-account { padding: 1.25rem; } }

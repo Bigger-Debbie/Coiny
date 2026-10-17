@@ -1,0 +1,17 @@
+:host { position: absolute; inset: 0; pointer-events: none; }
+.coins { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
+img { position: absolute; top: -110px; height: auto; animation: falling linear infinite; }
+.paused img { animation-play-state: paused; }
+@keyframes falling {
+  from { transform: translate(-50%, 0) rotate(var(--rotation)); }
+  to { transform: translate(calc(-50% + 28px), calc(100vh + 220px)) rotate(calc(var(--rotation) + 75deg)); }
+}
+button { position: absolute; top: 1rem; right: 1rem; pointer-events: auto; cursor: pointer; border: 1px solid var(--color-border); border-radius: .5rem; padding: .4rem .65rem; background: white; color: var(--color-text-muted); font: inherit; font-size: .75rem; }
+button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+@media (max-width: 600px) { img:nth-child(even) { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  img { animation: none; top: 15%; transform: rotate(var(--rotation)); }
+  img:nth-child(3n) { top: 65%; }
+  img:nth-child(3n + 1) { top: 40%; }
+  button { display: none; }
+}

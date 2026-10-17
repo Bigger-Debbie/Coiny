@@ -133,13 +133,19 @@ component: a white dropdown surface with the profile menu's border, rounded
 corners, shadow, and selected indicator. Arrow keys, Home/End, typeahead,
 Enter/Space, Escape, and outside-click dismissal are supported.
 
-Add Account opens a modal form for name, type, optional existing institution,
-opening balance, and opening date. It creates the opening snapshot through the
+Add Account opens a modal form for name, type, optional institution,
+opening balance, and opening date. The inline Add Institution option accepts a
+name and optional HTTP/HTTPS website, saves it for the household, and selects it
+without losing the account draft. Accounts can also be created without an institution.
+It creates the opening snapshot through the
 existing API, refreshes the page, and selects the new account. Add Transaction
 opens a modal with the current account preselected and excludes unsupported
 transfer categories. Saving refreshes balances, trend, and transactions without
 leaving the page; timeframe and applied filters are retained.
 Creating transactions uses active accounts and active categories.
+The transaction form also offers inline Add Category with a name and Income/Expense
+type. Saving selects the new category while preserving the transaction draft;
+canceling the category editor leaves the transaction unchanged.
 Creation modals have a dimmed backdrop, Close and Cancel controls, native dialog focus
 containment, Escape/outside dismissal, scroll locking, and focus restoration.
 Dismissal is disabled while a save is pending.
