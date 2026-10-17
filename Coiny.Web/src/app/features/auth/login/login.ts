@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
 import { LoginRequest } from '../../../shared/models/auth/login-request';
@@ -8,11 +8,12 @@ import { AppFooter } from '../../../shared/components/app-footer/app-footer';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule, AppFooter],
+  imports: [FormsModule, AppFooter, RouterLink],
   templateUrl: './login.html',
   styleUrl: './login.css'
 })
 export class Login {
+  readonly joinCode = inject(ActivatedRoute).snapshot.queryParamMap.get('code')?.slice(0, 32) ?? '';
   readonly passwordVisible = signal(false);
   readonly submitting = signal(false);
   readonly errorMessage = signal('');
@@ -45,7 +46,8 @@ export class Login {
       next: response => {
         this.submitting.set(false);
         this.authService.setToken(response.token);
-        this.router.navigate(['/dashboard']);
+        if (this.joinCode) void this.router.navigate(['/household-setup'], { queryParams: { code: this.joinCode } });
+        else void this.router.navigate(['/dashboard']);
       },
 
       error: error => {

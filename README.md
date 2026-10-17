@@ -12,8 +12,8 @@ experience remain future work.
 
 | Area | Implemented | Still planned |
 | --- | --- | --- |
-| Authentication | Registration/login APIs, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Signup UI, password recovery, complete expired-session handling |
-| Households | Create/get current household, ownership-scoped financial services | Invitations, member management, household switching |
+| Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Password recovery, complete expired-session handling |
+| Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
 | Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown | Edit/delete flows, paired transfers, imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
@@ -69,8 +69,8 @@ now has models, recurrence, a draft/preview/publish API, and a resumable fronten
 setup wizard and published monthly allocation dashboard. The calendar highlights
 the current income period and scheduled items. Next are richer budget editing
 and reporting.
-Account editing, deletion, and further reporting remain future work. Signup, password
-recovery, complete expired-session handling, and new-user setup are deferred.
+Signup and create/join household setup are implemented. Account editing, deletion,
+imports, password recovery, and complete expired-session handling remain future work.
 
 For current development limitations and test status, see the
 [setup guide](docs/06-development-setup.md#verification).

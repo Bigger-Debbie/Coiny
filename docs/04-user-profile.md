@@ -37,7 +37,10 @@ expired tokens are removed and navigation goes to `/login`.
 The branded `/login` form includes a password visibility toggle, validation,
 loading feedback, and user-facing sign-in errors. Background coins drift behind
 the form, with a pause control and a static reduced-motion alternative.
-Forgot Password and Sign Up are visible and display coming-soon messages.
+Forgot Password displays a coming-soon message. Sign Up opens `/signup`.
+The signup form collects first name/email, validates and confirms the password,
+then stores the returned token and opens `/household-setup`. Invitation codes
+from signup links are retained through signup or the sign-in link.
 There is no global handling of 401 responses
 or refresh-token flow. Do not assume an active page automatically redirects the
 moment its token expires.
@@ -45,11 +48,12 @@ moment its token expires.
 ## Header profile menu and local logout
 
 The header avatar shows the user's first initial, or `?` when no first name is
-available. Its right-aligned menu shows first name/email and a Log out action.
-No profile/settings links are shown until those destinations exist. Loading or
+available. Its right-aligned menu shows first name/email, a Household action, and
+a Log out action. Loading or
 failed profile requests do not prevent local logout.
 
-Clicking the avatar toggles the menu. Arrow Up/Down opens it and focuses Log out;
+Clicking the avatar toggles the menu. Arrow Down opens it at Household; Arrow Up
+opens it at Log out. Arrow keys and Home/End move between menu items;
 native button Enter/Space activation works as well. Clicking outside or moving
 focus outside the profile controls closes it. Escape closes it and returns focus
 to the avatar. The trigger exposes its expanded state and menu relationship.
@@ -62,7 +66,58 @@ This is client-side logout. There is no server logout/revocation endpoint;
 an already-issued JWT remains valid until it expires. Global expired-session
 handling and server-side revocation are separate work.
 
-Registration is available through the API, not a signup screen.
+## Household creation and joining
+
+New users choose **Create a household** or **Join a household** at
+`/household-setup`. Authenticated financial routes check current membership and
+redirect household-less users here. A failed status request shows a retry state;
+it is not treated as permission to create a second household.
+
+Creating a household trims/validates its name, makes the creator Owner, and opens
+the first-account form. Joining previews the household name and explains shared
+financial access before **Confirm and join** redeems the invitation. Previewing
+never creates membership. Expired/revoked/used codes return to code entry. Joined
+users become Members and open the household's existing dashboard, without a new
+household budget wizard. Already joined users cannot create/join another household.
+A unique UserId membership index and transactional create/redeem operations enforce
+this under concurrent requests. Self-service leaving, switching, and member role changes remain future work.
+
+**Profile → Household** opens an in-place modal, preserving the current page and
+any unsaved budget work. The modal lists one card per member with first name,
+email, role, and a You label for the caller, followed by the invitation card.
+Only owners see Remove for other regular members. Removal requires confirmation,
+preserves the user's login and all household financial data, and atomically
+revokes any unconsumed invitation. Owners cannot remove themselves or another
+owner. Removed users lose membership-based API access and are redirected to
+household setup on their next protected navigation. Members can view the roster
+but cannot remove people or manage invitations.
+
+Owners generate, copy, or revoke codes in the lower card; members see instructions
+to ask the owner. Escape/backdrop/close dismiss the modal and restore avatar focus;
+closing is blocked during writes. Existing `/household` links open the same modal
+as a route and return to the dashboard on dismissal. Codes
+use eight cryptographically random characters, displayed `K7MP-4X9Q`, excluding
+I/O/0/1. They expire after 10 minutes and admit one member. New generation replaces
+the previous code; only one invitation record/code can be active per household.
+
+Only a SHA-256 code hash is stored. Plain codes are returned only on generation,
+kept in component memory, and never recovered from the status endpoint. Reloading
+an owner page shows active status; generate another code if its plaintext was
+lost. Copy code or **Copy invitation link** shares `/signup?code=...`; the recipient
+can sign up or sign in first. Codes are submitted in POST bodies, not API URLs.
+No email/SMS delivery service is used.
+
+Preview/redemption share a 5-request/minute per-user limit; generation permits
+5/minute per user. Invitation routes also share a 60-request/minute per-IP cap.
+Excess attempts return 429 with Retry-After. These middleware limits are process
+local; a deployment with multiple API instances would need shared limits. Expiry,
+revocation, hash matching, and one-time consumption are checked server-side;
+consumption and membership insertion commit or roll back together.
+
+`AddHouseholdJoinInvitations` adds the invitation table and unique membership
+index. It preserves existing household/financial data and requires any existing
+multiple-household memberships to be resolved before applying it. It does not
+reset demo budgets. See [API routes](07-api-reference.md#household-invitations).
 
 ## Dashboard personalization
 
@@ -83,10 +138,9 @@ other names are displayed as stored. The greeting does not rename a household.
 
 ## Next authentication work
 
-Complete session-expiration handling, signup,
-and new-user household onboarding are planned. Password reset, email
-confirmation, token revocation/refresh, and member invitations have no public
-workflows yet. Login currently does not increment Identity lockout failures.
+Complete session-expiration handling, password reset, email confirmation, and
+token revocation/refresh remain future work. Email/text invitation delivery is
+not implemented; copyable join codes work without it. Login currently does not increment Identity lockout failures.
 
 For local signing-key setup, see [development setup](06-development-setup.md).
 For the seeded login, see [demo data](05-demo-data.md).

@@ -55,9 +55,12 @@ Account/institution selection and transaction account/category references are
 checked against it. No household ID is accepted in financial creation payloads.
 
 Household creation rejects users who already have a membership. The database
-uniquely indexes `(HouseholdId, UserId)`, while the service currently selects the
-first membership for a user. Household switching, invitations, and role-based
-financial permissions are not implemented.
+uniquely indexes UserId (one household per user), plus `(HouseholdId, UserId)`.
+Owners can generate short-lived, single-use invitation codes; redemption adds a
+Member atomically. Owners can remove regular members without deleting their
+logins or household data; the same transaction revokes active invitations.
+Owners cannot be removed. Household switching/leaving and role-based financial editing
+permissions are not implemented. See [household setup](04-user-profile.md#household-creation-and-joining).
 
 ## Accounts and balances
 

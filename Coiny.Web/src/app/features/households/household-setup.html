@@ -1,0 +1,33 @@
+<div class="setup-page"><main class="setup-main"><section class="setup-card">
+  <img class="setup-logo" src="assets/logos/Coiny-Logo-Hrztl.svg" alt="Coiny" />
+  <h1 class="page-title">Welcome to Coiny</h1><p>Create a household for your shared finances, or join one using a code from its owner.</p>
+  @if (loading()) { <p role="status">Checking your household…</p> }
+  @else if (loadError()) { <p class="error" role="alert">{{ error() }}</p><button class="button-outline" (click)="check()">Try again</button> }
+  @else {
+    <div class="actions choices"><button class="button-outline" [disabled]="busy()" [attr.aria-pressed]="mode() === 'create'" (click)="choose('create')">Create a household</button><button class="button-outline" [disabled]="busy()" [attr.aria-pressed]="mode() === 'join'" (click)="choose('join')">Join a household</button></div>
+    @if (mode() === 'create') {
+      <form #createForm="ngForm" (ngSubmit)="create(createForm)" novalidate><fieldset [disabled]="busy()">
+        <label for="household-name">Household name</label><input id="household-name" name="name" required maxlength="100" placeholder="e.g. The Ross household" [(ngModel)]="name" />
+        <p class="hint">You’ll be the owner and can invite members. Next, add your first account; your budget can be set up whenever you’re ready.</p>
+        @if (createForm.submitted && (createForm.invalid || !name.trim())) { <p class="error">Enter a household name.</p> }
+        <button class="button-primary" type="submit">{{ busy() ? 'Creating…' : 'Create household' }}</button>
+      </fieldset></form>
+    }
+    @if (mode() === 'join') {
+      @if (preview(); as invitation) {
+        <h2>Join {{ invitation.householdName }}?</h2>
+        <p>You’ll join as a member and gain access to this household’s shared accounts, transactions, and budget.</p>
+        <small>Code expires {{ invitation.expiresAt | date:'shortTime' }}. It may expire or be revoked before you confirm.</small>
+        <div class="actions"><button class="button-primary" [disabled]="busy()" (click)="join()">{{ busy() ? 'Joining…' : 'Confirm and join' }}</button><button class="button-ghost" [disabled]="busy()" (click)="preview.set(null)">Use a different code</button></div>
+      } @else {
+        <form #joinForm="ngForm" (ngSubmit)="lookup(joinForm)" novalidate><fieldset [disabled]="busy()">
+          <label for="join-code">Household join code</label><input id="join-code" class="code-input" name="code" required maxlength="32" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="K7MP-4X9Q" [(ngModel)]="code" />
+          <p class="hint">Ask the household owner for a fresh code. Codes last 10 minutes and can be used once. Checking a code won’t join the household yet.</p>
+          <button class="button-primary" type="submit">{{ busy() ? 'Checking…' : 'Check invitation' }}</button>
+        </fieldset></form>
+      }
+    }
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  }
+  <button class="button-ghost signout" [disabled]="busy()" (click)="logout()">Sign out</button>
+</section></main><app-footer /></div>

@@ -31,6 +31,10 @@ export class AuthService {
     readonly profileLoading = this.loadingProfile.asReadonly();
     readonly profileError = this.failedProfile.asReadonly();
 
+    register(request: { firstName: string; email: string; password: string }): Observable<LoginResponse> {
+        return this.http.post<LoginResponse>(`${this.apiUrl}/register`, request);
+    }
+
     login(request: LoginRequest): Observable<LoginResponse> {
         return this.http.post<LoginResponse>(
             `${this.apiUrl}/login`,

@@ -8,6 +8,7 @@ public class HouseholdMemberConfiguration : IEntityTypeConfiguration<HouseholdMe
 {
     public void Configure(EntityTypeBuilder<HouseholdMember> builder)
     {
+        builder.HasIndex(hm => hm.UserId).IsUnique();
         builder
             .HasIndex(hm => new { hm.HouseholdId, hm.UserId })
             .IsUnique();

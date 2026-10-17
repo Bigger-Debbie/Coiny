@@ -11,6 +11,11 @@ describe('AppHeader profile menu', () => {
   let http: HttpTestingController;
   let auth: AuthService;
   let navigate: ReturnType<typeof vi.fn>;
+  beforeAll(() => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value: function(this: HTMLDialogElement) { this.setAttribute('open', ''); } });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value: function(this: HTMLDialogElement) { this.removeAttribute('open'); } });
+  });
+  afterAll(() => { Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal'); Reflect.deleteProperty(HTMLDialogElement.prototype, 'close'); });
   beforeEach(() => {
     const storage = new Map<string, string>();
     vi.stubGlobal('localStorage', {
@@ -88,6 +93,16 @@ describe('AppHeader profile menu', () => {
     fixture.detectChanges(); open();
     expect(avatar().textContent?.trim()).toBe('?');
     expect(fixture.nativeElement.textContent).toContain('Profile unavailable');
-    expect(fixture.nativeElement.querySelector('[role="menuitem"]').textContent).toBe('Log out');
+    expect(fixture.nativeElement.querySelector('.logout-button:last-child').textContent).toBe('Log out');
+  });  it('opens Household as an in-place modal and returns focus to the avatar on close', async () => {
+    loadProfile(); open(); fixture.nativeElement.querySelector('[role="menuitem"]').click(); fixture.detectChanges();
+    expect(navigate).not.toHaveBeenCalled();
+    http.expectOne(r => r.url.endsWith('/households/me')).flush({ id: 1, name: 'Ross', role: 'Member' }); await Promise.resolve();
+    http.expectOne(r => r.url.endsWith('/members')).flush([{ id: 1, firstName: 'Alex', email: profile.email, role: 'Member', isCurrentUser: true }]);
+    await vi.waitFor(() => expect(fixture.nativeElement.querySelector('dialog')).not.toBeNull()); fixture.detectChanges();
+    const close = fixture.nativeElement.querySelector('[aria-label="Close dialog"]') as HTMLButtonElement;
+    close.click(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('dialog')).toBeNull(); expect(document.activeElement).toBe(avatar());
   });
+
 });

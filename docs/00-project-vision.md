@@ -9,7 +9,8 @@ for the future. Its long-term purpose extends beyond expense tracking: bring
 balances, activity, budgets, and financial goals into one clear household view.
 
 The household is the shared financial space. The current implementation provides
-its data foundation; collaboration features such as invitations are still planned.
+its data foundation. Owner-generated join codes support household invitations;
+broader member management remains planned.
 
 ## Questions the product should answer
 

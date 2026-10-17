@@ -178,6 +178,9 @@ error/retry states. Superseded requests are cancelled.
 | Route | Status |
 | --- | --- |
 | `/login` | Branded login with animated coins, reduced-motion support, pause, password toggle, and validation/error states |
+| `/signup` | Registration, password confirmation, and invitation-link retention |
+| `/household-setup` | Authenticated create/join choice and household confirmation |
+| `/household` | Compatibility route opening the household modal |
 | `/dashboard` | Implemented dashboard in protected layout |
 | `/accounts` | Account selection, trends, filtered/paginated transactions, income/expense donut |
 | `/accounts/new` | Redirects to accounts with the Add Account modal open |
@@ -190,9 +193,9 @@ and the separate transactions icon has been removed. The budget icon opens the
 household budgeting page. Its setup workflow and dashboard delivery sequence
 are described in [household budgeting](09-household-budgeting.md).
 The header's dynamic
-initial opens a profile menu with name/email and local logout, including keyboard
-navigation and outside-click dismissal. Signup, full expired-session handling,
-and household onboarding remain planned. See
+initial opens a profile menu with name/email, a Household modal action, and local logout, including
+keyboard navigation and outside-click dismissal. Signup and household setup are
+implemented; complete expired-session handling remains planned. See
 [authentication](04-user-profile.md#header-profile-menu-and-local-logout) for the
 current boundary.
 

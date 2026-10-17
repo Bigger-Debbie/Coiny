@@ -95,3 +95,5 @@
 .logout-button:hover { background: var(--color-background); transform: none; }
 @media (max-width: 600px) { .header-content { flex-wrap: wrap; gap: 1rem; } .navigation { gap: 1rem; margin-left: auto; } }
 
+
+a.logout-button { box-sizing:border-box; padding:.75rem 1rem; text-decoration:none; border-radius:var(--radius-sm); }

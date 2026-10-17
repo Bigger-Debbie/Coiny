@@ -29,6 +29,8 @@ For the known starter-test failure and focused dashboard/accounts test commands,
 | `src/app/core/services/` | API calls and token handling |
 | `src/app/core/guards/`, `interceptors/` | Route authentication and bearer header |
 | `src/app/features/dashboard/` | Hero, range selection, account list, recent transactions |
+| `src/app/features/auth/signup/` | Registration, password confirmation, retained invitation codes |
+| `src/app/features/households/` | Create/join onboarding and owner invitation management |
 | `src/app/features/auth/login/` | Branded login, animated coins, password toggle |
 | `src/app/features/budget/` | Five-step household budget wizard, save/resume, saved previews, publication, monthly navigation, allocation dashboard, current-period bills, and calendar |
 | `src/app/features/accounts/` | Account selection, scoped trends, transaction filters/pages, creation modals, income/expense breakdown |
@@ -48,5 +50,5 @@ colors, avatar alternation, pane states, and the account-scoped income/expense
 donut. The donut follows the account and timeframe independently of list
 filters and pagination. The
 [authentication guide](../docs/04-user-profile.md) distinguishes existing token
-handling from planned logout/signup work. Routes and unfinished navigation are
+handling, signup, and create/join household setup from future session work. Routes and unfinished navigation are
 listed in the dashboard guide; header icons alone do not indicate finished pages.

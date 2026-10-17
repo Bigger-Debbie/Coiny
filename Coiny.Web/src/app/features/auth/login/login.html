@@ -43,8 +43,7 @@
           (click)="notice.set('Password recovery is coming soon.')">Forgot Password?</button>
         @if (errorMessage()) { <p class="feedback error" role="alert">{{ errorMessage() }}</p> }
         <button class="login-button" type="submit" [disabled]="submitting()">{{ submitting() ? 'Signing in…' : 'LOGIN' }}</button>
-        <button class="text-button signup" type="button"
-          (click)="notice.set('Sign up is coming soon.')">Sign Up</button>
+        <a class="text-button signup" routerLink="/signup" [queryParams]="joinCode ? { code: joinCode } : null">Sign Up</a>
         <p class="feedback notice" role="status">{{ notice() }}</p>
       </form>
     </section>

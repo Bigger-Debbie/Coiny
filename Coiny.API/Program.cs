@@ -14,6 +14,7 @@ builder.Services.Configure<JwtOptions>(
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddApplicationServices();
+builder.Services.AddHouseholdInvitationRateLimits();
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -58,6 +59,7 @@ app.UseCors("AllowAngularDevClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapControllers();
 

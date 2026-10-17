@@ -104,9 +104,9 @@ Open `http://localhost:4200/login`. For a seeded database, use the
 its URL. The API's development CORS policy allows `http://localhost:4200`.
 Using another port/origin requires a matching CORS configuration change.
 
-For a new user without demo data, use Postman to register, create a household,
-and create initial financial data. Signup and household-setup screens are not
-implemented. See the [API workflow](07-api-reference.md#postman-workflow).
+For a new user without demo data, use **Sign Up** on the login page. Create a
+household or enter a code from an existing owner. Owners generate codes through
+**Profile → Household**. New household creation opens the first-account form. See the [API workflow](07-api-reference.md#postman-workflow).
 
 ## Verification
 
@@ -152,14 +152,14 @@ Current verification baseline after the category-breakdown implementation:
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The full frontend run has 101 passing tests out of 102; the remaining failure
+- The full frontend run has 115 passing tests out of 116; the remaining failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
 - Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.03 kB
   and 4.25 kB respectively); the production build still passes.
-- The backend suite has 55 passing xUnit tests for recurrence, household-scoped
+- The backend suite has 69 passing xUnit tests for recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).

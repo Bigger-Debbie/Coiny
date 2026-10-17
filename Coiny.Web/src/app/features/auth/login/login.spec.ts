@@ -80,10 +80,9 @@ describe('Login', () => {
     fixture.nativeElement.querySelector('.forgot').click();
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('Password recovery is coming soon.');
-    fixture.nativeElement.querySelector('.signup').click();
+    expect(fixture.nativeElement.querySelector('.signup').getAttribute('href')).toBe('/signup');
     fixture.nativeElement.querySelector('.motion-control').click();
     await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('Sign up is coming soon.');
     expect(fixture.nativeElement.querySelector('.coin-background').classList.contains('paused')).toBe(true);
   });
 });

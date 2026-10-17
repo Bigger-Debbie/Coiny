@@ -30,6 +30,13 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/auth/me` | 200 | Current user profile |
 | GET | `/api/households/me` | 200 | Current household and role; 404 if none |
 | POST | `/api/households` | 201 | Create household and owner membership |
+| GET | `/api/households/members` | 200 | Current household member cards and caller flag |
+| DELETE | `/api/households/members/{membershipId}` | 204 | Owner removes a regular member and revokes active join code |
+| GET | `/api/households/invitations` | 200 | Owner invitation status |
+| POST | `/api/households/invitations` | 200 | Owner generates/replaces a join code |
+| DELETE | `/api/households/invitations` | 204 | Owner revokes a join code |
+| POST | `/api/households/invitations/preview` | 200 | Preview target household without joining |
+| POST | `/api/households/invitations/redeem` | 200 | Confirm and join as a member |
 | GET | `/api/institutions` | 200 | Household institutions |
 | POST | `/api/institutions` | 201 | Create institution |
 | GET | `/api/accounts` | 200 | Accounts, opening dates, and current balances |
@@ -45,9 +52,9 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
 
 Collection list responses remain JSON arrays. Paged transaction and category
-breakdown endpoints return structured objects. There are no
-public single-resource detail, update, delete, logout, refresh-token, or
-snapshot-management endpoints.
+breakdown endpoints return structured objects. Financial records have no public
+single-resource detail/update/delete endpoints. Invitation revocation is listed
+above. Logout, refresh-token, and snapshot-management endpoints are not exposed.
 
 Household budgeting exposes the [setup, draft, preview, publication, and monthly
 projection endpoints](#household-budgeting) below. Calendar events are included in
@@ -145,7 +152,7 @@ Both successful calls return:
 ```
 
 Name is required, maximum 100 characters. Creation establishes an `Owner`
-membership and rejects a user who already belongs to a household.
+membership and returns 409 for a user who already belongs to a household.
 `GET /api/households/me` returns `id`, `name`, and `role` (`Owner` or `Member`).
 
 `POST /api/institutions`:
@@ -557,3 +564,78 @@ Income input/response objects include optional nullable `sourceKey` GUIDs. Retai
 returned keys on edits to preserve a source across revisions; omit for new sources.
 Empty/duplicate keys within one draft are rejected. Existing historical rows get
 unique keys on migration; no identity is inferred from matching names.
+
+
+## Household invitations
+
+All routes require a bearer token. One user can belong to one household. Create
+household returns 409 when a membership already exists (including concurrent
+create/join attempts). Invitations add users as Member; only Owners manage codes.
+
+| Method | Route | Success | Behavior |
+| --- | --- | --- | --- |
+| GET | `/api/households/invitations` | 200 | Owner-only active status (`hasActiveInvitation`, nullable `expiresAt`); no plaintext code |
+| POST | `/api/households/invitations` | 200 | Owner-only generation/rotation; returns `code`, `expiresAt`, `householdName` |
+| DELETE | `/api/households/invitations` | 204 | Owner-only revocation; idempotent |
+| POST | `/api/households/invitations/preview` | 200 | Verify code and return `householdId`, `householdName`, `expiresAt`, without joining |
+| POST | `/api/households/invitations/redeem` | 200 | Explicitly join the previewed household as Member; returns HouseholdResponse |
+
+Preview body:
+
+```json
+{
+  "code": "K7MP-4X9Q"
+}
+```
+
+After the user confirms the previewed household, redeem:
+
+```json
+{
+  "code": "K7MP-4X9Q",
+  "householdId": 1
+}
+```
+
+The household ID must match the code's target. Codes are case-insensitive; spaces
+and hyphens are ignored. They contain eight random characters excluding I/O/0/1,
+are stored as hashes, expire after 10 minutes, and are single-use. Generation
+invalidates the previous code. Preview does not reserve or consume it, so expiry,
+revocation, and single-use state are rechecked during redemption. Membership and
+consumption are saved in one transaction. Already-member users cannot preview or
+redeem another invitation. No account, transaction, or budget is created by joining.
+
+Responses: 400 malformed/missing fields; 401 unauthenticated; 403 invitation
+management without Owner membership; 404 invalid/expired/revoked/used code or
+mismatched target; 409 existing household membership; 429 excessive requests.
+Domain errors use Problem Details. Preview and redeem share 5 attempts/minute per
+user; generation allows 5/minute per user; invitation routes also allow 60/minute
+per IP. Rate-limit responses include Retry-After. Limits are process local.
+Invitation responses use no-store cache headers. There is no email/SMS endpoint.
+
+Apply `AddHouseholdJoinInvitations` before using these routes. The migration adds
+one invitation row per household and a unique UserId membership index. Existing
+multiple memberships must be resolved first; no data is silently deleted. The
+signup UI uses the existing register endpoint and then the create/join workflow.
+
+
+### Household members
+
+`GET /api/households/members` is available to any current household member. It
+returns an array of `id` (membership ID), nullable `firstName`, `email`, `role`
+(Owner/Member), and `isCurrentUser`. No caller-supplied household ID is accepted;
+people from other households are never included. Responses require authentication
+and return 403 when the caller has no current membership.
+
+`DELETE /api/households/members/{membershipId}` is owner-only. Use the membership
+ID from the roster, not an Identity user ID. Successful removal returns 204.
+The target must be a regular Member in the owner's own household. Owners and the
+caller cannot be removed (409); foreign/missing memberships return 404; non-owner
+callers receive 403; unauthenticated requests receive 401. Permission and target
+checks are enforced server-side, independently of visible buttons.
+
+Deletion removes only the membership, preserving the login, accounts,
+transactions, budget, and all other household financial records. Any unconsumed
+household invitation is revoked in the same transaction, preventing reuse of an
+old shared code. If revocation fails, membership deletion rolls back. There is
+no new schema migration for these endpoints.

@@ -373,6 +373,52 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("HouseholdBudgets");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.HouseholdInvitation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ConsumedAtUtcTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("ExpiresAtUtcTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("RevokedAtUtcTicks")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("HouseholdId")
+                        .IsUnique();
+
+                    b.ToTable("HouseholdInvitations", t =>
+                        {
+                            t.HasCheckConstraint("CK_HouseholdInvitations_CodeHash", "length(\"CodeHash\") = 64");
+                        });
+                });
+
             modelBuilder.Entity("Coiny.API.Models.HouseholdMember", b =>
                 {
                     b.Property<int>("Id")
@@ -394,7 +440,8 @@ namespace Coiny.API.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.HasIndex("HouseholdId", "UserId")
                         .IsUnique();
@@ -761,6 +808,23 @@ namespace Coiny.API.Data.Migrations
                     b.HasOne("Coiny.API.Models.Household", "Household")
                         .WithOne("Budget")
                         .HasForeignKey("Coiny.API.Models.HouseholdBudget", "HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.HouseholdInvitation", b =>
+                {
+                    b.HasOne("Coiny.API.Models.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 

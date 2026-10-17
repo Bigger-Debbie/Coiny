@@ -8,6 +8,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
 {
     public CoinyContext(DbContextOptions<CoinyContext> options) : base(options) {}
 
+    public DbSet<HouseholdInvitation> HouseholdInvitations => Set<HouseholdInvitation>();
     public DbSet<Household> Households => Set<Household>();
     public DbSet<HouseholdMember> HouseholdMembers => Set<HouseholdMember>();
     public DbSet<Institution> Institutions => Set<Institution>();

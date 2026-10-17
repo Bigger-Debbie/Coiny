@@ -13,6 +13,13 @@ server or JWT signing key, or change the development user's data.
 
 Coverage includes:
 
+- Household-scoped member rosters, owner-only removal, protected owners, preserved
+  login/financial data, access after removal, and transactional invitation revocation.
+
+- Owner-only invitation management, code hashing/normalization, 10-minute expiry,
+  rotation/revocation, preview, atomic redemption, concurrent join/create races,
+  membership rollback, and HTTP authorization/rate limiting.
+
 - Published income periods across months/revisions, household vs individual paydays,
   same-day boundaries, ended schedules, stable source keys, and identity backfill.
 
@@ -32,7 +39,7 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 55 passing tests. Build output and TestResults are ignored
+The current suite has 69 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the

@@ -13,6 +13,7 @@ public static class ApplicationServceExtensions
         services.AddScoped<DemoDataSeeder>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IHouseholdInvitationService, HouseholdInvitationService>();
         services.AddScoped<IHouseholdService, HouseholdService>();
         services.AddScoped<IInstitutionService, InstitutionService>();
         services.AddScoped<IAccountService, AccountService>();

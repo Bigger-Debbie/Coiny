@@ -44,3 +44,5 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--color-accen
   .coin-background img:nth-child(3n + 1) { top: 40%; }
   .motion-control { display: none; }
 }
+
+a.signup { text-decoration:none; }
