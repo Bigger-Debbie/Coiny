@@ -112,6 +112,28 @@ public class BudgetApiTests
         Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/api/budgets/setup")).StatusCode);
     }
 
+    [Fact]
+    public async Task IncomePeriodEndpointValidatesQueriesAndKeepsHouseholdScope()
+    {
+        await using var host = await Api.Create();
+        var draft = await host.Database.Service().StartDraftAsync();
+        draft = await host.Database.Service().SaveDraftAsync(draft.Id, new() {
+            ExpectedEditVersion = draft.EditVersion, EffectiveFromMonth = draft.EffectiveFromMonth, SetupStep = Coiny.API.Enums.BudgetSetupStep.Review,
+            IncomeSources = [new() { Name = "Salary", Amount = 1000, Schedule = new() {
+                Frequency = Coiny.API.Enums.BudgetFrequency.Weekly, StartDate = new(2026,10,2) } }],
+        });
+        await host.Database.Service().PublishDraftAsync(draft.Id, draft.EditVersion);
+        var period = await host.Client.GetFromJsonAsync<BudgetIncomePeriodResponse>("/api/budgets/income-period", Json);
+        Assert.Equal(new DateOnly(2026,10,16), period!.StartDate);
+        var key = Assert.Single(period.Sources).SourceKey;
+        (await host.Client.GetAsync($"/api/budgets/income-period?asOf=2026-11-01&sourceKey={key}")).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync("/api/budgets/income-period?sourceKey=bad")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync("/api/budgets/income-period?asOf=0001-01-01")).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household"); host.Client.DefaultRequestHeaders.Add("Test-Household", "2");
+        Assert.Empty((await host.Client.GetFromJsonAsync<BudgetIncomePeriodResponse>("/api/budgets/income-period", Json))!.Sources);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync($"/api/budgets/income-period?sourceKey={key}")).StatusCode);
+    }
+
     private sealed class Api(BudgetTestDatabase database, WebApplication app) : IAsyncDisposable
     {
         public BudgetTestDatabase Database => database;

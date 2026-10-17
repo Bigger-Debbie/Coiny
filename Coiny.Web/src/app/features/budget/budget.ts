@@ -120,7 +120,7 @@ export class Budget implements OnInit {
       endDate: s?.endDate ?? '', dayOfMonth: s?.dayOfMonth ?? 1, secondDayOfMonth: s?.secondDayOfMonth ?? 15 }, { validators: scheduleValidator });
   }
   private incomeGroup(i?: BudgetIncome) {
-    return this.fb.group({ name: [i?.name ?? '', name], amount: [i?.amount ?? null, money],
+    return this.fb.group({ sourceKey: i?.sourceKey ?? null, name: [i?.name ?? '', name], amount: [i?.amount ?? null, money],
       healthInsurancePerPaycheck: [i?.healthInsurancePerPaycheck ?? null, optionalMoney],
       retirementContributionPerPaycheck: [i?.retirementContributionPerPaycheck ?? null, optionalMoney], schedule: this.scheduleGroup(i?.schedule) });
   }

@@ -1,0 +1,48 @@
+<section class="calendar-layout" aria-label="Budget calendar and current income period">
+  <aside class="panel period-panel">
+    <h2>Current income period</h2>
+    <label for="income-period-source">Income schedule</label>
+    <app-select-menu inputId="income-period-source" label="Income schedule" [options]="sourceOptions" [ngModel]="sourceKey()" (ngModelChange)="selectSource($event)" />
+    <p class="hint">Household income starts a new period on each distinct payday. Individual schedules use that source’s paydays.</p>
+    @if (loading()) { <p role="status">Finding your current income period…</p> }
+    @else if (error()) { <div role="alert"><p>Your income period couldn’t load.</p><button class="button-outline" (click)="loadPeriod()">Try again</button>@if (sourceKey()) { <button class="button-ghost" (click)="resetSource()">Use household income</button> }</div> }
+    @else if (period(); as p) {
+      <p class="as-of">As of {{ p.asOf | date:'MMM d, yyyy':'UTC' }}</p>
+      @if (p.startDate && p.endDate) {
+        <p class="period-dates">{{ p.startDate | date:'MMM d':'UTC' }} – {{ p.endDate | date:'MMM d, yyyy':'UTC' }}</p>
+        <small>Next payday: {{ p.nextPayday | date:'MMM d':'UTC' }}. Bills on that day belong to the next period.</small>
+        <div class="period-total"><span>Bills scheduled this period</span><strong>{{ p.billsTotal | currency }}</strong></div>
+        @for (bill of p.bills; track $index) { <div class="event-row"><span>{{ bill.name }}<small>{{ bill.date | date:'MMM d':'UTC' }}</small></span><strong>{{ bill.amount | currency }}</strong></div> }
+        @empty { <p class="hint">No bills scheduled for this period.</p> }
+        @if (p.contributions.length) {
+          <h3>Scheduled contributions · {{ p.contributionsTotal | currency }}</h3>
+          @for (item of p.contributions; track $index) { <div class="event-row"><span>{{ item.name }}<small>{{ item.date | date:'MMM d':'UTC' }}</small></span><strong>{{ item.amount | currency }}</strong></div> }
+        }
+        <small>Scheduled amounts, not payment status. This view doesn’t assign bills to a particular paycheck or include unscheduled monthly spending.</small>
+      } @else if (!p.startDate) { <p>No published payday on or before this date.</p>@if (p.nextPayday) { <p>First upcoming payday: {{ p.nextPayday | date:'MMM d, yyyy':'UTC' }}.</p> } }
+      @else { <p>No next payday is scheduled within the next year, so this period has no defined end. Review your income schedule to see its bills.</p> }
+    }
+  </aside>
+  <article class="panel calendar-panel">
+    <header><h2>{{ month.month | date:'MMMM yyyy':'UTC' }}</h2><button class="button-ghost" (click)="selectMonth.emit(today.slice(0, 7) + '-01')">This month</button></header>
+    <div class="calendar-key"><span class="income">● Income</span><span class="bill">● Bills</span><span class="contribution">● Contributions</span><span>Shaded days: current income period</span></div>
+    <div class="calendar-grid" role="group" aria-label="Monthly scheduled items">
+      @for (day of weekdays; track day) { <span class="weekday" aria-hidden="true">{{ day }}</span> }
+      @for (day of days; track $index) {
+        @if (day) {
+          <div class="day-cell" [class.tooltip-hidden]="tooltipHidden()" (pointerenter)="tooltipHidden.set(false)" (focusin)="tooltipHidden.set(false)" (keydown.escape)="tooltipHidden.set(true)" [class.in-period]="inPeriod(day.date)" [class.selected]="selectedDay() === day.date" [class.today]="today === day.date">
+            <button class="day" type="button" [attr.aria-label]="dayLabel(day.date, day.events)" [attr.aria-pressed]="selectedDay() === day.date" [attr.aria-current]="today === day.date ? 'date' : null" (click)="selectedDay.set(day.date)">
+              <span>{{ day.day }}</span><span class="markers" aria-hidden="true">@for (event of day.events.slice(0, 3); track $index) { <span [class.income]="kind(event) === 'Income'" [class.bill]="kind(event) === 'Bill'" [class.contribution]="kind(event) === 'Contribution'">●</span> }@if (day.events.length > 3) { <small>+{{ day.events.length - 3 }}</small> }</span>
+            </button>
+            @if (day.events.length) { <div class="day-tooltip" role="tooltip"><strong>{{ day.date | date:'MMM d':'UTC' }}</strong>@for (event of day.events; track $index) { <span>{{ kind(event) }} · {{ event.name }} · {{ event.amount | currency }}</span> }</div> }
+          </div>
+        } @else { <span class="blank" aria-hidden="true"></span> }
+      }
+    </div>
+    <section class="day-details" aria-label="Selected day details" aria-live="polite">
+      <h3>{{ selectedDay() | date:'EEEE, MMMM d':'UTC' }}</h3>
+      @for (event of selectedEvents; track $index) { <div class="event-row"><span>{{ event.name }}<small>{{ kind(event) }}</small></span><strong>{{ event.amount | currency }}</strong></div> }
+      @empty { <p class="hint">No scheduled items on this day.</p> }
+    </section>
+  </article>
+</section>

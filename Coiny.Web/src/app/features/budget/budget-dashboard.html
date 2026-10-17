@@ -29,7 +29,8 @@
         </article>
         <div class="detail-panels">
           <article class="panel breakdown"><h3>Budget breakdown</h3>
-            <details class="budget-group">
+            <div class="breakdown-scroll" tabindex="0" role="region" aria-label="Budget breakdown items">
+            <details class="budget-group" open>
               <summary><span>Income<small>{{ plan.incomeSources.length }} {{ plan.incomeSources.length === 1 ? 'source' : 'sources' }}</small></span><strong>{{ plan.expectedIncome | currency }}</strong></summary>
             @for (item of plan.incomeSources; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.occurrenceCount }} planned {{ item.occurrenceCount === 1 ? 'payday' : 'paydays' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
             @empty { <p>No paydays scheduled this month.</p> }
@@ -44,9 +45,11 @@
                 @empty { <p class="hint">No items defined in this section.</p> }
               </details>
             }
+            </div>
           </article>
         </div>
       </div>
+      <app-budget-calendar [month]="plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" />
     }
   }
 </section>

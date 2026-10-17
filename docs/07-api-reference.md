@@ -528,3 +528,32 @@ absent or null. They accept the same optional inclusive `endDate`. The original
 anchor day is clamped for short months without changing later occurrences.
 A full six-month/yearly payment is included only in its due month, not amortized.
 Existing endpoint paths and required fields are unchanged.
+
+
+### Current income period
+
+`GET /api/budgets/income-period` returns the current household income period.
+Optional queries: `asOf=2026-10-16` (defaults to today in America/New_York) and
+`sourceKey=<guid>` (omitted for household income). The selected source must exist
+in the household's applicable published plan for that date; foreign/unknown or
+malformed keys and invalid dates return 400. Authentication and household access
+use the same 401/403 behavior as other budget endpoints.
+
+Response fields: `asOf`, `sourceKey`, `sources` (sourceKey/name choices),
+`startDate`, `endDate`, `nextPayday`, `billsTotal`, `contributionsTotal`, `bills`,
+and `contributions`. The event arrays have the monthly scheduled-event shape.
+Income monthly items/events now also expose `sourceKey` (null for allocations).
+
+The latest distinct payday on/before `asOf` starts the period; the next payday
+ends it exclusively. Bills on the next payday belong to the next period. Housing
+and Bills contribute to `billsTotal`; Savings and Investments are separate.
+All household bills are included even with an individual income schedule.
+Unscheduled monthly allocations create no dated events. Lookup uses published
+revisions over twelve calendar months on each side, covering yearly schedules.
+If no prior or next payday is known, dates are nullable and event lists/totals
+are empty; clients must not infer an open-ended period or payment status.
+
+Income input/response objects include optional nullable `sourceKey` GUIDs. Retain
+returned keys on edits to preserve a source across revisions; omit for new sources.
+Empty/duplicate keys within one draft are rejected. Existing historical rows get
+unique keys on migration; no identity is inferred from matching names.

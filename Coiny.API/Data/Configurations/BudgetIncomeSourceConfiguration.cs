@@ -8,6 +8,7 @@ public class BudgetIncomeSourceConfiguration : IEntityTypeConfiguration<BudgetIn
 {
     public void Configure(EntityTypeBuilder<BudgetIncomeSource> builder)
     {
+        builder.HasIndex(i => new { i.BudgetRevisionId, i.SourceKey }).IsUnique();
         builder.Property(i => i.Name).HasMaxLength(100).IsRequired();
         builder.Property(i => i.Amount).HasPrecision(18, 2);
         builder.Property(i => i.HealthInsurancePerPaycheck).HasPrecision(18, 2);

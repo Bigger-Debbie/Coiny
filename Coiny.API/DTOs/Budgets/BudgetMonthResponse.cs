@@ -19,6 +19,7 @@ public class BudgetMonthResponse
 
 public class BudgetMonthlyItem
 {
+    public Guid? SourceKey { get; init; }
     public int Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public BudgetAllocationType? AllocationType { get; init; }
@@ -30,6 +31,7 @@ public class BudgetMonthlyItem
 
 public class BudgetScheduledEvent
 {
+    public Guid? SourceKey { get; init; }
     public DateOnly Date { get; init; }
     public int ItemId { get; init; }
     public string Name { get; init; } = string.Empty;

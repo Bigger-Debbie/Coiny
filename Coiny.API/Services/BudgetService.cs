@@ -82,7 +82,7 @@ public class BudgetService(
         if (baseline is not null)
         {
             foreach (var source in baseline.IncomeSources)
-                draft.IncomeSources.Add(new() { Name = source.Name, Amount = source.Amount, HealthInsurancePerPaycheck = source.HealthInsurancePerPaycheck,
+                draft.IncomeSources.Add(new() { SourceKey = source.SourceKey, Name = source.Name, Amount = source.Amount, HealthInsurancePerPaycheck = source.HealthInsurancePerPaycheck,
                     RetirementContributionPerPaycheck = source.RetirementContributionPerPaycheck, Schedule = Copy(source.Schedule) });
             foreach (var allocation in baseline.Allocations)
                 draft.Allocations.Add(new() { Name = allocation.Name, Amount = allocation.Amount,
@@ -114,7 +114,7 @@ public class BudgetService(
         await context.BudgetIncomeSources.Where(i => i.BudgetRevisionId == draftId).ExecuteDeleteAsync();
         await context.BudgetAllocations.Where(a => a.BudgetRevisionId == draftId).ExecuteDeleteAsync();
         draft.IncomeSources = request.IncomeSources.Select(i => new BudgetIncomeSource {
-            BudgetRevisionId = draftId, Name = i.Name.Trim(), Amount = i.Amount,
+            BudgetRevisionId = draftId, SourceKey = i.SourceKey ?? Guid.NewGuid(), Name = i.Name.Trim(), Amount = i.Amount,
             HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck, RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck,
             Schedule = Schedule(i.Schedule),
         }).ToList();
@@ -183,11 +183,11 @@ public class BudgetService(
         foreach (var source in revision.IncomeSources.OrderBy(i => i.Id))
         {
             var dates = schedules.GetOccurrences(source.Schedule, month);
-            income.Add(new() { Id = source.Id, Name = source.Name, OccurrenceCount = dates.Count, PlannedAmount = source.Amount * dates.Count,
+            income.Add(new() { SourceKey = source.SourceKey, Id = source.Id, Name = source.Name, OccurrenceCount = dates.Count, PlannedAmount = source.Amount * dates.Count,
                 HealthInsurance = (source.HealthInsurancePerPaycheck ?? 0) * dates.Count,
                 RetirementContributions = (source.RetirementContributionPerPaycheck ?? 0) * dates.Count });
             foreach (var date in dates)
-                events.Add(new() { Date = date, ItemId = source.Id, Name = source.Name, IsIncome = true, Amount = source.Amount });
+                events.Add(new() { SourceKey = source.SourceKey, Date = date, ItemId = source.Id, Name = source.Name, IsIncome = true, Amount = source.Amount });
         }
         foreach (var allocation in revision.Allocations.OrderBy(a => a.Id))
         {
@@ -206,6 +206,48 @@ public class BudgetService(
             IncomeSources = income, Allocations = allocations,
             HealthInsurance = income.Sum(i => i.HealthInsurance), RetirementContributions = income.Sum(i => i.RetirementContributions),
             Events = events.OrderBy(e => e.Date).ThenBy(e => e.IsIncome ? 0 : 1).ThenBy(e => e.Name).ThenBy(e => e.ItemId).ToList(),
+        };
+    }
+
+    public async Task<BudgetIncomePeriodResponse> GetIncomePeriodAsync(DateOnly? asOf = null, Guid? sourceKey = null)
+    {
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), ApplicationTimeZone).DateTime);
+        var date = asOf ?? today;
+        if (date == DateOnly.MinValue) throw new ArgumentException("Choose a valid reference date.");
+        var householdId = await currentUser.GetCurrentHouseholdIdAsync();
+        // Read one consistent set of published versions; drafts never enter period calculations.
+        var published = await Revisions(householdId).Where(r => r.State == BudgetRevisionState.Published).ToListAsync();
+        BudgetRevision? Revision(DateOnly month) => published.Where(r => r.EffectiveFromMonth <= month)
+            .OrderByDescending(r => r.EffectiveFromMonth).ThenByDescending(r => r.RevisionNumber).FirstOrDefault();
+        var current = Revision(new(date.Year, date.Month, 1));
+        var sources = current?.IncomeSources.OrderBy(i => i.Id).Select(i => new BudgetIncomeSourceOption {
+            SourceKey = i.SourceKey, Name = i.Name,
+        }).ToList() ?? [];
+        if (sourceKey.HasValue && !sources.Any(i => i.SourceKey == sourceKey))
+            throw new ArgumentException("Choose an income source from this household's published plan for the reference date.");
+        var events = new List<BudgetScheduledEvent>();
+        var index = (date.Year - 1) * 12 + date.Month - 1;
+        // A full year on each side covers every supported frequency, including yearly schedules.
+        for (var m = Math.Max(0, index - 12); m <= Math.Min(9999 * 12 - 1, index + 12); m++)
+        {
+            var month = new DateOnly(m / 12 + 1, m % 12 + 1, 1);
+            var revision = Revision(month);
+            if (revision is not null) events.AddRange(ProjectMonth(revision, month).Events);
+        }
+        var paydays = events.Where(e => e.IsIncome && (!sourceKey.HasValue || e.SourceKey == sourceKey))
+            .Select(e => e.Date).Distinct().Order().ToList();
+        var start = paydays.Where(d => d <= date).Select(d => (DateOnly?)d).LastOrDefault();
+        var next = paydays.Where(d => d > date).Select(d => (DateOnly?)d).FirstOrDefault();
+        var end = start.HasValue && next.HasValue ? next.Value.AddDays(-1) : (DateOnly?)null;
+        var periodEvents = start.HasValue && end.HasValue
+            ? events.Where(e => !e.IsIncome && e.Date >= start && e.Date <= end)
+                .OrderBy(e => e.Date).ThenBy(e => e.Name).ThenBy(e => e.ItemId).ToList() : [];
+        var bills = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills).ToList();
+        var contributions = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
+        return new() {
+            AsOf = date, SourceKey = sourceKey, Sources = sources, StartDate = start, EndDate = end, NextPayday = next,
+            Bills = bills, BillsTotal = bills.Sum(e => e.Amount), Contributions = contributions,
+            ContributionsTotal = contributions.Sum(e => e.Amount),
         };
     }
 
@@ -239,6 +281,9 @@ public class BudgetService(
         if (!Enum.IsDefined(request.SetupStep)) throw new ArgumentException("Unsupported setup step.");
         if (request.IncomeSources is null || request.Allocations is null)
             throw new ArgumentException("Income sources and allocations are required; use empty lists for an unfinished draft.");
+        var keys = request.IncomeSources.Where(i => i is not null && i.SourceKey.HasValue).Select(i => i.SourceKey!.Value).ToList();
+        if (keys.Contains(Guid.Empty) || keys.Distinct().Count() != keys.Count)
+            throw new ArgumentException("Income source keys must be nonempty and unique within a revision.");
         foreach (var source in request.IncomeSources)
         {
             if (source is null || source.Schedule is null) throw new ArgumentException("Each income source requires a schedule.");
@@ -268,7 +313,7 @@ public class BudgetService(
     private static BudgetScheduleInput Input(BudgetSchedule s) => new() {
         Frequency = s.Frequency, StartDate = s.StartDate, EndDate = s.EndDate, DayOfMonth = s.DayOfMonth, SecondDayOfMonth = s.SecondDayOfMonth,
     };
-    private static BudgetIncomeInput Income(BudgetIncomeSource i) => new() { Name = i.Name, Amount = i.Amount, HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck,
+    private static BudgetIncomeInput Income(BudgetIncomeSource i) => new() { SourceKey = i.SourceKey, Name = i.Name, Amount = i.Amount, HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck,
         RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck, Schedule = Input(i.Schedule) };
     private static BudgetAllocationInput Allocation(BudgetAllocation a) => new() {
         Name = a.Name, Amount = a.Amount, AllocationType = a.AllocationType, Schedule = a.Schedule is null ? null : Input(a.Schedule),

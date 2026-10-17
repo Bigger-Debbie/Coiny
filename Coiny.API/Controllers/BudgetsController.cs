@@ -43,6 +43,10 @@ public class BudgetsController(IBudgetService budgets) : ControllerBase
     public async Task<ActionResult<BudgetRevisionResponse>> Publish(int draftId, PublishBudgetDraftRequest request) =>
         Ok(await budgets.PublishDraftAsync(draftId, request.ExpectedEditVersion));
 
+    [HttpGet("income-period")]
+    public async Task<ActionResult<BudgetIncomePeriodResponse>> IncomePeriod([FromQuery] DateOnly? asOf, [FromQuery] Guid? sourceKey) =>
+        Ok(await budgets.GetIncomePeriodAsync(asOf, sourceKey));
+
     [HttpGet("month")]
     public async Task<ActionResult<BudgetMonthResponse>> Month([FromQuery, Required] DateOnly? month) =>
         Ok(await budgets.GetMonthAsync(month!.Value));

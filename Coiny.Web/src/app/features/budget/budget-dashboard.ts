@@ -1,8 +1,9 @@
-import { Component, Input, output } from '@angular/core';
+import { Component, Input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BudgetMonth, AllocationType } from '../../shared/models/budget/budget';
 import { CategoryBreakdownItem } from '../../shared/models/transactions/category-breakdown';
+import { BudgetCalendar } from './budget-calendar';
 import { DonutChart } from '../../shared/components/donut-chart/donut-chart';
 
 const groups: { type: AllocationType; label: string }[] = [
@@ -11,7 +12,7 @@ const groups: { type: AllocationType; label: string }[] = [
   { type: 'Investments', label: 'Investing' },
 ];
 @Component({
-  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart],
+  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar],
   templateUrl: './budget-dashboard.html', styleUrl: './budget-dashboard.css',
 })
 export class BudgetDashboard {
@@ -19,6 +20,7 @@ export class BudgetDashboard {
   @Input({ required: true }) selectedMonth = '';
   @Input() loading = false;
   @Input() error = false;
+  readonly periodSource = signal<string | null>(null);
   readonly selectMonth = output<string>();
   private chartData: CategoryBreakdownItem[] = [];
   private chartMonth: BudgetMonth | null = null;

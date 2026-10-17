@@ -221,9 +221,13 @@ namespace Coiny.API.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid>("SourceKey")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("BudgetRevisionId");
+                    b.HasIndex("BudgetRevisionId", "SourceKey")
+                        .IsUnique();
 
                     b.ToTable("BudgetIncomeSources", t =>
                         {

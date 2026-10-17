@@ -7,7 +7,8 @@
 The backend models, migrations, recurrence calculator, and household-scoped
 draft/publish/month-projection services and authenticated HTTP endpoints are implemented.
 The frontend setup wizard and published monthly allocation dashboard are implemented.
-The calendar, richer editing, and forecasting remain to be built.
+The current-income-period bill list and monthly calendar are implemented.
+Richer editing and forecasting remain to be built.
 The existing account/category breakdown is a summary of recorded transactions;
 it is separate from the planned-income allocation chart described here.
 
@@ -211,7 +212,7 @@ server, JWT key, or live database required. See the
    checks and publication validation — implemented.
 3. A resumable household setup wizard and its API — implemented.
 4. The monthly income-allocation donut with Unassigned/over-budget presentation — implemented.
-5. Calendar, upcoming scheduled items, and pay schedules.
+5. Calendar and current-income-period bills/contributions — implemented.
 6. Budget overview/editing with effective-month changes.
 7. Forecasting and plan-versus-actual reporting later.
 
@@ -261,7 +262,7 @@ save by silently replacing its edit version.
 
 Publication opens the monthly allocation dashboard described below. Planned calendar
 occurrences do not create transactions or imply payment completion. The calendar
-and forecasting are separate future increments.
+and current-income-period panel are described below; forecasting remains future work.
 
 
 ## Published monthly dashboard
@@ -294,11 +295,56 @@ their signed income/expense amounts and transaction counts.
 
 The **Budget breakdown** pane has four native, keyboard-accessible collapsible
 sections matching the wizard: Income, Housing & bills, Everyday spending, and
-Savings & investing. They start collapsed, with totals and item/source counts
-visible in each header. Paycheck deductions are inside Income. Expanding sections
+Savings & investing. Income starts expanded; the other sections start collapsed,
+with totals and item/source counts visible in each header. On desktop, the
+breakdown matches the donut card height and its contents scroll independently
+under the fixed heading. Stacked mobile layouts cap the breakdown height instead. Paycheck deductions are inside Income. Expanding sections
 lists income by source/payday count and all defined allocations,
 including zero totals for items not due in that month. These are planned amounts,
 not actual spending. Six-month/yearly amounts appear in due months only. Loading,
 retryable request errors, and months without an applicable published revision
 have explicit states. Out-of-order responses cannot replace the newest selected
 month, and draft changes remain separate until published.
+
+
+## Current income period and monthly calendar
+
+The dashboard places a **Current income period** panel beside a Monday-first
+calendar for the selected dashboard month. The period is anchored to today in
+America/New_York, independently of the month being browsed. Household income is
+the default; a custom selector can follow one published income source instead.
+That choice survives month navigation.
+
+A period starts on the latest applicable published payday on/before the reference
+date and ends the day before the next distinct payday. Same-day household paydays
+form one boundary. Bills due on a payday belong to the period starting that day.
+Published revisions are resolved by effective month throughout the lookup, so a
+period can cross months and account for future published schedule changes.
+Drafts never influence this view.
+
+**Bills scheduled this period** sums scheduled Housing/Bills events in that range;
+scheduled Savings/Investments appear separately as contributions. These are all
+household bills even when following one income source: no paycheck-to-bill
+assignment is implied. Unscheduled monthly spending is excluded from the dated
+list. This view does not claim that a scheduled item is unpaid, overdue, or affordable.
+
+The lookup searches twelve calendar months before/after the reference month,
+covering every supported recurrence. Without an earlier published payday or a
+known next payday, show the corresponding explanation instead of inventing a
+period end or summing an arbitrary open-ended range. Future-only budgets can
+still be browsed on the calendar while there is no current published income period.
+
+Calendar days mark income, bills, and contributions; intersecting current-period
+days are shaded. Hover/focus shows scheduled details (Escape dismisses the tooltip);
+click, keyboard activation, or touch selects a day and lists every item below the
+grid. Empty days explicitly show no scheduled items. Mobile uses the selected-day
+list instead of a hover popup. **This month** returns the shared month navigation
+to the current America/New_York month.
+
+Income definitions now carry a persistent `SourceKey`, unique within a revision.
+It survives wizard saves and draft cloning. Omit it for a new source; API clients
+must retain returned keys when updating existing sources. Duplicate/empty keys
+are rejected. `AddBudgetIncomeSourceIdentity` backfills a distinct key per existing
+row without guessing matches between historical copies or duplicate names. New
+revisions preserve identity explicitly; legacy copies are not retroactively linked.
+No ledger schema or transaction data is changed by this migration.

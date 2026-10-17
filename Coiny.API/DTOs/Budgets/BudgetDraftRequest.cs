@@ -30,6 +30,7 @@ public class BudgetScheduleInput
 
 public class BudgetIncomeInput
 {
+    public Guid? SourceKey { get; set; }
     [JsonRequired]
     public string Name { get; set; } = string.Empty;
     [JsonRequired]

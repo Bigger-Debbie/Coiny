@@ -1,3 +1,6 @@
+import { BudgetDashboard } from './budget-dashboard';
+import { BudgetCalendar } from './budget-calendar';
+import { BudgetCalendarStub } from './budget-calendar.stub';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -16,6 +19,7 @@ describe('Budget setup', () => {
   let http: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [Budget], providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar] }, add: { imports: [BudgetCalendarStub] } });
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => { http.verify(); vi.restoreAllMocks(); });

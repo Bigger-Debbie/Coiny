@@ -14,6 +14,31 @@ public class BudgetMigrationTests
     private const string Foundation = "20261016182722_AddHouseholdBudgetFoundation";
 
     [Fact]
+    public async Task SourceIdentityMigrationBackfillsDistinctKeysWithoutChangingExistingPaycheckData()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var context = new CoinyContext(new DbContextOptionsBuilder<CoinyContext>().UseSqlite(connection).Options);
+        var migrator = context.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261016201255_AddPaycheckDetailsAndExtendedBudgetSchedules");
+        context.Households.Add(new() { Id = 1, Name = "Existing budget" }); await context.SaveChangesAsync();
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO HouseholdBudgets (Id, HouseholdId, CreatedAt) VALUES (1, 1, '2026-10-16');
+            INSERT INTO BudgetRevisions (Id, HouseholdBudgetId, RevisionNumber, EditVersion, EffectiveFromMonth, State, SetupStep, CreatedAt)
+                VALUES (1, 1, 1, 0, '2026-10-01', 0, 0, '2026-10-16');
+            INSERT INTO BudgetIncomeSources (BudgetRevisionId, Name, Amount, HealthInsurancePerPaycheck, ScheduleFrequency, ScheduleStartDate, CreatedAt)
+                VALUES (1, 'Salary', '1000', '123.45', 0, '2026-10-02', '2026-10-16'),
+                (1, 'Salary', '2000', NULL, 0, '2026-10-09', '2026-10-16');
+            """);
+        await migrator.MigrateAsync();
+        var sources = await context.BudgetIncomeSources.AsNoTracking().OrderBy(i => i.Id).ToListAsync();
+        Assert.Equal(2, sources.Select(i => i.SourceKey).Distinct().Count());
+        Assert.All(sources, i => Assert.NotEqual(Guid.Empty, i.SourceKey));
+        Assert.Equal(123.45m, sources[0].HealthInsurancePerPaycheck);
+        Assert.Equal(2000, sources[1].Amount);
+        Assert.Empty(await context.Transactions.ToListAsync());
+    }
+
+    [Fact]
     public async Task BudgetMigrationsApplyRollbackAndReapplyWithoutChangingLedgerData()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

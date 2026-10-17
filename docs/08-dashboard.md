@@ -183,7 +183,7 @@ error/retry states. Superseded requests are cancelled.
 | `/accounts/new` | Redirects to accounts with the Add Account modal open |
 | `/transactions/new` | Redirects to accounts with the Add Transaction modal open, retaining query parameters |
 | `/` | Redirects to dashboard inside the protected layout |
-| `/budget` | Household budget wizard and published monthly allocation dashboard |
+| `/budget` | Household budget wizard, monthly allocation dashboard, current income-period bills, and calendar |
 
 The logo returns to the dashboard, the accounts icon opens the accounts page,
 and the separate transactions icon has been removed. The budget icon opens the
