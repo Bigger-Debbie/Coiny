@@ -8,6 +8,8 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
 {
     public void Configure(EntityTypeBuilder<Transaction> builder)
     {
+        builder.HasOne(t => t.ImportBatch).WithMany().HasForeignKey(t => t.ImportBatchId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(t => new { t.ImportBatchId, t.ImportRowId }).IsUnique();
         builder.HasOne(t => t.PairedTransaction).WithMany()
             .HasForeignKey(t => t.PairedTransactionId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(t => t.PairedTransactionId).IsUnique();

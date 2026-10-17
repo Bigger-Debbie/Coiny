@@ -20,4 +20,7 @@ public class Transaction : BaseEntity
     public TransferCounterparty? TransferCounterparty { get; set; }
     public int? PairedTransactionId { get; set; }
     public Transaction? PairedTransaction { get; set; }
+    public int? ImportBatchId { get; set; }
+    public TransactionImportBatch? ImportBatch { get; set; }
+    public int? ImportRowId { get; set; }
 }

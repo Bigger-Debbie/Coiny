@@ -13,6 +13,11 @@ server or JWT signing key, or change the development user's data.
 
 Coverage includes:
 
+- Batch-import HTTP contracts and authentication; required categories/directions;
+  duplicate decisions within files and against the ledger; commit-time revalidation;
+  idempotent/concurrent retries; 2,000-row batches; daily and later snapshot balances;
+  atomic rollback and household-scoped import history.
+
 - Atomic manual transfers, liability payments, unlinked/external entries, different
   posting dates, reporting exclusion, link/unlink without financial changes,
   incompatible/foreign pairs, stale-link concurrency, backdated snapshots, and
@@ -44,7 +49,7 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 77 passing tests. Build output and TestResults are ignored
+The current suite has 87 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the

@@ -18,6 +18,7 @@ separately below. EF models live in `Coiny.API/Models/` and are registered throu
 | `Category` | Household-owned transaction classification with `Income`, `Expense`, or `Transfer` type |
 | `Transaction` | Required household, account, and category; positive amount, date, description, optional merchant/notes, cleared flag; transfers add In/Out direction, Unknown/External/Linked counterparty, and optional unique paired-entry reference |
 | `AccountBalanceSnapshot` | Account's derived closing balance on one calendar day |
+| `TransactionImportBatch` | Household/account-owned import metadata, submission ID/payload hash, actor, count, and resulting balance; transactions retain batch and source-row IDs |
 | `HouseholdBudget` | One household-owned budget plan, with draft/published revisions |
 | `BudgetRevision` | Complete version of income and allocations, effective month, publication state, saved wizard step |
 | `BudgetIncomeSource` | Expected take-home amount per occurrence and required owned schedule |

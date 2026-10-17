@@ -14,7 +14,7 @@ experience remain future work.
 | --- | --- | --- |
 | Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Password recovery, complete expired-session handling |
 | Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
-| Financial data | Create/list APIs, accounts page with creation modals, scoped trends, transaction filters/pagination, income/expense category breakdown; manual paired/external/unlinked transfer UI and backend link/unlink | Transfer matching UI, edit/delete flows, CSV imports |
+| Financial data | Create/list APIs, scoped trends and category breakdown; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, atomic import and history | Transfer matching UI, edit/delete flows, saved bank mappings |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Budget schema, recurrence, draft/preview/publish API, setup wizard, monthly allocation donut, breakdown, income-period bills, and calendar | Goals, forecasting |
@@ -59,6 +59,7 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [API and Postman reference](docs/07-api-reference.md) | All current endpoints, payloads, and testing workflow |
 | [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
 | [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
+| [CSV transaction import](docs/10-csv-transaction-import.md) | Agreed import workflow, parsing foundation, and delivery sequence |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones

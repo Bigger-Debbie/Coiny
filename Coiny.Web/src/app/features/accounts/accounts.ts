@@ -1,7 +1,7 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin, Subscription } from 'rxjs';
 import { AccountService } from '../../core/services/account.service';
@@ -26,7 +26,7 @@ import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown'
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe, DecimalPipe, FormsModule, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel],
+  imports: [CurrencyPipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel],
   templateUrl: './accounts.html',
   styleUrl: './accounts.css',
 })

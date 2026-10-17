@@ -48,6 +48,9 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/transactions/paged` | 200 | Filtered transaction page with total count |
 | GET | `/api/transactions/category-breakdown` | 200 | Income or expense totals grouped by category |
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
+| POST | `/api/transaction-imports/validate` | 200 | Check included rows, categories, duplicates, and projected balance without writing |
+| POST | `/api/transaction-imports` | 200 | Import a reviewed batch atomically or replay its result |
+| GET | `/api/transaction-imports` | 200 | Last 50 household/account import batches |
 | POST | `/api/transfers` | 201 | Create both sides of a manual transfer atomically |
 | POST | `/api/transfers/entries` | 201 | Record one unlinked or external transfer entry |
 | POST | `/api/transfers/links` | 200 | Link two existing transfer entries without changing balances |
@@ -240,6 +243,74 @@ and `isActive`.
 
 Types are `Income`, `Expense`, and `Transfer`. Use the dedicated transfer endpoints
 for Transfer entries; ordinary transaction creation rejects Transfer categories.
+
+## Transaction imports
+
+All routes require authentication and current household membership. Apply
+`AddTransactionImportBatches` first. These endpoints accept normalized reviewed
+JSON rows, not raw CSV files. One active account per batch; 1–2,000 included rows.
+Preview checks and import both use this shape:
+
+```json
+{
+  "accountId": 1,
+  "submissionId": "f501388c-9da7-4e29-93d1-34c74c3336a1",
+  "filename": "bank-export.csv",
+  "rows": [
+    {
+      "rowId": 2,
+      "date": "2026-10-16",
+      "amount": 25.50,
+      "direction": "Out",
+      "categoryType": "Expense",
+      "categoryId": 1,
+      "counterparty": "Unknown",
+      "description": "Weekly groceries",
+      "merchant": "Example Market",
+      "notes": null,
+      "isCleared": true,
+      "allowDuplicate": false
+    }
+  ]
+}
+```
+
+Use a fresh nonempty GUID for a new reviewed submission. Row IDs must be unique
+positive integers (the UI uses physical CSV line numbers). Filename is required,
+up to 255 characters. Dates may not precede the account's opening date; future dates
+follow the existing ledger behavior and remain accepted. Amount is positive with
+at most two decimals. Description is required up to 250; optional merchant/notes
+are limited to 150/1000. Omit excluded rows entirely.
+
+Income requires direction In and a household Income category; Expense requires Out
+and an Expense category. All categories must be active. Transfer accepts In/Out
+and Unknown/External counterparties, with categoryId omitted/null or an active
+household Transfer category. The transfer category is resolved automatically when
+recording the row; no paired entry is created. Linked is rejected on imported rows.
+
+`POST /api/transaction-imports/validate` returns `rows` (rowId, errors,
+duplicateTransactionIds, duplicateRowIds), `canImport`, `currentBalance`, and
+nullable `projectedBalance`. This creates no records. Duplicates match account,
+calendar date, amount, money direction, and normalized case/whitespace description.
+Existing and within-batch matches require explicit allowDuplicate=true or removal
+from the batch. Up to five matching IDs per type are returned as examples.
+
+`POST /api/transaction-imports` revalidates inside a database transaction. On success
+it returns batchId, submissionId, accountId, filename, importedCount, completedAt
+(UTC), and balanceAfter. The batch, every transaction, and all affected daily
+snapshots are saved together. Later stored snapshots are recalculated as well.
+Repeating the same submissionId and normalized payload returns the original result
+without creating more transactions. Different data with that ID returns 409.
+
+`GET /api/transaction-imports?accountId=1` returns the last 50 matching batch responses,
+newest batch first. Omit accountId for the current household. Foreign account IDs
+return 400. Import history does not expose other households' batches.
+
+Responses: 400 malformed payload/invalid account; 401 unauthenticated; 403 no
+household membership; 409 conflicting submission reuse; 422 validly bound rows
+that fail business validation at commit. The 422 body is the validation response
+with updated row errors; no rows are saved. Unexpected storage failures roll back
+and can be retried using the same submission ID. See [import workflow](10-csv-transaction-import.md).
 
 ## Account transfers
 

@@ -187,6 +187,18 @@ records, and do not change the underlying Transfer classification or calculation
 
 ## Income and expense breakdown
 
+The Import CSV action opens `/accounts/import`, preserving the selected account.
+This lazy-loaded screen reads files locally, supports manually overridden
+columns/file formats, including two-digit years, and opens a separate review view.
+Back navigation preserves mappings and row edits until a mapping changes. Its
+bounded spreadsheet pane uses alternating grays, sticky headers, status colors
+with text labels, and click-to-edit cells with typed controls. Users assign categories
+or Transfer per row/in bulk, exclude rows, create categories, resolve duplicates,
+and explicitly confirm an atomic import. Successful imports show the new balance
+and recent batch history. Raw CSV contents are not uploaded; reviewed normalized
+rows go to the batch API. Unknown/external transfer entries affect only this account.
+See [CSV import](10-csv-transaction-import.md) for supported layouts and remaining work.
+
 A bordered category pane sits beside Transactions on desktop and below it on
 narrow screens. It defaults to Expenses, with an Expenses/Income toggle.
 It follows the selected account and timeframe, independently of transaction-list

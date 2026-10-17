@@ -1,0 +1,108 @@
+<section class="panel" aria-labelledby="review-heading">
+  @if (result(); as imported) {
+    <h2 id="review-heading">Import complete</h2>
+    <p role="status">Imported {{ imported.importedCount }} transactions into {{ account.name }}.</p>
+    <p>Batch #{{ imported.batchId }} · {{ imported.filename }} · {{ imported.completedAt | date:'medium' }}</p>
+    <p>{{ isDebt ? 'Amount owed after import' : 'Balance after import' }}: <strong>{{ imported.balanceAfter | currency }}</strong></p>
+    <a class="button button-primary" routerLink="/accounts" [queryParams]="{accountId: account.id}">View account</a>
+  } @else {
+    <h2 id="review-heading">Review and import</h2>
+    <p>{{ included.length }} included · {{ rows().length - included.length }} excluded · {{ transferCount }} transfers.</p>
+    <p class="hint">Click cells to edit. Every included row needs a category or Transfer. Click a status label for details.</p>
+    @if (loading()) { <p role="status">Loading categories and import history…</p> }
+    @else if (loadError()) { <p class="error" role="alert">Categories or import history couldn’t load.</p><button class="button-outline" (click)="load()">Try again</button> }
+    @else {
+      <fieldset [disabled]="busy() || locked()">
+        <div class="fields">
+          <div><label for="review-search">Find transactions</label><input id="review-search" type="search" [(ngModel)]="search" (ngModelChange)="filterChanged()" placeholder="Description, merchant, or bank classification" /></div>
+          <div><label for="review-classification">Bank classification</label><app-select-menu inputId="review-classification" label="Filter by bank classification" [options]="classificationOptions" [(ngModel)]="classification" (ngModelChange)="filterChanged()" /></div>
+        </div>
+        <p class="hint">Filters change what you see; all included rows will be imported. Changing a filter clears the row selection.</p>
+        <div class="bulk-actions">
+            <span>{{ selectedCount }} selected</span>
+          <app-select-menu inputId="bulk-category" label="Category for selected rows" [options]="bulkOptions" [(ngModel)]="bulkChoice" />
+          <button class="button-outline" type="button" [disabled]="!selectedCount || !bulkChoice" (click)="assignSelected()">Apply category</button>
+          <button class="button-ghost" type="button" [disabled]="!selectedCount" (click)="excludeSelected(true)">Exclude selected</button>
+          <button class="button-ghost" type="button" [disabled]="!selectedCount" (click)="excludeSelected(false)">Include selected</button>
+          <button class="button-outline" type="button" (click)="creatingCategory.set(!creatingCategory())">+ Add Category</button>
+        </div>
+        @if (creatingCategory()) {
+          <div class="category-editor"><h3>Add category</h3><div class="fields">
+            <div><label for="review-category-name">Category name</label><input id="review-category-name" maxlength="100" [(ngModel)]="categoryName" /></div>
+            <div><label for="review-category-type">Category type</label><app-select-menu inputId="review-category-type" label="New category type" [options]="categoryTypes" [(ngModel)]="categoryType" /></div>
+          </div><button class="button-primary" type="button" (click)="saveCategory()">Save Category</button><button class="button-ghost" type="button" (click)="creatingCategory.set(false)">Cancel</button></div>
+        }
+        @if (notice()) { <p role="status">{{ notice() }}</p> }
+        <div class="sheet-legend" aria-label="Row statuses"><span>✓ Ready</span><span>◷ Needs review</span><span>! Fix data</span><span>— Excluded</span><small>Click a cell to edit · Enter saves · Escape cancels · Tab moves to the next cell</small></div>
+        <div class="sheet-scroll" tabindex="0" role="region" aria-label="Editable transaction review spreadsheet">
+          <table class="review-table"><thead><tr>
+            <th scope="col" class="row-number"><span class="column-letter">A</span><label><input type="checkbox" [checked]="allFilteredSelected" (change)="selectFiltered($any($event.target).checked)" aria-label="Select all matching rows across pages" />Row</label></th>
+            <th scope="col" class="include-column"><span class="column-letter">B</span>Include</th>
+            <th scope="col"><span class="column-letter">C</span>Date</th>
+            <th scope="col" class="description-column"><span class="column-letter">D</span>Description</th>
+            <th scope="col"><span class="column-letter">E</span>Merchant</th>
+            <th scope="col"><span class="column-letter">F</span>Direction</th>
+            <th scope="col"><span class="column-letter">G</span>Amount</th>
+            <th scope="col"><span class="column-letter">H</span>Category</th>
+            <th scope="col"><span class="column-letter">I</span>Other account</th>
+            <th scope="col"><span class="column-letter">J</span>Bank classification</th>
+            <th scope="col" class="status-column"><span class="column-letter">K</span>Status</th>
+          </tr></thead><tbody>
+          @for (row of pageRows; track row.line) {
+            <tr [class.row-excluded]="status(row) === 'excluded'" [class.row-error]="status(row) === 'error'" [class.row-review]="status(row) === 'review'" [class.row-ready]="status(row) === 'ready'">
+              <th scope="row" class="row-number"><label><input type="checkbox" [(ngModel)]="row.selected" [attr.aria-label]="'Select file line ' + row.line" /><span>{{ row.line }}</span></label></th>
+              <td class="include-column"><input type="checkbox" [ngModel]="!row.excluded" (ngModelChange)="row.excluded = !$event; changed(true)" [attr.aria-label]="'Include file line ' + row.line" /></td>
+              <td><app-review-cell [id]="'date-' + row.line" [label]="'Date for file line ' + row.line" type="date" [min]="account.openingBalanceDate" [value]="row.date" [disabled]="row.excluded" (valueChange)="edit(row, 'date', $event)" /></td>
+              <td class="description-column"><app-review-cell [id]="'description-' + row.line" [label]="'Description for file line ' + row.line" [maxlength]="250" [value]="row.description" [disabled]="row.excluded" (valueChange)="edit(row, 'description', $event)" /></td>
+              <td><app-review-cell [id]="'merchant-' + row.line" [label]="'Merchant for file line ' + row.line" [maxlength]="150" [value]="row.merchant" [disabled]="row.excluded" (valueChange)="edit(row, 'merchant', $event)" /></td>
+              <td><app-review-cell [id]="'direction-' + row.line" [label]="'Direction for file line ' + row.line" type="select" [options]="directions" [value]="row.direction" [disabled]="row.excluded" (valueChange)="edit(row, 'direction', $event)" /></td>
+              <td class="amount-column"><app-review-cell [id]="'amount-' + row.line" [label]="'Amount for file line ' + row.line" type="number" [min]="0.01" [value]="row.amount" [disabled]="row.excluded" (valueChange)="edit(row, 'amount', $event)" /></td>
+              <td><app-review-cell [id]="'category-' + row.line" [label]="'Category for file line ' + row.line" type="select" [options]="options(row)" [value]="row.categoryChoice" [disabled]="row.excluded" (valueChange)="edit(row, 'categoryChoice', $event)" /></td>
+              <td>@if (row.categoryChoice === 'transfer') { <app-review-cell [id]="'counterparty-' + row.line" [label]="'Other account for file line ' + row.line" type="select" [options]="counterparties" [value]="row.counterparty" [disabled]="row.excluded" (valueChange)="edit(row, 'counterparty', $event)" /> } @else { <span class="read-only">—</span> }</td>
+              <td><span class="read-only" [attr.title]="row.classification">{{ row.classification || '—' }}</span></td>
+              <td class="status-column"><button class="status-pill" type="button" [class.ready]="status(row) === 'ready'" [class.warning]="status(row) === 'review'" [class.invalid]="status(row) === 'error'" [attr.aria-expanded]="detailLine() === row.line" aria-controls="row-details" (click)="detailLine.set(detailLine() === row.line ? null : row.line)"><span aria-hidden="true">{{ status(row) === 'ready' ? '✓' : status(row) === 'error' ? '!' : status(row) === 'excluded' ? '—' : '◷' }}</span>{{ statusLabel(row) }}</button></td>
+            </tr>
+          }
+          </tbody></table>
+        </div>
+        @if (detailRow; as row) {
+          <aside class="row-details" id="row-details" aria-label="Selected row details">
+            <div class="detail-heading"><h3>File line {{ row.line }} · {{ statusLabel(row) }}</h3><button class="button-ghost" type="button" (click)="detailLine.set(null)" aria-label="Close row details">Close</button></div>
+            @if (row.excluded) { <p>{{ row.exclusionReason || 'This row will not be imported. Check Include to bring it back.' }}</p> }
+            @else {
+              @for (error of localErrors(row); track $index) { <p class="error">{{ error }}</p> }
+              @if (!row.categoryChoice) { <p>Choose an Income/Expense category, or classify this row as Transfer.</p> }
+              @for (error of serverErrors(row); track $index) { <p>{{ error }}</p> }
+              @if (duplicate(row)) {
+                <p>Possible duplicate. Existing transaction IDs: {{ check(row)?.duplicateTransactionIds?.join(', ') || 'none' }}. Other file lines: {{ check(row)?.duplicateRowIds?.join(', ') || 'none' }}.</p>
+                <label class="check-label"><input type="checkbox" [(ngModel)]="row.allowDuplicate" (ngModelChange)="changed(true)" />Import anyway — this is a separate, legitimate transaction.</label>
+                <button class="button-outline" type="button" (click)="row.excluded = true; changed(true)">Skip this row</button>
+              }
+              @if (status(row) === 'ready') { <p>{{ validation() ? 'This row passed the current checks.' : 'This row is ready for category and duplicate checks.' }}</p> }
+            }
+          </aside>
+        }
+
+        <nav class="review-pagination" aria-label="Import review pages"><button type="button" [disabled]="page <= 1" (click)="page = page - 1">Previous</button><span>Page {{ page > pageCount ? pageCount : page }} of {{ pageCount }} · {{ filtered.length }} matching rows</span><button type="button" [disabled]="page >= pageCount" (click)="page = page + 1">Next</button></nav>
+        <label class="check-label"><input type="checkbox" [(ngModel)]="cleared" (ngModelChange)="changed(true)" />Mark included transactions as cleared</label>
+        <button class="button-primary" data-grid-next type="button" [disabled]="!included.length" (click)="validate()">Check categories and duplicates</button>
+      </fieldset>
+      @if (busy()) { <p role="status">Checking or saving the batch…</p> }
+      @if (validation(); as checked) {
+        <div class="import-summary">
+          <h3>{{ checked.canImport ? 'Ready to import' : 'Some rows need attention' }}</h3>
+          @if (checked.canImport) {
+            <p>{{ included.length }} transactions will be added to {{ account.name }}, including {{ transferCount }} one-sided transfers.</p>
+            <p>{{ isDebt ? 'Amount owed' : 'Current balance' }}: {{ checked.currentBalance | currency }} → {{ isDebt ? 'Amount owed after import' : 'Balance after import' }}: <strong>{{ checked.projectedBalance | currency }}</strong></p>
+            <label class="check-label"><input type="checkbox" [(ngModel)]="finalConfirmed" [disabled]="busy() || locked()" />I’ve reviewed the categories, transfer classifications, and duplicate decisions. Import these transactions.</label>
+          } @else { <p>Correct or exclude flagged rows, then run the check again. Duplicate entries need an explicit Import anyway choice if you keep them.</p> }
+        </div>
+      }
+      @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+      <button class="button-primary" type="button" [disabled]="busy() || (!locked() && (!validation()?.canImport || !finalConfirmed))" (click)="import()">{{ locked() ? 'Retry this batch safely' : 'Import ' + included.length + ' transactions' }}</button>
+    }
+  }
+</section>
+@if (history().length) {
+  <details class="panel import-history"><summary>Recent imports for {{ account.name }}</summary><div class="table-scroll"><table><thead><tr><th scope="col">Batch</th><th scope="col">File</th><th scope="col">Imported</th><th scope="col">Count</th></tr></thead><tbody>@for (batch of history(); track batch.batchId) { <tr><td>#{{ batch.batchId }}</td><td>{{ batch.filename }}</td><td>{{ batch.completedAt | date:'medium' }}</td><td>{{ batch.importedCount }}</td></tr> }</tbody></table></div></details>
+}

@@ -1,0 +1,85 @@
+<div class="import-page">
+  <div class="page-heading"><div><small class="step-label">{{ step() === 'mapping' ? 'Step 1 of 2 · File and mapping' : 'Step 2 of 2 · Review and import' }}</small><h1 class="page-title">{{ step() === 'mapping' ? 'Import transactions' : 'Review transactions' }}</h1></div>
+    @if (step() === 'review' && !importCompleted()) { <button class="button-outline" type="button" [disabled]="importBusy() || importLocked()" (click)="backToMapping()">← Back to mapping</button> }
+    @else { <a class="button button-outline" routerLink="/accounts" [queryParams]="accountId ? {accountId: accountId} : null">Back to accounts</a> }
+  </div>
+  <p class="intro">{{ step() === 'mapping' ? 'Choose your account and match the columns in your bank export.' : selectedAccount?.name + ' · ' + filename }}</p>
+  @if (loading()) { <p role="status">Loading accounts…</p> }
+  @else if (loadError()) { <p role="alert">Your accounts couldn’t load.</p><button class="button-primary" (click)="loadAccounts()">Try again</button> }
+  @else if (!accounts().length) { <p>Add an account before importing its transaction history.</p><a class="button button-primary" routerLink="/accounts" [queryParams]="{create: 'account'}">+ Add Account</a> }
+  @else {
+    @if (!importCompleted() && step() === 'mapping') {
+    <fieldset class="import-settings" [disabled]="reading() || importBusy() || importLocked()">
+    <section class="panel" aria-labelledby="file-heading">
+      <h2 id="file-heading">Account and file</h2>
+      <div class="fields">
+        <div><label for="import-account">Destination account in Coiny</label><app-select-menu inputId="import-account" label="Destination account" [options]="accountOptions" [(ngModel)]="accountId" (ngModelChange)="invalidate()" /></div>
+        <div><label for="csv-file">Bank CSV export</label><input id="csv-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" [disabled]="reading()" (change)="chooseFile($event)" /><small>{{ filename ? 'Current file: ' + filename + '. ' : '' }}Up to 2,000 rows and 2 MB.</small></div>
+      </div>
+      @if (selectedAccount; as account) { <p class="hint">{{ account.name }} starts on {{ account.openingBalanceDate }}. Earlier transactions will be flagged. Its opening balance should be the balance before the history you import.</p> }
+      @if (reading()) { <p role="status">Reading your file…</p> }
+      <details class="file-options"><summary>File format options</summary><div class="fields">
+        <div><label for="csv-encoding">Text encoding</label><app-select-menu inputId="csv-encoding" label="Text encoding" [options]="encodings" [(ngModel)]="encoding" (ngModelChange)="readFile()" /></div>
+        <div><label for="csv-delimiter">Column separator</label><app-select-menu inputId="csv-delimiter" label="Column separator" [options]="delimiterOptions" [(ngModel)]="delimiter" (ngModelChange)="source && parse()" /></div>
+        <div><label for="csv-header-line">Header line</label><input id="csv-header-line" type="number" min="1" max="100" [(ngModel)]="headerLine" (ngModelChange)="invalidate(); document.set(null)" /><small>If your export starts with a bank name or account summary, choose the line containing the column headers.</small></div>
+      </div><button class="button-outline" type="button" [disabled]="!source || reading()" (click)="parse()">Apply file options</button>
+      @if (source) { <pre aria-label="First eight lines of the CSV">{{ rawLines }}</pre> }
+      </details>
+    </section>
+    @if (document(); as csv) {
+      <section class="panel" aria-labelledby="mapping-heading">
+        <h2 id="mapping-heading">Match your columns</h2>
+        <p class="hint">{{ filename }} · {{ csv.rows.length }} rows · {{ csv.headers.length }} columns. Suggestions are based on headers; you can change every mapping.</p>
+        <div class="fields">
+          <div><label for="map-date">Transaction date column</label><app-select-menu inputId="map-date" label="Transaction date column" [options]="columns" [(ngModel)]="dateColumn" (ngModelChange)="invalidate()" /></div>
+          <div><label for="map-date-format">Date format</label><app-select-menu inputId="map-date-format" label="Date format" [options]="formats" [(ngModel)]="dateFormat" (ngModelChange)="invalidate()" /><small>{{ dateFormat && dateFormat.endsWith('YY') && !dateFormat.endsWith('YYYY') ? 'Two-digit years: 00–69 mean 2000–2069; 70–99 mean 1970–1999.' : 'Choose the order your bank uses for month, day, and year.' }}</small></div>
+          <div><label for="map-description">Description column</label><app-select-menu inputId="map-description" label="Description column" [options]="columns" [(ngModel)]="descriptionColumn" (ngModelChange)="invalidate()" /></div>
+          <div><label for="map-amount-mode">Amount layout</label><app-select-menu inputId="map-amount-mode" label="Amount layout" [options]="amountModes" [(ngModel)]="amountMode" (ngModelChange)="invalidate()" /></div>
+          @if (amountMode === 'split') {
+            <div><label for="map-debit">Money out column</label><app-select-menu inputId="map-debit" label="Money out column" [options]="columns" [(ngModel)]="debitColumn" (ngModelChange)="invalidate()" /></div>
+            <div><label for="map-credit">Money in column</label><app-select-menu inputId="map-credit" label="Money in column" [options]="columns" [(ngModel)]="creditColumn" (ngModelChange)="invalidate()" /></div>
+          } @else {
+            <div><label for="map-amount">Amount column</label><app-select-menu inputId="map-amount" label="Amount column" [options]="columns" [(ngModel)]="amountColumn" (ngModelChange)="invalidate()" /></div>
+            @if (amountMode === 'signed') {
+              <div><label for="map-sign">Positive amounts mean</label><app-select-menu inputId="map-sign" label="Positive amounts mean" [options]="signs" [(ngModel)]="positiveMeans" (ngModelChange)="invalidate()" /></div>
+            } @else {
+              <div><label for="map-direction-column">Debit/credit indicator column</label><app-select-menu inputId="map-direction-column" label="Direction indicator column" [options]="columns" [(ngModel)]="directionColumn" (ngModelChange)="invalidate()" /></div>
+              @for (value of indicatorValues; track value) {
+                <div><label [for]="'indicator-' + $index">“{{ value || '(empty)' }}” means</label><app-select-menu [inputId]="'indicator-' + $index" [label]="'Direction for ' + value" [options]="indicatorOptions" [(ngModel)]="indicatorDirections[value]" (ngModelChange)="invalidate()" /></div>
+              }
+            }
+          }
+          <div><label for="map-decimals">Number format</label><app-select-menu inputId="map-decimals" label="Number format" [options]="decimals" [(ngModel)]="decimalSeparator" (ngModelChange)="invalidate()" /></div>
+        </div>
+        <p class="hint">For a credit card, a purchase is money out and a payment is money in. Banks use different signs—check the preview against your statement.</p>
+        <details><summary>Optional columns</summary><div class="fields">
+          <div><label for="map-status">Posting status</label><app-select-menu inputId="map-status" label="Posting status column" [options]="optionalColumns" [(ngModel)]="statusColumn" (ngModelChange)="statusChanged()" /></div>
+          <div><label for="map-classification">Bank category / classification</label><app-select-menu inputId="map-classification" label="Bank classification column" [options]="optionalColumns" [(ngModel)]="classificationColumn" (ngModelChange)="invalidate()" /></div>
+          <div><label for="map-merchant">Merchant / payee</label><app-select-menu inputId="map-merchant" label="Merchant column" [options]="optionalColumns" [(ngModel)]="merchantColumn" (ngModelChange)="invalidate()" /></div>
+          <div><label for="map-source-account">Account identifier in the file</label><app-select-menu inputId="map-source-account" label="Source account column" [options]="optionalColumns" [(ngModel)]="accountColumn" (ngModelChange)="sourceAccount = null; invalidate()" /></div>
+        </div></details>
+        @if (sourceAccounts.length > 2) {
+          <div class="source-choice"><label for="source-account-choice">This file contains multiple accounts. Which belongs to the selected Coiny account?</label><app-select-menu inputId="source-account-choice" label="Source account to include" [options]="sourceAccounts" [(ngModel)]="sourceAccount" (ngModelChange)="invalidate()" /></div>
+        }
+        @if (statusColumn !== null) {
+          <fieldset class="statuses"><legend>Exclude these posting statuses</legend><small>Pending is selected when recognized. Select other bank-specific values that mean pending or unposted.</small>
+          @for (status of statuses; track status) { <label><input type="checkbox" [checked]="excludedStatuses.includes(status)" (change)="toggleStatus(status, $any($event.target).checked)" />{{ status || '(empty)' }}</label> }
+          </fieldset>
+        }
+        <div class="table-scroll"><table><caption>First three source records</caption><thead><tr>@for (header of csv.headers; track $index) { <th scope="col">{{ $index + 1 }}. {{ header }}</th> }</tr></thead><tbody>@for (row of csv.rows.slice(0, 3); track row.line) { <tr>@for (value of row.values; track $index) { <td>{{ value }}</td> }</tr> }</tbody></table></div>
+        <label class="confirmation"><input type="checkbox" [(ngModel)]="confirmed" />I’ve checked the destination account, date format, and money direction.</label>
+        <button class="button-primary" type="button" (click)="showPreview()">Preview transactions →</button>
+        @if (preview().length) { <small>Your row edits are preserved. Changing a mapping resets the review.</small> }
+      </section>
+    }
+    </fieldset>
+    }
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+    @if (preview().length) {
+      @if (selectedAccount; as account) {
+        <app-import-review [hidden]="step() !== 'review'" [mappedRows]="preview()" [account]="account" [filename]="filename" (busyChange)="importBusy.set($event)" (lockedChange)="importLocked.set($event)" (completed)="importCompleted.set(true)" />
+      }
+    }
+    @if (importCompleted()) { <button class="button-outline" type="button" (click)="restart()">Import another file</button> }
+  }
+</div>

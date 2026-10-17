@@ -185,7 +185,7 @@ describe('Accounts', () => {
   it('adds a household category to filters and makes it available in the transaction form', async () => {
     const f = render(); flushTrend(); flushPage();
     f.detectChanges();
-    f.nativeElement.querySelector('.pane-actions .button-outline').click();
+    f.nativeElement.querySelector('.pane-actions button.button-outline').click();
     f.detectChanges(); await f.whenStable();
     const category = { id: 8, name: 'Entertainment', categoryType: 'Expense', isSystem: false, isActive: true };
     const form = f.debugElement.query(By.directive(CreateCategory)).componentInstance as CreateCategory;

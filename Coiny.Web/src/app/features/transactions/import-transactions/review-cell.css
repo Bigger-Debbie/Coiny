@@ -1,0 +1,8 @@
+:host { display: block; min-width: 0; }
+.cell-value { display: block; width: 100%; min-height: 2.6rem; padding: .55rem .65rem; border: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; font-weight: 400; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell-value[hidden] { display: none; }
+.cell-value.numeric, input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
+.cell-value:hover:not(:disabled) { background: #ffffff80; transform: none; }
+.cell-value:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.cell-value:disabled { cursor: default; }
+input { display: block; width: 100%; min-height: 2.6rem; margin: 0; padding: .5rem .6rem; border: 2px solid var(--color-accent); border-radius: 0; font: inherit; background: white; }

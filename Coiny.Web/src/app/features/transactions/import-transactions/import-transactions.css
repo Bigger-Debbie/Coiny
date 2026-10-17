@@ -1,0 +1,28 @@
+.import-page { padding-bottom: 2rem; }
+.import-settings { border: 0; padding: 0; margin: 0; min-width: 0; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.page-heading button, .page-heading a { font-size: .8rem; }
+.step-label { margin: 0 0 .4rem; font-size: .75rem; }
+h2 { font-size: 1.25rem; font-weight: 400; margin: 0 0 1.25rem; letter-spacing: normal; text-transform: none; }
+.intro, .hint, small { color: var(--color-text-muted); line-height: 1.5; }
+.panel { padding: 1.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin: 1.5rem 0; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin: 1rem 0; }
+.fields > div { min-width: 0; }
+small { display: block; font-size: .8rem; margin-top: .4rem; }
+details { margin: 1.5rem 0; }
+summary { cursor: pointer; color: var(--color-primary); }
+pre { max-height: 14rem; overflow: auto; padding: 1rem; background: var(--color-background); font-size: .75rem; }
+.table-scroll { overflow-x: auto; margin: 1.5rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+th, td { text-align: left; padding: .75rem; border-bottom: 1px solid var(--color-border); min-width: 7rem; max-width: 24rem; overflow-wrap: anywhere; vertical-align: top; }
+th { color: var(--color-primary); font-weight: 600; }
+caption { text-align: left; margin-bottom: .75rem; color: var(--color-text-muted); }
+td span { display: block; margin-bottom: .4rem; }
+.excluded { background: var(--color-background); color: var(--color-text-muted); }
+.error { color: var(--color-danger); }
+.statuses { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 1rem; margin: 1.5rem 0; }
+.statuses label, .confirmation { display: flex; align-items: flex-start; gap: .6rem; margin: .75rem 0; font-weight: 400; }
+input[type="checkbox"] { width: auto; margin-top: .2rem; }
+.source-choice { max-width: 34rem; }
+a { text-decoration: none; }
+@media (max-width: 650px) { .fields { grid-template-columns: 1fr; } .page-heading { align-items: flex-start; flex-direction: column; } .panel { padding: 1rem; } }
