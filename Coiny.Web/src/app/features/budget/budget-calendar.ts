@@ -2,14 +2,15 @@ import { Component, DestroyRef, inject, Input, OnChanges, OnInit, output, signal
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { BillPayment } from './bill-payment';
 import { Subscription } from 'rxjs';
 import { BudgetService } from '../../core/services/budget.service';
-import { BudgetEvent, BudgetIncomePeriod, BudgetMonth } from '../../shared/models/budget/budget';
+import { BillPaymentState, BudgetEvent, BudgetIncomePeriod, BudgetMonth } from '../../shared/models/budget/budget';
 import { getTrendDates } from '../dashboard/trend-range';
 import { SelectMenu, SelectOption } from '../../shared/components/select-menu/select-menu';
 
 @Component({
-  selector: 'app-budget-calendar', imports: [CurrencyPipe, DatePipe, FormsModule, SelectMenu],
+  selector: 'app-budget-calendar', imports: [CurrencyPipe, DatePipe, FormsModule, SelectMenu, BillPayment],
   templateUrl: './budget-calendar.html', styleUrl: './budget-calendar.css',
 })
 export class BudgetCalendar implements OnInit, OnChanges {
@@ -20,6 +21,15 @@ export class BudgetCalendar implements OnInit, OnChanges {
   private readonly api = inject(BudgetService);
   private readonly destroy = inject(DestroyRef);
   private request?: Subscription;
+  readonly paymentBill = signal<BudgetEvent | null>(null);
+  isBill(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills'].includes(event.allocationType ?? ''); }
+  status(event: BudgetEvent) { return event.payment?.isPaid ? 'Paid' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
+  paymentSaved(payment: BillPaymentState) {
+    const bill = this.paymentBill();
+    if (!bill) return;
+    this.month = { ...this.month, events: this.month.events.map(e => e.sourceKey === bill.sourceKey && e.date === bill.date && this.isBill(e) ? { ...e, payment } : e) };
+    this.paymentBill.set(null); this.loadPeriod();
+  }
   readonly period = signal<BudgetIncomePeriod | null>(null);
   readonly loading = signal(false);
   readonly error = signal(false);
@@ -61,6 +71,6 @@ export class BudgetCalendar implements OnInit, OnChanges {
   }
   kind(event: BudgetEvent) { return event.isIncome ? 'Income' : ['Housing', 'Bills'].includes(event.allocationType ?? '') ? 'Bill' : ['Savings', 'Investments'].includes(event.allocationType ?? '') ? 'Contribution' : 'Spending'; }
   dayLabel(date: string, events: BudgetEvent[]) {
-    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', current income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}`).join('; ') : ', no scheduled items');
+    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', current income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}${this.isBill(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
   }
 }

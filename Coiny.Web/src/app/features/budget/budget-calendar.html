@@ -11,14 +11,14 @@
       @if (p.startDate && p.endDate) {
         <p class="period-dates">{{ p.startDate | date:'MMM d':'UTC' }} – {{ p.endDate | date:'MMM d, yyyy':'UTC' }}</p>
         <small>Next payday: {{ p.nextPayday | date:'MMM d':'UTC' }}. Bills on that day belong to the next period.</small>
-        <div class="period-total"><span>Bills scheduled this period</span><strong>{{ p.billsTotal | currency }}</strong></div>
-        @for (bill of p.bills; track $index) { <div class="event-row"><span>{{ bill.name }}<small>{{ bill.date | date:'MMM d':'UTC' }}</small></span><strong>{{ bill.amount | currency }}</strong></div> }
+        <div class="period-total"><span>Remaining unpaid bills</span><strong>{{ (p.unpaidBillsTotal ?? p.billsTotal) | currency }}</strong><small>{{ p.billsTotal | currency }} total scheduled this period</small></div>
+        @for (bill of p.bills; track $index) { <div class="event-row" [class.paid-bill]="bill.payment?.isPaid"><span>@if (bill.payment?.isPaid) { <span class="paid-check" aria-hidden="true">✓</span> }{{ bill.name }}<small>{{ bill.date | date:'MMM d':'UTC' }} · {{ status(bill) }}</small></span><div class="bill-actions"><strong>{{ bill.amount | currency }}</strong><button class="button-outline" (click)="paymentBill.set(bill)">{{ bill.payment?.isPaid ? 'View payment' : 'Mark paid' }}</button></div></div> }
         @empty { <p class="hint">No bills scheduled for this period.</p> }
         @if (p.contributions.length) {
           <h3>Scheduled contributions · {{ p.contributionsTotal | currency }}</h3>
           @for (item of p.contributions; track $index) { <div class="event-row"><span>{{ item.name }}<small>{{ item.date | date:'MMM d':'UTC' }}</small></span><strong>{{ item.amount | currency }}</strong></div> }
         }
-        <small>Scheduled amounts, not payment status. This view doesn’t assign bills to a particular paycheck or include unscheduled monthly spending.</small>
+        <small>This view groups bills between paydays and excludes unscheduled monthly spending.</small>
       } @else if (!p.startDate) { <p>No published payday on or before this date.</p>@if (p.nextPayday) { <p>First upcoming payday: {{ p.nextPayday | date:'MMM d, yyyy':'UTC' }}.</p> } }
       @else { <p>No next payday is scheduled within the next year, so this period has no defined end. Review your income schedule to see its bills.</p> }
     }
@@ -32,17 +32,19 @@
         @if (day) {
           <div class="day-cell" [class.tooltip-hidden]="tooltipHidden()" (pointerenter)="tooltipHidden.set(false)" (focusin)="tooltipHidden.set(false)" (keydown.escape)="tooltipHidden.set(true)" [class.in-period]="inPeriod(day.date)" [class.selected]="selectedDay() === day.date" [class.today]="today === day.date">
             <button class="day" type="button" [attr.aria-label]="dayLabel(day.date, day.events)" [attr.aria-pressed]="selectedDay() === day.date" [attr.aria-current]="today === day.date ? 'date' : null" (click)="selectedDay.set(day.date)">
-              <span>{{ day.day }}</span><span class="markers" aria-hidden="true">@for (event of day.events.slice(0, 3); track $index) { <span [class.income]="kind(event) === 'Income'" [class.bill]="kind(event) === 'Bill'" [class.contribution]="kind(event) === 'Contribution'">●</span> }@if (day.events.length > 3) { <small>+{{ day.events.length - 3 }}</small> }</span>
+              <span>{{ day.day }}</span><span class="markers" aria-hidden="true">@for (event of day.events.slice(0, 3); track $index) { <span [class.income]="kind(event) === 'Income'" [class.bill]="kind(event) === 'Bill'" [class.contribution]="kind(event) === 'Contribution'">{{ event.payment?.isPaid ? '✓' : '●' }}</span> }@if (day.events.length > 3) { <small>+{{ day.events.length - 3 }}</small> }</span>
             </button>
-            @if (day.events.length) { <div class="day-tooltip" role="tooltip"><strong>{{ day.date | date:'MMM d':'UTC' }}</strong>@for (event of day.events; track $index) { <span>{{ kind(event) }} · {{ event.name }} · {{ event.amount | currency }}</span> }</div> }
+            @if (day.events.length) { <div class="day-tooltip" role="tooltip"><strong>{{ day.date | date:'MMM d':'UTC' }}</strong>@for (event of day.events; track $index) { <span>{{ kind(event) }} · {{ event.name }} · {{ event.amount | currency }}@if (isBill(event)) { · {{ status(event) }} }</span> }</div> }
           </div>
         } @else { <span class="blank" aria-hidden="true"></span> }
       }
     </div>
     <section class="day-details" aria-label="Selected day details" aria-live="polite">
       <h3>{{ selectedDay() | date:'EEEE, MMMM d':'UTC' }}</h3>
-      @for (event of selectedEvents; track $index) { <div class="event-row"><span>{{ event.name }}<small>{{ kind(event) }}</small></span><strong>{{ event.amount | currency }}</strong></div> }
+      @for (event of selectedEvents; track $index) { <div class="event-row" [class.paid-bill]="isBill(event) && event.payment?.isPaid"><span>@if (isBill(event) && event.payment?.isPaid) { <span class="paid-check" aria-hidden="true">✓</span> }{{ event.name }}<small>{{ kind(event) }}@if (isBill(event)) { · {{ status(event) }} }</small></span><div class="bill-actions"><strong>{{ event.amount | currency }}</strong>@if (isBill(event) && event.sourceKey) { <button class="button-outline" (click)="paymentBill.set(event)">{{ event.payment?.isPaid ? 'View payment' : 'Mark paid' }}</button> }</div></div> }
       @empty { <p class="hint">No scheduled items on this day.</p> }
     </section>
   </article>
 </section>
+
+@if (paymentBill(); as bill) { <app-bill-payment [bill]="bill" (dismiss)="paymentBill.set(null)" (saved)="paymentSaved($event)" /> }

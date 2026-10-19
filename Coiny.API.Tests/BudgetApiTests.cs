@@ -134,6 +134,30 @@ public class BudgetApiTests
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync($"/api/budgets/income-period?sourceKey={key}")).StatusCode);
     }
 
+    [Fact]
+    public async Task BillPaymentHttpRoutesValidateBindingMembershipAndOccurrence()
+    {
+        await using var host = await Api.Create();
+        var draft = await host.Database.Service().StartDraftAsync();
+        var saved = await host.Database.Service().SaveDraftAsync(draft.Id, new() {
+            ExpectedEditVersion = draft.EditVersion, EffectiveFromMonth = new(2026,10,1), SetupStep = Coiny.API.Enums.BudgetSetupStep.Review,
+            IncomeSources = [new() { Name = "Salary", Amount = 1000, Schedule = new() { Frequency = Coiny.API.Enums.BudgetFrequency.Monthly, StartDate = new(2026,10,1), DayOfMonth = 1 } }],
+            Allocations = [new() { Name = "Electric", Amount = 100, AllocationType = Coiny.API.Enums.BudgetAllocationType.Bills, Schedule = new() { Frequency = Coiny.API.Enums.BudgetFrequency.Monthly, StartDate = new(2026,10,1), DayOfMonth = 17 } }],
+        });
+        await host.Database.Service().PublishDraftAsync(saved.Id, saved.EditVersion);
+        var path = $"/api/budgets/bills/{saved.Allocations[0].SourceKey}/2026-10-17";
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PutAsync(path + "/payment", Body("{}"))).StatusCode);
+        var result = await host.Client.PutAsync(path + "/payment", Body("{\"isPaid\":true,\"paidOn\":\"2026-10-15\"}"));
+        result.EnsureSuccessStatusCode(); Assert.True((await result.Content.ReadFromJsonAsync<BillPaymentResponse>())!.IsPaid);
+        Assert.Empty((await host.Client.GetFromJsonAsync<BillTransactionCandidate[]>(path + "/transactions"))!);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync(path + "/transactions")).StatusCode);
+        host.Client.DefaultRequestHeaders.Add("Test-Household", "2");
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PutAsync(path + "/payment", Body("{\"isPaid\":false}"))).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household"); host.Client.DefaultRequestHeaders.Add("Test-Household", "none");
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync(path + "/transactions")).StatusCode);
+    }
+
     private sealed class Api(BudgetTestDatabase database, WebApplication app) : IAsyncDisposable
     {
         public BudgetTestDatabase Database => database;
@@ -155,6 +179,11 @@ public class BudgetApiTests
                 return household == "none" ? new BudgetService(db.Context(), new MissingHousehold(), new BudgetScheduleService(), db.Clock)
                     : db.Service(int.Parse(household));
             });
+            builder.Services.AddScoped<BillPaymentService>(services => {
+                var household = services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
+                ICurrentUserService user = household == "none" ? new MissingHousehold() : new HouseholdUser(int.Parse(household));
+                return new(db.Context(), user, services.GetRequiredService<IBudgetService>(), db.Clock);
+            });
             var app = builder.Build();
             app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
             await app.StartAsync();
@@ -166,6 +195,12 @@ public class BudgetApiTests
         {
             Client.Dispose(); await app.DisposeAsync(); await database.DisposeAsync();
         }
+    }
+    private sealed class HouseholdUser(int household) : ICurrentUserService
+    {
+        public string? GetUserId() => "test";
+        public bool IsAuthenticated() => true;
+        public Task<int> GetCurrentHouseholdIdAsync() => Task.FromResult(household);
     }
     private sealed class MissingHousehold : ICurrentUserService
     {

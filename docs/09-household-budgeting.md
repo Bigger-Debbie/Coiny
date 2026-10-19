@@ -7,7 +7,7 @@
 The backend models, migrations, recurrence calculator, and household-scoped
 draft/publish/month-projection services and authenticated HTTP endpoints are implemented.
 The frontend setup wizard and published monthly allocation dashboard are implemented.
-The current-income-period bill list and monthly calendar are implemented.
+The current-income-period bill list, monthly calendar, and bill occurrence payment tracking are implemented.
 Richer editing and forecasting remain to be built.
 The existing account/category breakdown is a summary of recorded transactions;
 it is separate from the planned-income allocation chart described here.
@@ -25,7 +25,7 @@ it is separate from the planned-income allocation chart described here.
 - Remaining income is Unassigned until explicitly allocated.
 - Over-allocation can be saved and must show the amount over expected income.
 - Schedules describe plans, not completed payments. No automatic ledger entries,
-  paid/overdue claims, or transaction matching are implied.
+  payment completion, or automatic transaction matching are implied. Payment status is recorded explicitly per bill occurrence.
 - Monthly day numbers that do not exist in a month clamp to its last day.
   Keep the original day number for following months.
 - Keep weekend dates as entered. Business-day adjustments are future work.
@@ -164,7 +164,7 @@ to August 31. February 29 yearly returns to February 29 in leap years. Bounds ar
 inclusive and weekends stay unchanged. The full payment belongs to the due month;
 monthly saving toward it is a separate savings allocation.
 
-The projection creates no transactions and does not mark anything paid or overdue.
+The projection creates no transactions. Published bill events include separately recorded payment state; draft previews remain planning-only.
 
 ## Storage constraints and migration
 
@@ -322,11 +322,11 @@ Published revisions are resolved by effective month throughout the lookup, so a
 period can cross months and account for future published schedule changes.
 Drafts never influence this view.
 
-**Bills scheduled this period** sums scheduled Housing/Bills events in that range;
+**Remaining unpaid bills** sums Housing/Bills events in that range that are not marked paid. The total scheduled amount stays visible;
 scheduled Savings/Investments appear separately as contributions. These are all
 household bills even when following one income source: no paycheck-to-bill
 assignment is implied. Unscheduled monthly spending is excluded from the dated
-list. This view does not claim that a scheduled item is unpaid, overdue, or affordable.
+list. Bill status is Upcoming, Due today, Overdue, or Paid based on its due date and recorded payment state; it does not establish affordability.
 
 The lookup searches twelve calendar months before/after the reference month,
 covering every supported recurrence. Without an earlier published payday or a
@@ -348,3 +348,30 @@ are rejected. `AddBudgetIncomeSourceIdentity` backfills a distinct key per exist
 row without guessing matches between historical copies or duplicate names. New
 revisions preserve identity explicitly; legacy copies are not retroactively linked.
 No ledger schema or transaction data is changed by this migration.
+
+
+## Bill payments and transaction links
+
+Select **Mark paid** or **View payment** beside a bill in the current income period
+or the calendar's selected-day list. A modal records a payment date and optional
+note. An optional transaction picker suggests household expense entries near the
+due date, prioritizing matching amounts; search includes description, merchant,
+account, and category across all dates. Selecting an entry marks the occurrence
+paid by default. Linking an already-paid bill preserves its payment date.
+
+Payment status and ledger linkage are independent. Unlinking keeps the paid
+status. Unchecking paid detaches the transaction on save. Neither operation creates
+ledger entries or changes account balances. Paid events remain visible, with a
+checkmark in the calendar. A transaction may be linked to one bill occurrence.
+This initial version marks the entire occurrence paid; partial payments, multiple
+transactions per bill, automatic matching, and transfer-based bill settlement are
+future work.
+
+Occurrences use household + allocation `sourceKey` + scheduled date. Allocation
+keys survive wizard saves, renames, and new revisions. New definitions omit the
+key; updates retain it. Duplicate/empty keys within a revision are rejected. The
+migration assigns distinct keys to legacy allocation rows without guessing that
+similarly named rows across old revisions are the same bill. Changing a scheduled
+date creates a different occurrence; payment history is not moved automatically.
+Removing a bill from the plan does not delete its payment record. Deleting a linked
+transaction detaches it while retaining payment status.

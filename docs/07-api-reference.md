@@ -65,6 +65,8 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/budgets/draft/{draftId}/publish` | 200 | Publish the reviewed draft |
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
 | GET | `/api/budgets/income-period` | 200 | Current household or individual income period and scheduled bills |
+| PUT | `/api/budgets/bills/{key}/{date}/payment` | 200 | Record or correct one bill occurrence payment and optional transaction link |
+| GET | `/api/budgets/bills/{key}/{date}/transactions` | 200 | Suggested/searchable household expense transactions for a bill |
 
 Collection list responses remain JSON arrays. Paged transaction and category
 breakdown endpoints return structured objects. Financial records have no public
@@ -826,3 +828,47 @@ transactions, budget, and all other household financial records. Any unconsumed
 household invitation is revoked in the same transaction, preventing reuse of an
 old shared code. If revocation fails, membership deletion rolls back. There is
 no new schema migration for these endpoints.
+
+
+### Bill occurrence payment tracking
+
+Use the allocation `sourceKey` from a published bill event and its ISO scheduled
+`date`, for example `PUT /api/budgets/bills/{{billKey}}/2026-10-17/payment`.
+Both routes require authentication and household membership. Only scheduled
+Housing/Bills events from the applicable published plan can be managed.
+
+```json
+{
+  "isPaid": true,
+  "paidOn": "2026-10-16",
+  "note": "Paid online",
+  "transactionId": null
+}
+```
+
+`isPaid` is required. `paidOn` defaults to the linked transaction date, or today
+in America/New_York for a manual payment; it cannot be a future date. Notes allow
+500 characters. The optional `transactionId` must be a household Expense entry
+and cannot already pay another occurrence. Send `isPaid: true` when linking.
+To unlink while keeping paid status, retain `isPaid`/`paidOn` and send
+`transactionId: null`. To mark unpaid, send `isPaid: false` and
+`transactionId: null`; the stored payment date is cleared. PUT replaces the
+occurrence's payment fields and returns those four fields plus nullable `linkedTransaction` (`id`, `date`, `amount`, `description`). No transaction
+or balance is created or changed.
+
+`GET /api/budgets/bills/{{billKey}}/2026-10-17/transactions?search=electric`
+returns up to 50 available entries with `id`, `date`, `amount`, `description`,
+`accountName`, `categoryName`, and `exactAmount`. Without a search, candidates are
+within 45 days either side of the due date; search covers all dates. Matching
+amounts are prioritized, then nearby dates. Already-linked entries are excluded
+unless linked to this occurrence.
+
+Published month/income-period bill events include nullable `payment` with the four
+fields above. Income-period responses add `unpaidBillsTotal`; `billsTotal` remains
+the complete scheduled total. Draft allocation inputs/responses now carry optional
+`sourceKey`, which must be retained on updates to preserve bill identity.
+
+Errors: 400 invalid occurrence, payment date, or foreign/ineligible transaction;
+401 unauthenticated; 403 no household; 409 transaction already linked or a write
+conflict. Partial payments and multiple ledger entries per bill are not supported
+in this first version.

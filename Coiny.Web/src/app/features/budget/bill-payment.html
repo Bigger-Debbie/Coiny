@@ -1,0 +1,35 @@
+<app-modal [title]="bill.name" [busy]="busy()" (dismiss)="dismiss.emit()">
+  <p class="bill-summary">{{ bill.amount | currency }} · Due {{ bill.date | date:'MMM d, yyyy':'UTC' }}</p>
+  <form (ngSubmit)="save()">
+    <fieldset [disabled]="busy()">
+      <label class="check"><input type="checkbox" name="paid" [ngModel]="isPaid" (ngModelChange)="$event ? isPaid = true : unpaid()" /> Mark this bill paid</label>
+      @if (!isPaid && bill.payment?.transactionId) { <p class="hint">Saving as unpaid will also detach its transaction.</p> }
+      @if (isPaid) { <label for="bill-paid-on">Payment date</label><input id="bill-paid-on" name="paidOn" type="date" required [max]="today" [(ngModel)]="paidOn" /> }
+      <label for="bill-note">Note (optional)</label><textarea id="bill-note" name="note" maxlength="500" [(ngModel)]="note" rows="2"></textarea>
+      <div class="link-section">
+        <h3>Linked transaction</h3>
+        @if (transactionId) {
+          @if (linkedTransaction; as entry) { <p>{{ entry.description }} · {{ entry.amount | currency }}<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }}</small></p> }
+          @else { <p>Transaction #{{ transactionId }} linked.</p> }
+          <button type="button" class="button-outline" (click)="transactionId = null">Unlink transaction</button>
+          <p class="hint">Unlinking keeps this bill paid unless you uncheck “Mark this bill paid”.</p>
+        } @else { <p class="hint">You can mark a bill paid now and link its transaction later.</p> }
+        <button type="button" class="button-outline" (click)="find()">{{ transactionId ? 'Choose another transaction' : 'Link a transaction' }}</button>
+        @if (linking) {
+          <label for="bill-transaction-search">Search description, account, or category</label>
+          <div class="search"><input id="bill-transaction-search" name="search" [(ngModel)]="search" (keydown.enter)="$event.preventDefault(); find()" /><button type="button" class="button-outline" (click)="find()">Search</button></div>
+          <p class="hint">Showing up to 50 expense transactions. Suggestions start near the due date, with matching amounts first. Search checks all dates.</p>
+          @if (loading()) { <p role="status">Finding transactions…</p> }
+          @else { <div class="candidates" role="group" aria-label="Available expense transactions">
+            @for (entry of candidates(); track entry.id) {
+              <button type="button" class="candidate" (click)="choose(entry)"><span>{{ entry.description }}<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }} · {{ entry.accountName }} · {{ entry.categoryName }}</small></span><span>{{ entry.amount | currency }}@if (entry.exactAmount) { <small>Matching amount</small> }</span></button>
+            } @empty { <p>No matching transactions. Try a different search or mark the bill paid without linking.</p> }
+          </div> }
+        }
+      </div>
+      <p class="hint">Linking marks this entire occurrence paid, even if the transaction amount differs. This won’t create a transaction or change an account balance.</p>
+      @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+      <div class="actions"><button type="button" class="button-outline" (click)="dismiss.emit()">Cancel</button><button type="submit" [disabled]="busy() || (isPaid && (!paidOn || paidOn > today))">{{ busy() ? 'Saving…' : 'Save payment' }}</button></div>
+    </fieldset>
+  </form>
+</app-modal>

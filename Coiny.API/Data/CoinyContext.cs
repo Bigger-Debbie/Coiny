@@ -20,6 +20,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
     public DbSet<HouseholdBudget> HouseholdBudgets => Set<HouseholdBudget>();
     public DbSet<BudgetRevision> BudgetRevisions => Set<BudgetRevision>();
     public DbSet<BudgetIncomeSource> BudgetIncomeSources => Set<BudgetIncomeSource>();
+    public DbSet<BillPayment> BillPayments => Set<BillPayment>();
     public DbSet<BudgetAllocation> BudgetAllocations => Set<BudgetAllocation>();
 
     protected override void OnModelCreating(ModelBuilder builder)

@@ -125,7 +125,7 @@ export class Budget implements OnInit {
       retirementContributionPerPaycheck: [i?.retirementContributionPerPaycheck ?? null, optionalMoney], schedule: this.scheduleGroup(i?.schedule) });
   }
   private allocationGroup(a: BudgetAllocation) {
-    const group = this.fb.group({ name: [a.name, name], amount: [a.amount, money], allocationType: a.allocationType, schedule: a.schedule ? this.scheduleGroup(a.schedule) : this.fb.control(null) });
+    const group = this.fb.group({ sourceKey: a.sourceKey ?? null, name: [a.name, name], amount: [a.amount, money], allocationType: a.allocationType, schedule: a.schedule ? this.scheduleGroup(a.schedule) : this.fb.control(null) });
     return group;
   }
   addIncome() { this.income.push(this.incomeGroup()); }

@@ -6,7 +6,7 @@ export interface BudgetSchedule {
   dayOfMonth: number | null; secondDayOfMonth: number | null;
 }
 export interface BudgetIncome { sourceKey?: string | null; name: string; amount: number; healthInsurancePerPaycheck?: number | null; retirementContributionPerPaycheck?: number | null; schedule: BudgetSchedule; }
-export interface BudgetAllocation { name: string; amount: number; allocationType: AllocationType; schedule: BudgetSchedule | null; }
+export interface BudgetAllocation { sourceKey?: string | null; name: string; amount: number; allocationType: AllocationType; schedule: BudgetSchedule | null; }
 export interface BudgetDraftRequest {
   expectedEditVersion: number; effectiveFromMonth: string; setupStep: BudgetStep;
   incomeSources: BudgetIncome[]; allocations: BudgetAllocation[];
@@ -19,7 +19,7 @@ export interface BudgetSetup {
   currentRevisionId: number | null; draft: BudgetRevision | null;
 }
 export interface BudgetMonthlyItem { id: number; name: string; allocationType: AllocationType | null; plannedAmount: number; healthInsurance?: number; retirementContributions?: number; occurrenceCount: number; }
-export interface BudgetEvent { sourceKey?: string | null; date: string; itemId: number; name: string; isIncome: boolean; allocationType: AllocationType | null; amount: number; }
+export interface BudgetEvent { payment?: BillPaymentState | null; sourceKey?: string | null; date: string; itemId: number; name: string; isIncome: boolean; allocationType: AllocationType | null; amount: number; }
 export interface BudgetMonth {
   month: string; revisionId: number | null; healthInsurance: number; retirementContributions: number; expectedIncome: number; allocated: number;
   unassigned: number; overBudget: number; incomeSources: BudgetMonthlyItem[];
@@ -30,5 +30,8 @@ export interface BudgetPreview { draftId: number; editVersion: number; month: Bu
 export interface BudgetIncomePeriod {
   asOf: string; sourceKey: string | null; sources: { sourceKey: string; name: string }[];
   startDate: string | null; endDate: string | null; nextPayday: string | null;
-  billsTotal: number; contributionsTotal: number; bills: BudgetEvent[]; contributions: BudgetEvent[];
+  unpaidBillsTotal?: number; billsTotal: number; contributionsTotal: number; bills: BudgetEvent[]; contributions: BudgetEvent[];
 }
+
+export interface BillPaymentState { linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
+export interface BillTransactionCandidate { id: number; date: string; amount: number; description: string; accountName: string; categoryName: string; exactAmount: boolean; }

@@ -35,6 +35,17 @@ describe('BudgetCalendar', () => {
     expect(day.getAttribute('aria-label')).toContain('Bill: Electric, $100.00');
     http.expectNone(r => r.url.endsWith('/income-period'));
   });
+  it('refreshes the unpaid total and calendar status after a payment save', () => {
+    const f = render(); const c = f.componentInstance;
+    c.paymentBill.set(bill);
+    c.paymentSaved({ isPaid: true, paidOn: '2026-10-16', note: null, transactionId: null });
+    http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, unpaidBillsTotal: 0, bills: [{ ...bill, payment: { isPaid: true, paidOn: '2026-10-16', note: null, transactionId: null } }] });
+    f.detectChanges();
+    expect(c.month.events[0].payment?.isPaid).toBe(true);
+    expect(c.paymentBill()).toBeNull();
+    expect(f.nativeElement.querySelector('.period-total strong').textContent).toContain('$0.00');
+    expect(f.nativeElement.querySelector('[aria-label^="2026-10-17"]').getAttribute('aria-label')).toContain('Paid');
+  });
   it('keeps the selected income source and cancels stale period requests', () => {
     const f = render(); const c = f.componentInstance;
     const emit = vi.spyOn(c.sourceChange, 'emit');

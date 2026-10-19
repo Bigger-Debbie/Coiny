@@ -152,15 +152,15 @@ Current verification baseline after the category-breakdown implementation:
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The last full frontend run had 198 passing tests out of 199; the remaining failure
+- The last full frontend run had 202 passing tests out of 203; the remaining failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
 - Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.03 kB
-  and 4.25 kB respectively). The initial bundle is about 509.72 kB against a
+  and 4.25 kB respectively). The initial bundle is about 509.85 kB against a
   500 kB warning budget; the production build still passes. CSV import loads lazily.
-- The backend suite has 87 passing xUnit tests for batch imports, transfers, recurrence, household-scoped
+- The backend suite has 93 passing xUnit tests for bill payments, batch imports, transfers, recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).

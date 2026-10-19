@@ -14,6 +14,29 @@ public class BudgetMigrationTests
     private const string Foundation = "20261016182722_AddHouseholdBudgetFoundation";
 
     [Fact]
+    public async Task BillIdentityMigrationBackfillsExistingAllocationsAndPreservesValues()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var context = new CoinyContext(new DbContextOptionsBuilder<CoinyContext>().UseSqlite(connection).Options);
+        var migrator = context.GetService<IMigrator>();
+        await migrator.MigrateAsync("20261017145421_AddTransactionImportBatches");
+        context.Households.Add(new() { Id = 1, Name = "Existing budget" }); await context.SaveChangesAsync();
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO HouseholdBudgets (Id, HouseholdId, CreatedAt) VALUES (1, 1, '2026-10-16');
+            INSERT INTO BudgetRevisions (Id, HouseholdBudgetId, RevisionNumber, EditVersion, EffectiveFromMonth, State, SetupStep, CreatedAt)
+                VALUES (1, 1, 1, 0, '2026-10-01', 0, 0, '2026-10-16');
+            INSERT INTO BudgetAllocations (BudgetRevisionId, Name, Amount, AllocationType, CreatedAt)
+                VALUES (1, 'Groceries', '500.25', 2, '2026-10-16'), (1, 'Dining', '123.45', 2, '2026-10-16');
+            """);
+        await migrator.MigrateAsync();
+        var allocations = await context.BudgetAllocations.AsNoTracking().OrderBy(a => a.Id).ToListAsync();
+        Assert.Equal(2, allocations.Select(a => a.SourceKey).Distinct().Count());
+        Assert.All(allocations, a => Assert.NotEqual(Guid.Empty, a.SourceKey));
+        Assert.Equal(500.25m, allocations[0].Amount); Assert.Equal(123.45m, allocations[1].Amount);
+        Assert.Empty(await context.BillPayments.ToListAsync());
+    }
+
+    [Fact]
     public async Task SourceIdentityMigrationBackfillsDistinctKeysWithoutChangingExistingPaycheckData()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();

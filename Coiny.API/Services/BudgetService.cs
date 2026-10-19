@@ -85,7 +85,7 @@ public class BudgetService(
                 draft.IncomeSources.Add(new() { SourceKey = source.SourceKey, Name = source.Name, Amount = source.Amount, HealthInsurancePerPaycheck = source.HealthInsurancePerPaycheck,
                     RetirementContributionPerPaycheck = source.RetirementContributionPerPaycheck, Schedule = Copy(source.Schedule) });
             foreach (var allocation in baseline.Allocations)
-                draft.Allocations.Add(new() { Name = allocation.Name, Amount = allocation.Amount,
+                draft.Allocations.Add(new() { SourceKey = allocation.SourceKey, Name = allocation.Name, Amount = allocation.Amount,
                     AllocationType = allocation.AllocationType, Schedule = allocation.Schedule is null ? null : Copy(allocation.Schedule) });
         }
         context.BudgetRevisions.Add(draft);
@@ -119,7 +119,7 @@ public class BudgetService(
             Schedule = Schedule(i.Schedule),
         }).ToList();
         draft.Allocations = request.Allocations.Select(a => new BudgetAllocation {
-            BudgetRevisionId = draftId, Name = a.Name.Trim(), Amount = a.Amount, AllocationType = a.AllocationType,
+            BudgetRevisionId = draftId, SourceKey = a.SourceKey ?? Guid.NewGuid(), Name = a.Name.Trim(), Amount = a.Amount, AllocationType = a.AllocationType,
             Schedule = a.Schedule is null ? null : Schedule(a.Schedule),
         }).ToList();
         context.BudgetIncomeSources.AddRange(draft.IncomeSources);
@@ -172,7 +172,9 @@ public class BudgetService(
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
         var revision = await ApplicableRevision(householdId, month);
         if (revision is null) return new() { Month = month };
-        return ProjectMonth(revision, month);
+        var result = ProjectMonth(revision, month);
+        await ApplyPayments(householdId, result.Events);
+        return result;
     }
 
     private BudgetMonthResponse ProjectMonth(BudgetRevision revision, DateOnly month)
@@ -195,7 +197,7 @@ public class BudgetService(
             allocations.Add(new() { Id = allocation.Id, Name = allocation.Name, AllocationType = allocation.AllocationType,
                 OccurrenceCount = dates.Count, PlannedAmount = allocation.Amount * (allocation.Schedule is null ? 1 : dates.Count) });
             foreach (var date in dates)
-                events.Add(new() { Date = date, ItemId = allocation.Id, Name = allocation.Name,
+                events.Add(new() { SourceKey = allocation.SourceKey, Date = date, ItemId = allocation.Id, Name = allocation.Name,
                     AllocationType = allocation.AllocationType, Amount = allocation.Amount });
         }
         var totalIncome = income.Sum(i => i.PlannedAmount);
@@ -243,12 +245,23 @@ public class BudgetService(
             ? events.Where(e => !e.IsIncome && e.Date >= start && e.Date <= end)
                 .OrderBy(e => e.Date).ThenBy(e => e.Name).ThenBy(e => e.ItemId).ToList() : [];
         var bills = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills).ToList();
+        await ApplyPayments(householdId, bills);
         var contributions = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
         return new() {
             AsOf = date, SourceKey = sourceKey, Sources = sources, StartDate = start, EndDate = end, NextPayday = next,
-            Bills = bills, BillsTotal = bills.Sum(e => e.Amount), Contributions = contributions,
+            Bills = bills, BillsTotal = bills.Sum(e => e.Amount), UnpaidBillsTotal = bills.Where(e => e.Payment?.IsPaid != true).Sum(e => e.Amount), Contributions = contributions,
             ContributionsTotal = contributions.Sum(e => e.Amount),
         };
+    }
+
+    private async Task ApplyPayments(int householdId, IReadOnlyList<BudgetScheduledEvent> events)
+    {
+        var bills = events.Where(e => !e.IsIncome && e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills).ToList();
+        if (bills.Count == 0) return;
+        var min = bills.Min(e => e.Date); var max = bills.Max(e => e.Date);
+        var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();
+        foreach (var bill in bills)
+            bill.Payment = payments.Where(p => p.AllocationKey == bill.SourceKey && p.DueDate == bill.Date).Select(BillPaymentResponse.From).SingleOrDefault();
     }
 
     private IQueryable<BudgetRevision> Revisions(int householdId) => context.BudgetRevisions.AsNoTracking()
@@ -292,6 +305,9 @@ public class BudgetService(
             if (source.RetirementContributionPerPaycheck.HasValue) ValidateNameAndAmount(source.Name, source.RetirementContributionPerPaycheck.Value);
             schedules.Validate(Schedule(source.Schedule));
         }
+        var allocationKeys = request.Allocations.Where(a => a is not null && a.SourceKey.HasValue).Select(a => a.SourceKey!.Value).ToList();
+        if (allocationKeys.Contains(Guid.Empty) || allocationKeys.Distinct().Count() != allocationKeys.Count)
+            throw new ArgumentException("Bill keys must be nonempty and unique within a revision.");
         foreach (var allocation in request.Allocations)
         {
             if (allocation is null) throw new ArgumentException("An allocation cannot be empty.");
@@ -316,7 +332,7 @@ public class BudgetService(
     private static BudgetIncomeInput Income(BudgetIncomeSource i) => new() { SourceKey = i.SourceKey, Name = i.Name, Amount = i.Amount, HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck,
         RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck, Schedule = Input(i.Schedule) };
     private static BudgetAllocationInput Allocation(BudgetAllocation a) => new() {
-        Name = a.Name, Amount = a.Amount, AllocationType = a.AllocationType, Schedule = a.Schedule is null ? null : Input(a.Schedule),
+        SourceKey = a.SourceKey, Name = a.Name, Amount = a.Amount, AllocationType = a.AllocationType, Schedule = a.Schedule is null ? null : Input(a.Schedule),
     };
     private static BudgetRevisionResponse Response(BudgetRevision r) => new() {
         Id = r.Id, RevisionNumber = r.RevisionNumber, EditVersion = r.EditVersion, EffectiveFromMonth = r.EffectiveFromMonth,

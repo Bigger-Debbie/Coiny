@@ -9,6 +9,7 @@ p { line-height:1.6; } small { display:block; color:var(--color-text-muted); fon
 .period-total span { font-size:.85rem; } .period-total strong { font-size:1.7rem; font-weight:400; }
 .event-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; border-bottom:1px solid var(--color-border); padding:.85rem 0; }
 .event-row span { overflow-wrap:anywhere; } .event-row strong { font-size:.9rem; color:var(--color-primary); white-space:nowrap; }
+.event-row.paid-bill { border:1px solid var(--color-success); border-radius:var(--radius-sm); padding:.85rem; margin:.5rem 0; }
 .period-panel > small:last-child { margin-top:1rem; }
 .calendar-panel header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1rem; }
 .calendar-panel header h2 { margin:0; }
@@ -30,3 +31,8 @@ p { line-height:1.6; } small { display:block; color:var(--color-text-muted); fon
 @media(max-width:500px) { .panel { padding:1rem; } .day { min-height:3.5rem; padding:.35rem; } .day-tooltip { display:none !important; } }
 
 .day-cell.tooltip-hidden .day-tooltip { display:none; }
+
+.bill-actions { display:flex; flex-direction:column; align-items:flex-end; gap:.5rem; }
+.bill-actions button { font-size:.75rem; padding:.35rem .65rem; white-space:nowrap; }
+
+.paid-check { color:var(--color-success); margin-right:.4rem; }

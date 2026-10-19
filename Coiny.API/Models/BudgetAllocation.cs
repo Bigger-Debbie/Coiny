@@ -4,6 +4,7 @@ namespace Coiny.API.Models;
 
 public class BudgetAllocation : BaseEntity
 {
+    public Guid SourceKey { get; set; } = Guid.NewGuid();
     public int BudgetRevisionId { get; set; }
     public BudgetRevision BudgetRevision { get; set; } = null!;
     public string Name { get; set; } = string.Empty;

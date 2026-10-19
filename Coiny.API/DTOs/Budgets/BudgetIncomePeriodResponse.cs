@@ -8,6 +8,7 @@ public class BudgetIncomePeriodResponse
     public DateOnly? StartDate { get; init; }
     public DateOnly? EndDate { get; init; }
     public DateOnly? NextPayday { get; init; }
+    public decimal UnpaidBillsTotal { get; init; }
     public decimal BillsTotal { get; init; }
     public decimal ContributionsTotal { get; init; }
     public IReadOnlyList<BudgetScheduledEvent> Bills { get; init; } = [];

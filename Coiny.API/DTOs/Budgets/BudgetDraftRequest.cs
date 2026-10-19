@@ -43,6 +43,7 @@ public class BudgetIncomeInput
 
 public class BudgetAllocationInput
 {
+    public Guid? SourceKey { get; set; }
     [JsonRequired]
     public string Name { get; set; } = string.Empty;
     [JsonRequired]
