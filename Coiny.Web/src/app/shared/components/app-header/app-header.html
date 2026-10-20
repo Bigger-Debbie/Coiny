@@ -49,6 +49,7 @@
                             }
                         </div>
                         <button class="logout-button" role="menuitem" type="button" (click)="openHousehold()">Household</button>
+                        <button class="logout-button" role="menuitem" type="button" (click)="openCategories()">Categories</button>
                         <button class="logout-button" role="menuitem" type="button" (click)="openSettings()">Settings</button>
                         <button #logoutButton type="button" role="menuitem" class="logout-button" (click)="logout()">Log out</button>
                     </div>
@@ -70,5 +71,11 @@
 @if (settingsOpen()) {
   <app-modal title="Settings" [busy]="settings.busy()" (dismiss)="settingsOpen.set(false)">
     <app-user-settings #settings (saved)="settingsOpen.set(false)" (cancelled)="settingsOpen.set(false)" />
+  </app-modal>
+}
+
+@if (categoriesOpen()) {
+  <app-modal title="Categories" [busy]="categories.modalBusy()" (dismiss)="categoriesOpen.set(false)">
+    <app-category-management #categories />
   </app-modal>
 }

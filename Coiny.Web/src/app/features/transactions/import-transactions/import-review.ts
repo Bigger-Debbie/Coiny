@@ -1,3 +1,4 @@
+import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, DestroyRef, inject, Input, OnChanges, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -20,6 +21,7 @@ interface ReviewRow extends ImportReviewRow {
 @Component({ selector: 'app-import-review', host: { 'data-review-surface': '' }, imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink, SelectMenu, ReviewCell],
   templateUrl: './import-review.html', styleUrls: ['./import-transactions.css', './import-review.css'] })
 export class ImportReview implements OnChanges {
+  private readonly toasts = inject(ToastService);
   @Input({ required: true }) mappedRows: readonly ImportReviewRow[] = [];
   @Input({ required: true }) account!: Account;
   @Input() bankBalance: BankBalanceReference | null = null;
@@ -39,8 +41,8 @@ export class ImportReview implements OnChanges {
   readonly validation = signal<TransactionImportValidation | null>(null);
   private readonly lastChecks = signal<ImportRowCheck[]>([]);
   readonly result = signal<TransactionImportResult | null>(null);
-  readonly error = signal('');
-  readonly notice = signal('');
+  readonly error = notificationSignal('error');
+  readonly notice = notificationSignal('success');
   readonly locked = signal(false);
   readonly creatingCategory = signal(false);
   readonly detailLine = signal<number | null>(null);
@@ -170,7 +172,7 @@ export class ImportReview implements OnChanges {
     this.locked.set(true); this.lockedChange.emit(true); this.setBusy(true); this.error.set('');
     this.api.import(this.pendingRequest).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next: result => {
-        this.result.set(result); this.history.update(items => [result, ...items.filter(item => item.batchId !== result.batchId)]);
+        this.toasts.success(`${result.importedCount} transactions imported.`); this.result.set(result); this.history.update(items => [result, ...items.filter(item => item.batchId !== result.batchId)]);
         this.setBusy(false); this.completed.emit();
       },
       error: response => {

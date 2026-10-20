@@ -155,7 +155,7 @@ describe('Accounts', () => {
     f.componentInstance.selectAccount('1'); flushTrend(); flushPage();
     expect(f.componentInstance.website()).toBeNull();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('.page-heading button').textContent).toContain('Add Account');
+    expect(f.nativeElement.querySelector('.page-heading .button-primary').textContent).toContain('Add Account');
     expect(f.nativeElement.querySelector('.balance-card .add-account')).toBeNull();
     expect(f.componentInstance.accountOptions().some(o => o.value === 'add')).toBe(false);
   });

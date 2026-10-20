@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../core/services/toast.service';
 import { Component, DestroyRef, computed, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { firstValueFrom } from 'rxjs';
@@ -14,7 +15,7 @@ export class HouseholdSettings implements OnInit {
   readonly members = signal<HouseholdMember[]>([]);
   readonly pendingRemoval = signal<HouseholdMember | null>(null);
   readonly household = signal<Household | null>(null); readonly status = signal<InvitationStatus | null>(null);
-  readonly code = signal(''); readonly loading = signal(true); readonly busy = signal(false); readonly error = signal(''); readonly notice = signal('');
+  readonly code = signal(''); readonly loading = signal(true); readonly busy = signal(false); readonly error = notificationSignal('error'); readonly notice = notificationSignal('success');
   readonly now = signal(Date.now());
   readonly secondsLeft = computed(() => this.status()?.expiresAt ? Math.max(0, Math.ceil((Date.parse(this.status()!.expiresAt!) - this.now()) / 1000)) : 0);
   readonly timeLeft = computed(() => Math.floor(this.secondsLeft() / 60) + ':' + String(this.secondsLeft() % 60).padStart(2, '0'));
@@ -48,7 +49,7 @@ export class HouseholdSettings implements OnInit {
   }
   async generate() {
     if (this.busy()) return; this.busy.set(true); this.error.set(''); this.notice.set('');
-    try { const result = await this.request(this.invitations.generate()); this.code.set(result.code); this.now.set(Date.now()); this.status.set({ hasActiveInvitation: true, expiresAt: result.expiresAt }); }
+    try { const result = await this.request(this.invitations.generate()); this.notice.set('Join code generated.'); this.code.set(result.code); this.now.set(Date.now()); this.status.set({ hasActiveInvitation: true, expiresAt: result.expiresAt }); }
     catch (e) { this.error.set(householdError(e, 'A join code couldn’t be generated. Please try again.')); }
     finally { this.busy.set(false); }
   }
@@ -62,6 +63,6 @@ export class HouseholdSettings implements OnInit {
     if (this.busy() || !this.active() || !this.code()) return;
     const text = link ? new URL('/signup?code=' + encodeURIComponent(this.code()), window.location.origin).href : this.code();
     try { await navigator.clipboard.writeText(text); this.notice.set(link ? 'Invitation link copied.' : 'Join code copied.'); }
-    catch { this.notice.set('Copy isn’t available here. Select the code below to copy it manually.'); }
+    catch { this.error.set('Copy isn’t available here. Select the code below to copy it manually.'); }
   }
 }

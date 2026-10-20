@@ -1,3 +1,4 @@
+import { ToastService, notificationSignal } from '../../core/services/toast.service';
 import { Component, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +13,7 @@ import { getTrendDates } from '../dashboard/trend-range';
   templateUrl: './bill-payment.html', styleUrl: './bill-payment.css',
 })
 export class BillPayment implements OnInit {
+  private readonly toasts = inject(ToastService);
   @Input({ required: true }) bill!: BudgetEvent;
   readonly dismiss = output<void>();
   readonly saved = output<BillPaymentState>();
@@ -19,7 +21,7 @@ export class BillPayment implements OnInit {
   private readonly destroy = inject(DestroyRef);
   readonly busy = signal(false);
   readonly loading = signal(false);
-  readonly error = signal('');
+  readonly error = notificationSignal('error');
   readonly candidates = signal<BillTransactionCandidate[]>([]);
   readonly today = getTrendDates('1D').endDate;
   isPaid = true; paidOn = this.today; note = ''; transactionId: number | null = null;
@@ -48,7 +50,7 @@ export class BillPayment implements OnInit {
     this.busy.set(true); this.error.set('');
     this.api.saveBillPayment(this.bill, { isPaid: this.isPaid, paidOn: this.isPaid ? this.paidOn : null, note: this.note || null, transactionId: this.transactionId })
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
-        next: result => { this.busy.set(false); this.saved.emit(result); },
+        next: result => { this.toasts.success('Bill payment updated.'); this.busy.set(false); this.saved.emit(result); },
         error: error => { this.busy.set(false); this.error.set(error.error?.detail ?? 'Payment couldn’t save. Please try again.'); },
       });
   }

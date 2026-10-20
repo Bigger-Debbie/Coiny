@@ -1,7 +1,6 @@
 <section class="budget-page" aria-label="Household budget">
   @if (loading()) { <p role="status">Loading your household budget…</p> }
   @else {
-    @if (notice()) { <p class="success" role="status">{{ notice() }}</p> }
     @if (error()) {
       <div class="message error" role="alert"><p>{{ error() }}</p>
         @if (conflict()) { <p>The shared draft changed or was published. Reload it before making further changes.</p><button class="button-outline" [disabled]="busy()" (click)="reloadDraft()">Reload household draft</button> }

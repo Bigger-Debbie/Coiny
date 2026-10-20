@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../core/services/toast.service';
 import { Component, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { DatePipe } from '@angular/common';
@@ -18,7 +19,7 @@ export class HouseholdSetup implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly destroy = inject(DestroyRef);
-  readonly loading = signal(true); readonly loadError = signal(false); readonly busy = signal(false); readonly error = signal('');
+  readonly loading = signal(true); readonly loadError = signal(false); readonly busy = signal(false); readonly error = notificationSignal('error');
   readonly mode = signal<'create' | 'join' | null>(null); readonly preview = signal<InvitationPreview | null>(null);
   code = inject(ActivatedRoute).snapshot.queryParamMap.get('code')?.slice(0, 32) ?? '';
   name = ''; private previewCode = '';

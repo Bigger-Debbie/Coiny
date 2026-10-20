@@ -2,6 +2,8 @@ namespace Coiny.API.DTOs.Dashboard;
 
 public class NetWorthSummaryResponse
 {
+    public decimal Investments { get; set; }
+    public bool HasInvestments { get; set; }
     public decimal Mortgage { get; set; }
     public bool HasMortgage { get; set; }
     public bool IncludeMortgageInNetWorth { get; set; } = true;

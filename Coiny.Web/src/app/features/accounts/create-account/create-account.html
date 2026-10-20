@@ -1,6 +1,7 @@
 <section class="create-account" [class.embedded]="embedded">
   @if (!embedded) { <h1>Add Account</h1> }
-  <p>Set the balance at the start of your opening date. Transactions from that date will build its history.</p>
+  @if (account) { <p>Update your account details. Changing the opening balance or date recalculates its balance history. The opening date must be on or before its earliest transaction.</p> }
+  @else { <p>Set the balance at the start of your opening date. Transactions from that date will build its history.</p> }
   @if (loading()) { <p role="status">Loading institutions…</p> }
   @else if (loadError()) { <div role="status"><p>Your institutions couldn’t load.</p><button (click)="loadInstitutions()">Try again</button></div> }
   @else {
@@ -10,7 +11,7 @@
           @if ((name.invalid || !model.name.trim()) && (name.touched || form.submitted)) { <small class="error">Enter an account name.</small> }
         </div>
         <div><label for="account-type">Account type</label><app-select-menu inputId="account-type" label="Account type"
-          name="accountType" [options]="typeOptions" [(ngModel)]="model.accountType" /></div>
+          name="accountType" [disabled]="!!account" [options]="typeOptions" [(ngModel)]="model.accountType" /></div>
         @if (model.accountType === 'Loan') { <div><label for="loan-subtype">Loan type</label><app-select-menu inputId="loan-subtype" label="Loan type" name="loanSubtype" [options]="loanTypes" [ngModel]="model.loanSubtype || 'Other'" (ngModelChange)="model.loanSubtype = $event" /></div> }
         <div><label for="institution">Institution</label><app-select-menu inputId="institution" label="Institution"
           name="institutionId" [options]="institutionOptions" [(ngModel)]="model.institutionId" />
@@ -40,7 +41,7 @@
       </fieldset>
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
       <div class="actions">
-        <button class="button-primary" type="submit" [disabled]="busy() || addingInstitution() || model.openingBalanceDate > today">{{ saving() ? 'Saving…' : 'Save Account' }}</button>
+        <button class="button-primary" type="submit" [disabled]="busy() || addingInstitution() || model.openingBalanceDate > today">{{ saving() ? 'Saving…' : account ? 'Save Changes' : 'Save Account' }}</button>
         <button class="button-ghost" type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
       </div>
     </form>

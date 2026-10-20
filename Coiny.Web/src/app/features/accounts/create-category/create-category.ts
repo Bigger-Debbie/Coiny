@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../../core/services/toast.service';
 import { Component, DestroyRef, inject, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -18,7 +19,7 @@ export class CreateCategory {
   readonly saved = output<Category>();
   readonly cancelled = output<void>();
   readonly saving = signal(false);
-  readonly error = signal('');
+  readonly error = notificationSignal('error');
   readonly model: CreateCategoryRequest = { name: '', categoryType: 'Expense' };
   readonly types: SelectOption[] = [
     { value: 'Expense', label: 'Expense' }, { value: 'Income', label: 'Income' },

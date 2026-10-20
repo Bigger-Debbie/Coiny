@@ -1,3 +1,4 @@
+import { ToastService, notificationSignal } from '../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -34,6 +35,9 @@ import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown'
   styleUrl: './accounts.css',
 })
 export class Accounts implements OnInit {
+  private readonly toasts = inject(ToastService);
+  readonly editingAccount = signal<Account | null>(null);
+  accountUpdated() { this.editingAccount.set(null); this.notice.set('Account updated.'); this.loadOverview(true); }
   readonly modal = signal<'account' | 'transaction' | 'category' | null>(null);
   readonly editingId = signal<number | null>(null);
   transactionChanged(action: 'updated' | 'deleted') { this.editingId.set(null); this.notice.set(action === 'updated' ? 'Transaction updated.' : 'Transaction deleted.'); this.loadOverview(true); }
@@ -42,7 +46,7 @@ export class Accounts implements OnInit {
   readonly includeMortgage = computed(() => this.auth.currentUser()?.includeMortgageInNetWorth ?? true);
   readonly loanAccount = signal<Account | null>(null);
   readonly loanSaving = signal(false);
-  readonly loanError = signal('');
+  readonly loanError = notificationSignal('error');
   loanSubtype = 'Other';
   readonly loanTypes: SelectOption[] = ['Mortgage', 'Auto', 'Personal', 'Student', 'Other'].map(value => ({ value, label: value }));
   openLoan(account: Account) { this.loanSubtype = account.loanSubtype || 'Other'; this.loanError.set(''); this.loanAccount.set(account); }
@@ -50,11 +54,11 @@ export class Accounts implements OnInit {
     const account = this.loanAccount(); if (!account || this.loanSaving()) return;
     this.loanSaving.set(true); this.loanError.set('');
     this.accountService.setLoanSubtype(account.id, this.loanSubtype).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.loanSaving.set(false); this.loanAccount.set(null); this.loadOverview(true); },
+      next: () => { this.toasts.success('Loan type updated.'); this.loanSaving.set(false); this.loanAccount.set(null); this.loadOverview(true); },
       error: () => { this.loanSaving.set(false); this.loanError.set('The loan type couldn’t save. Please try again.'); },
     });
   }
-  readonly notice = signal('');
+  readonly notice = notificationSignal('success');
   readonly breakdownRefresh = signal(0);
   private readonly money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
   readonly accountOptions = computed<SelectOption[]>(() => [
@@ -130,6 +134,7 @@ export class Accounts implements OnInit {
   readonly hasFilters = signal(false);
 
   ngOnInit(): void {
+    this.categoryService.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadOverview(true));
     const requestedRange = this.route.snapshot.queryParamMap.get('range') as TrendRange;
     if (this.ranges.includes(requestedRange)) this.range.set(requestedRange);
     const id = Number(this.route.snapshot.queryParamMap.get('accountId'));

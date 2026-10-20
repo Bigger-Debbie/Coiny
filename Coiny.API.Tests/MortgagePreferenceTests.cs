@@ -30,6 +30,44 @@ public class MortgagePreferenceTests
         c.AccountBalanceSnapshots.AddRange(new() { AccountId = 1, SnapshotDate = new(2026,10,16), Balance = 5200 }, new() { AccountId = 2, SnapshotDate = new(2026,10,16), Balance = 990 });
         await c.SaveChangesAsync();
     }
+    [Fact] public async Task Investment_totals_are_separate_household_scoped_and_visible_even_at_zero() {
+        await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db);
+        Assert.False((await Dashboard(db).GetSummaryAsync()).NetWorth.HasInvestments);
+        var c = db.Context();
+        c.Accounts.AddRange(new Account { Id = 10, HouseholdId = 1, Name = "Brokerage", AccountType = AccountType.Investment, OpeningBalance = 2500, OpeningBalanceDate = new(2026,10,1) },
+            new Account { Id = 11, HouseholdId = 2, Name = "Foreign", AccountType = AccountType.Investment, OpeningBalance = 99999, OpeningBalanceDate = new(2026,10,1) }); await c.SaveChangesAsync();
+        var summary = (await Dashboard(db).GetSummaryAsync()).NetWorth;
+        Assert.True(summary.HasInvestments); Assert.Equal(2500, summary.Investments);
+        Assert.Equal(6410, summary.CurrentValue); Assert.Equal(0, summary.Retirement); Assert.Equal(5200, summary.LiquidFunds);
+        (await c.Accounts.FindAsync(10))!.OpeningBalance = 0; await c.SaveChangesAsync();
+        summary = (await Dashboard(db).GetSummaryAsync()).NetWorth;
+        Assert.True(summary.HasInvestments); Assert.Equal(0, summary.Investments);
+    }
+    [Fact] public async Task Account_edit_rebuilds_history_and_keeps_transactions_intact() {
+        await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db); var c = db.Context(); var user = new User();
+        c.AccountBalanceSnapshots.Add(new() { AccountId = 1, SnapshotDate = new(2026,10,1), Balance = 5000 }); await c.SaveChangesAsync();
+        var service = new AccountService(c, user, new AccountBalanceService(c), new AccountBalanceSnapshotService(c,user));
+        var result = await service.UpdateAccountAsync(1, new() { Name = " New checking ", AccountType = AccountType.Checking,
+            OpeningBalance = 1000, OpeningBalanceDate = new(2026,10,5) });
+        Assert.Equal("New checking", result.Name); Assert.Equal(1200, result.CurrentBalance);
+        Assert.False(await c.AccountBalanceSnapshots.AnyAsync(s => s.AccountId == 1 && s.SnapshotDate < new DateOnly(2026,10,5)));
+        Assert.Equal(1000, (await c.AccountBalanceSnapshots.SingleAsync(s => s.AccountId == 1 && s.SnapshotDate == new DateOnly(2026,10,5))).Balance);
+        Assert.Equal(1200, (await c.AccountBalanceSnapshots.SingleAsync(s => s.AccountId == 1 && s.SnapshotDate == new DateOnly(2026,10,16))).Balance);
+        Assert.Equal(200, (await c.Transactions.SingleAsync(t => t.AccountId == 1)).Amount);
+    }
+    [Fact] public async Task Account_edit_rejects_foreign_accounts_type_changes_invalid_dates_and_foreign_institutions() {
+        await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db); var c = db.Context(); var user = new User();
+        c.Institutions.Add(new Institution { Id = 50, HouseholdId = 2, Name = "Foreign" }); await c.SaveChangesAsync();
+        var service = new AccountService(c, user, new AccountBalanceService(c), new AccountBalanceSnapshotService(c,user));
+        CreateAccountRequest Valid() => new() { Name = "Checking", AccountType = AccountType.Checking, OpeningBalance = 5000, OpeningBalanceDate = new(2026,10,1) };
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.UpdateAccountAsync(5, Valid()));
+        var change = Valid(); change.AccountType = AccountType.Loan; await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateAccountAsync(1,change));
+        change = Valid(); change.OpeningBalanceDate = new(2026,10,17); await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateAccountAsync(1,change));
+        change = Valid(); change.OpeningBalance = 1.001m; await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateAccountAsync(1,change));
+        change = Valid(); change.InstitutionId = 50; await Assert.ThrowsAsync<ArgumentException>(() => service.UpdateAccountAsync(1,change));
+        using var verify = db.Context(); Assert.Equal(5000, (await verify.Accounts.FindAsync(1))!.OpeningBalance);
+    }
+
     [Fact] public async Task Mortgage_pill_is_separate_but_included_by_default_and_counts_once() {
         await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db);
         var summary = await Dashboard(db).GetSummaryAsync();

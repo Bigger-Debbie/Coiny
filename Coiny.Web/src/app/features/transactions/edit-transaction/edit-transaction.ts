@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../../core/services/toast.service';
 import { afterNextRender, ElementRef, Injector, Component, DestroyRef, inject, Input, HostListener, OnInit, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -28,7 +29,7 @@ export class EditTransaction implements OnInit {
   private readonly injector = inject(Injector);
   readonly loading = signal(true);
   readonly busy = signal(false);
-  readonly error = signal('');
+  readonly error = notificationSignal('error');
   readonly stale = signal(false);
   readonly deleting = signal(false);
   readonly editing = signal(false);

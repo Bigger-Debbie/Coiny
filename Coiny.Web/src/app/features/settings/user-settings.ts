@@ -1,3 +1,4 @@
+import { ToastService, notificationSignal } from '../../core/services/toast.service';
 import { Component, DestroyRef, inject, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -24,10 +25,11 @@ import { UserPreferencesService } from '../../core/services/user-preferences.ser
     .preference-toggle:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }`,
 })
 export class UserSettings implements OnInit {
+  private readonly toasts = inject(ToastService);
   private readonly api = inject(UserPreferencesService);
   private readonly destroy = inject(DestroyRef);
   readonly saved = output<void>(); readonly cancelled = output<void>();
-  readonly busy = signal(false); readonly loading = signal(true); readonly loaded = signal(false); readonly error = signal('');
+  readonly busy = signal(false); readonly loading = signal(true); readonly loaded = signal(false); readonly error = notificationSignal('error');
   includeMortgage = true;
   ngOnInit() { this.load(); }
   load() {
@@ -36,6 +38,6 @@ export class UserSettings implements OnInit {
   }
   save() {
     if (this.busy()) return; this.busy.set(true); this.error.set('');
-    this.api.save({ includeMortgageInNetWorth: this.includeMortgage }).pipe(takeUntilDestroyed(this.destroy)).subscribe({ next: () => { this.busy.set(false); this.saved.emit(); }, error: () => { this.busy.set(false); this.error.set('Your settings couldn’t save. Please try again.'); } });
+    this.api.save({ includeMortgageInNetWorth: this.includeMortgage }).pipe(takeUntilDestroyed(this.destroy)).subscribe({ next: () => { this.toasts.success('Settings saved.'); this.busy.set(false); this.saved.emit(); }, error: () => { this.busy.set(false); this.error.set('Your settings couldn’t save. Please try again.'); } });
   }
 }

@@ -1,0 +1,35 @@
+@if (adding()) {
+  <app-create-category #create (saved)="created($event)" (cancelled)="adding.set(false)" />
+} @else {
+  <div class="toolbar">
+    <div class="tabs" role="group" aria-label="Category type">
+      <button type="button" [class.selected]="type() === 'Expense'" [attr.aria-pressed]="type() === 'Expense'" (click)="type.set('Expense'); editing.set(null)" [disabled]="busy()">Expenses</button>
+      <button type="button" [class.selected]="type() === 'Income'" [attr.aria-pressed]="type() === 'Income'" (click)="type.set('Income'); editing.set(null)" [disabled]="busy()">Income</button>
+    </div>
+    <button class="button-primary" type="button" (click)="adding.set(true)" [disabled]="busy() || loading()">+ Add Category</button>
+  </div>
+  <label class="archived"><input class="archived-toggle" type="checkbox" role="switch" [(ngModel)]="showArchived" [disabled]="busy()" /><span>Show archived categories</span></label>
+  @if (error()) { <p role="alert">{{ error() }}</p> }
+  @if (loading()) { <p role="status">Loading categories…</p> }
+  @else {
+    @if (error() && !categories().length) { <button class="button-outline" type="button" (click)="load()">Try again</button> }
+    <ul>
+      @for (category of visible; track category.id) {
+        <li>
+          @if (editing()?.id === category.id) {
+            <form (ngSubmit)="save()"><label [for]="'category-name-' + category.id">Category name</label>
+              <input [id]="'category-name-' + category.id" name="name" [(ngModel)]="name" required maxlength="100" [disabled]="busy()" />
+              <div class="actions"><button class="button-outline" type="button" (click)="editing.set(null)" [disabled]="busy()">Cancel</button><button class="button-primary" [disabled]="busy() || !name.trim()">Save</button></div>
+            </form>
+          } @else {
+            <div><span>{{ category.name }}</span>@if (!category.isActive) { <small>Archived</small> }@if (category.isSystem) { <small>System category</small> }</div>
+            @if (!category.isSystem) {
+              <div class="actions"><button class="button-outline" type="button" (click)="edit(category)" [disabled]="busy()">Edit<span class="sr-only"> {{ category.name }}</span></button>
+                <button class="button-ghost" type="button" (click)="archive(category)" [disabled]="busy()">{{ category.isActive ? 'Archive' : 'Restore' }}<span class="sr-only"> {{ category.name }}</span></button></div>
+            }
+          }
+        </li>
+      } @empty { <p>No {{ type() === 'Expense' ? 'expense' : 'income' }} categories to show.</p> }
+    </ul>
+  }
+}

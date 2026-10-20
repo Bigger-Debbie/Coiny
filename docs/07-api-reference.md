@@ -1044,3 +1044,19 @@ remains true for a zero-balance mortgage account.
 daily point and derived dollar/percentage change. Account-specific trends and
 recorded balances remain unchanged. Current loan classifications apply across
 the displayed history. Each household member may choose their own view.
+
+### Manage a household category
+
+`PUT /api/categories/{id}` (Bearer authentication)
+
+```json
+{ "name": "Groceries", "isActive": true }
+```
+
+Returns the updated category. Names are trimmed, limited to 100 characters, and unique within the household (case insensitive, including archived names). Set `isActive` to `false` to archive or `true` to restore. Category type cannot be changed. System/transfer categories cannot be edited. Unknown or other-household IDs return 404; invalid names, duplicate names, missing active status, and protected categories return 400. Existing transactions retain their category ID and show the updated name. Archived categories remain in `GET /api/categories` for history and management, but cannot be selected for new transactions or CSV imports. Existing transactions can keep an archived category when edited.
+
+### Edit an account
+
+`PUT /api/accounts/{id}` (Bearer authentication) accepts the same fields as account creation and returns the updated account, including its recalculated current balance. Editable fields: `name`, `institutionId`, `loanSubtype` (loans only), `openingBalance`, and `openingBalanceDate`. Send the existing `accountType`; changing it is rejected to protect ledger interpretation. Opening balances must be nonnegative with at most two decimal places. The opening date cannot be in the future or after an existing transaction. The account and institution must belong to the current household. Missing/foreign accounts return 404; invalid edits return 400. Opening-balance/date changes rebuild stored balance history atomically and preserve transaction records. No database migration is required.
+
+Dashboard summary `netWorth` includes `investments` (sum of Investment account balances) and `hasInvestments` (whether the household has any Investment accounts). These are separate from `retirement` and `liquidFunds`; net-worth calculation is unchanged.

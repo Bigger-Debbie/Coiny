@@ -1,9 +1,11 @@
 <div class="accounts-page">
   <div class="page-heading">
     <h1 class="page-title">Accounts</h1>
-    <button class="button-primary" type="button" (click)="openModal('account')">＋ Add Account</button>
+    <div class="account-actions">
+      @if (selectedAccount(); as account) { <button class="button-outline" type="button" (click)="editingAccount.set(account)">Edit Account</button> }
+      <button class="button-primary" type="button" (click)="openModal('account')">＋ Add Account</button>
+    </div>
   </div>
-  @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
   @if (loading()) {
     <p role="status">Loading your accounts…</p>
   } @else if (loadError()) {
@@ -146,5 +148,11 @@
       @if (loanError()) { <p role="alert">{{ loanError() }}</p> }
       <div class="loan-actions"><button class="button-outline" type="button" (click)="loanAccount.set(null)">Cancel</button><button class="button-primary" type="submit">{{ loanSaving() ? 'Saving…' : 'Save loan type' }}</button></div>
     </fieldset></form>
+  </app-modal>
+}
+
+@if (editingAccount(); as account) {
+  <app-modal title="Edit Account" [busy]="editor.busy()" (dismiss)="editingAccount.set(null)">
+    <app-create-account #editor [embedded]="true" [account]="account" (saved)="accountUpdated()" (cancelled)="editingAccount.set(null)" />
   </app-modal>
 }

@@ -1,3 +1,4 @@
+import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -16,7 +17,9 @@ import { Account } from '../../../shared/models/account/account';
   styleUrl: './create-account.css',
 })
 export class CreateAccount implements OnInit {
+  private readonly toasts = inject(ToastService);
   @Input() embedded = false;
+  @Input() account: Account | null = null;
   readonly saved = output<Account>();
   readonly cancelled = output<void>();
   readonly typeOptions: SelectOption[] = ['Checking', 'Savings', 'CreditCard', 'Investment', 'Retirement', 'Loan', 'Cash', 'Crypto', 'Other']
@@ -36,16 +39,21 @@ export class CreateAccount implements OnInit {
   readonly institutionSaving = signal(false);
   readonly busy = computed(() => this.saving() || this.institutionSaving());
   readonly addingInstitution = signal(false);
-  readonly institutionError = signal('');
+  readonly institutionError = notificationSignal('error');
   institutionName = '';
   institutionWebsite = '';
-  readonly error = signal('');
+  readonly error = notificationSignal('error');
   readonly today = getTrendDates('1D').endDate;
   readonly model: CreateAccountRequest = {
     name: '', accountType: 'Checking', loanSubtype: null, institutionId: null, openingBalance: 0, openingBalanceDate: this.today,
   };
 
-  ngOnInit(): void { this.loadInstitutions(); }
+  ngOnInit(): void {
+    if (this.account) Object.assign(this.model, { name: this.account.name, accountType: this.account.accountType,
+      loanSubtype: this.account.loanSubtype, institutionId: this.account.institutionId,
+      openingBalance: this.account.openingBalance, openingBalanceDate: this.account.openingBalanceDate });
+    this.loadInstitutions();
+  }
   loadInstitutions(): void {
     this.loading.set(true);
     this.loadError.set(false);
@@ -59,10 +67,13 @@ export class CreateAccount implements OnInit {
     if (form.invalid || !this.model.name.trim() || this.model.openingBalanceDate > this.today || this.busy() || this.addingInstitution()) return;
     this.saving.set(true);
     this.error.set('');
-    this.accountService.createAccount({ ...this.model, loanSubtype: this.model.accountType === 'Loan' ? this.model.loanSubtype ?? 'Other' : null, name: this.model.name.trim() })
+    const request = { ...this.model, loanSubtype: this.model.accountType === 'Loan' ? this.model.loanSubtype ?? 'Other' : null, name: this.model.name.trim() };
+    const operation = this.account ? this.accountService.updateAccount(this.account.id, request) : this.accountService.createAccount(request);
+    operation
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: account => {
           this.saving.set(false);
+          if (!this.embedded) this.toasts.success(this.account ? 'Account updated.' : 'Account created.');
           if (this.embedded) this.saved.emit(account);
           else void this.router.navigate(['/accounts'], { queryParams: { accountId: account.id } });
         },
@@ -98,7 +109,7 @@ export class CreateAccount implements OnInit {
     this.institutionError.set('');
     this.institutionService.createInstitution({ name, website: website || null })
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: institution => {
+        next: institution => { this.toasts.success('Institution created.');
           this.institutions.update(items => [...items, institution].sort((a, b) => a.name.localeCompare(b.name)));
           this.model.institutionId = institution.id;
           this.institutionSaving.set(false);

@@ -1,3 +1,4 @@
+import { CategoryManagement } from '../../../features/categories/category-management';
 import { ChangeDetectorRef, Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
@@ -9,7 +10,7 @@ import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings],
+  imports: [Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings, CategoryManagement],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })
@@ -18,6 +19,8 @@ export class AppHeader implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  readonly categoriesOpen = signal(false);
+  openCategories() { this.menuOpen.set(false); this.avatarButton?.nativeElement.focus(); this.categoriesOpen.set(true); }
   readonly settingsOpen = signal(false);
   openSettings() { this.menuOpen.set(false); this.avatarButton?.nativeElement.focus(); this.settingsOpen.set(true); }
   readonly householdOpen = signal(false);

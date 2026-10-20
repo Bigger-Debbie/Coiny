@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../core/services/toast.service';
 import { Component, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { AbstractControl, FormGroup, ReactiveFormsModule, UntypedFormArray, UntypedFormBuilder, ValidationErrors, Validators } from '@angular/forms';
@@ -44,8 +45,8 @@ export class Budget implements OnInit {
   readonly previewLoading = signal(false);
   readonly loading = signal(true);
   readonly busy = signal(false);
-  readonly error = signal('');
-  readonly notice = signal('');
+  readonly error = notificationSignal('error');
+  readonly notice = notificationSignal('success');
   readonly conflict = signal(false);
   readonly attempted = signal(false);
   readonly step = signal(0);

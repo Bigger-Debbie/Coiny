@@ -64,6 +64,21 @@ describe('Dashboard', () => {
     expect(Array.from(f.nativeElement.querySelectorAll('.range-controls button'), (button: any) => button.textContent.trim()))
       .toEqual(['1D', '1W', '1M', '3M', '6M', '1Y', 'YTD']);
   });
+  it('shows Investments between Welcome and Retirement, including zero balances', () => {
+    const { f, summary, initial } = render();
+    summary.flush({ ...summaryData, netWorth: { ...summaryData.netWorth, hasInvestments: true, investments: 2500, hasMortgage: true, mortgage: 1000 } });
+    initial.flush(trend); f.detectChanges();
+    const sidebar = f.nativeElement.querySelector('.net-worth-sidebar');
+    expect(sidebar.children[0].classList.contains('welcome-panel')).toBe(true);
+    expect(sidebar.children[1].classList.contains('investments')).toBe(true);
+    expect(sidebar.children[2].classList.contains('retirement')).toBe(true);
+    expect(sidebar.style.getPropertyValue('--summary-count')).toBe('5');
+    expect(sidebar.querySelector('.investments').textContent).toContain('$2,500.00');
+    f.componentInstance.dashboard.set({ ...summaryData, netWorth: { ...summaryData.netWorth, hasInvestments: true, investments: 0 } }); f.detectChanges();
+    expect(sidebar.querySelector('.investments').textContent).toContain('$0.00');
+    f.componentInstance.dashboard.set(summaryData); f.detectChanges();
+    expect(sidebar.querySelector('.investments')).toBeNull();
+  });
   it('shows mortgage separately and clearly labels the excluded view', () => {
     const { f, summary, initial } = render();
     summary.flush({ ...summaryData, netWorth: { ...summaryData.netWorth, hasMortgage: true, mortgage: 250000, includeMortgageInNetWorth: false } }); initial.flush(trend); f.detectChanges();

@@ -1,3 +1,5 @@
+import { CategoryService } from '../../core/services/category.service';
+import { ToastService } from '../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -22,6 +24,7 @@ import { TransactionList } from './transaction-list/transaction-list';
   styleUrl: './dashboard.css',
 })
 export class Dashboard implements OnInit {
+  private readonly categoryService = inject(CategoryService);
   private readonly dashboardService = inject(DashboardService);
   private readonly preferences = inject(UserPreferencesService);
   private readonly authService = inject(AuthService);
@@ -30,7 +33,8 @@ export class Dashboard implements OnInit {
   private trendRequest?: Subscription;
 
   readonly transactionId = signal<number | null>(null);
-  transactionChanged(): void { this.transactionId.set(null); this.loadSummary(); this.loadTrend(); }
+  private readonly toasts = inject(ToastService);
+  transactionChanged(action: 'updated' | 'deleted' = 'updated'): void { this.toasts.success(action === 'updated' ? 'Transaction updated.' : 'Transaction deleted.'); this.transactionId.set(null); this.loadSummary(); this.loadTrend(); }
   readonly dashboard = signal<DashboardSummary | null>(null);
   readonly summaryLoading = signal(true);
   readonly summaryError = signal(false);
@@ -57,6 +61,7 @@ export class Dashboard implements OnInit {
   });
 
   ngOnInit(): void {
+    this.categoryService.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadSummary());
     this.loadSummary();
     this.loadTrend();
     this.preferences.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => { this.loadSummary(); this.loadTrend(); });

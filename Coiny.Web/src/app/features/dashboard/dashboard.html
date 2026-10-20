@@ -58,8 +58,9 @@
         </div>
       </div>
     </div>
-    <aside class="net-worth-sidebar" [class.has-mortgage]="dashboard()?.netWorth?.hasMortgage" aria-label="Balance breakdown">
+    <aside class="net-worth-sidebar" [class.has-mortgage]="dashboard()?.netWorth?.hasMortgage" [class.has-investments]="dashboard()?.netWorth?.hasInvestments" [style.--summary-count]="3 + (dashboard()?.netWorth?.hasMortgage ? 1 : 0) + (dashboard()?.netWorth?.hasInvestments ? 1 : 0)" aria-label="Balance breakdown">
       <div class="welcome-panel"><h2>Welcome back@if (firstName()) {, {{ firstName() }}}</h2><p>{{ householdGreeting() }}</p></div>
+      @if (dashboard()?.netWorth?.hasInvestments) { <div class="summary-panel investments"><strong>{{ dashboard()!.netWorth.investments | currency }}</strong><span>Investments</span></div> }
       <div class="summary-panel retirement"><strong>{{ dashboard() ? (dashboard()!.netWorth.retirement | currency) : '—' }}</strong><span>Retirement</span></div>
       <div class="summary-panel liquid"><strong>{{ dashboard() ? (dashboard()!.netWorth.liquidFunds | currency) : '—' }}</strong><span>Liquid Funds</span></div>
       <div class="summary-panel debt"><strong>{{ dashboard() ? (dashboard()!.netWorth.debt | currency) : '—' }}</strong><span>Other Debt</span></div>
@@ -99,5 +100,5 @@
 </div>
 
 @defer (when transactionId() !== null) {
-  @if (transactionId(); as id) { <app-edit-transaction [transactionId]="id" (dismiss)="transactionId.set(null)" (changed)="transactionChanged()" /> }
+  @if (transactionId(); as id) { <app-edit-transaction [transactionId]="id" (dismiss)="transactionId.set(null)" (changed)="transactionChanged($event)" /> }
 }

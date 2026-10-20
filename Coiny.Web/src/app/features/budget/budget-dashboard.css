@@ -12,6 +12,10 @@ p { line-height:1.6; }
 .totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:1.5rem; }
 .totals span { display:block; font-size:.85rem; color:var(--color-text-muted); margin-bottom:.75rem; }
 .totals strong { font-size:clamp(1.3rem,2.5vw,2rem); font-weight:500; color:var(--color-primary); overflow-wrap:anywhere; }
+.totals .income-total { border-color:var(--color-success); }
+.totals .income-total strong { color:var(--color-success); }
+.totals .allocations-total { border-color:var(--color-danger); }
+.totals .allocations-total strong { color:var(--color-danger); }
 .totals .over strong,.warning { color:var(--color-danger); }
 .outlook-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem; align-items:start; }
 .detail-panels { position:relative; min-height:0; align-self:stretch; }

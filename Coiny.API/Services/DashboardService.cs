@@ -59,6 +59,8 @@ public class DashboardService : IDashboardService
 
         var NetWorthSummary = new NetWorthSummaryResponse
         {
+            Investments = accounts.Where(a => a.AccountType == AccountType.Investment).Sum(a => a.CurrentBalance),
+            HasInvestments = accounts.Any(a => a.AccountType == AccountType.Investment),
             IncludeMortgageInNetWorth = includeMortgage,
             HasMortgage = accounts.Any(a => a.AccountType == AccountType.Loan && a.LoanSubtype == LoanSubtype.Mortgage),
             Mortgage = accounts.Where(a => a.AccountType == AccountType.Loan && a.LoanSubtype == LoanSubtype.Mortgage).Sum(a => a.CurrentBalance),

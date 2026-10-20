@@ -40,6 +40,9 @@ public class CategoryService : ICategoryService
     {
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
 
+        request.Name = request.Name.Trim();
+        if (request.Name.Length is < 1 or > 100 || request.CategoryType is not (Coiny.API.Enums.CategoryType.Income or Coiny.API.Enums.CategoryType.Expense))
+            throw new InvalidOperationException("Enter a category name of up to 100 characters and choose Income or Expense.");
         var categoryExists = await _context.Categories
             .AnyAsync(c => 
                 c.HouseholdId == householdId &&

@@ -1,3 +1,4 @@
+import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -22,6 +23,7 @@ import { SelectMenu, SelectOption } from '../../../shared/components/select-menu
   styleUrl: './create-transaction.css',
 })
 export class CreateTransaction implements OnInit {
+  private readonly toasts = inject(ToastService);
   @Input() embedded = false;
   @Input() accountId: number | null = null;
   readonly saved = output<void>();
@@ -64,13 +66,13 @@ export class CreateTransaction implements OnInit {
   readonly categorySaving = signal(false);
   readonly busy = computed(() => this.saving() || this.categorySaving());
   readonly addingCategory = signal(false);
-  readonly categoryError = signal('');
+  readonly categoryError = notificationSignal('error');
   categoryName = '';
   categoryType: 'Expense' | 'Income' = 'Expense';
   readonly categoryTypes: SelectOption[] = [
     { value: 'Expense', label: 'Expense' }, { value: 'Income', label: 'Income' },
   ];
-  readonly error = signal('');
+  readonly error = notificationSignal('error');
   accounts: Account[] = [];
   categories: Category[] = [];
   private readonly returnAccountId = Number(this.route.snapshot.queryParamMap.get('accountId')) || null;
@@ -132,6 +134,7 @@ export class CreateTransaction implements OnInit {
     operation.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: () => {
           this.saving.set(false);
+          if (!this.embedded) this.toasts.success('Transaction created.');
           if (this.embedded) this.saved.emit();
           else void this.router.navigate(['/accounts'], { queryParams: { accountId: this.request.accountId } });
         },
@@ -164,7 +167,7 @@ export class CreateTransaction implements OnInit {
     this.categoryError.set('');
     this.categoryService.createCategory({ name, categoryType: this.categoryType })
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: category => {
+        next: category => { this.toasts.success('Category created.');
           this.categories = [...this.categories, category].sort((a, b) => a.name.localeCompare(b.name));
           this.request.categoryId = category.id;
           this.kind = category.categoryType as 'Income' | 'Expense';

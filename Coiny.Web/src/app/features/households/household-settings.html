@@ -40,6 +40,5 @@
       </article>
     }
     @if (error()) { <p class="error" role="alert">{{ error() }}</p><button class="button-outline" [disabled]="busy()" (click)="load()">Reload household</button> }
-    @if (notice()) { <p role="status">{{ notice() }}</p> }
   }
 </section>

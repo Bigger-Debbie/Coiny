@@ -1,0 +1,23 @@
+:host { display:flex; flex-direction:column; max-height:min(36rem,calc(100dvh - 12rem)); }
+.toolbar,.archived { flex-shrink:0; }
+.toolbar,.actions { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+.toolbar { justify-content:space-between; margin-bottom:1rem; }
+.tabs { display:flex; gap:.2rem; padding:.25rem; background:var(--color-background); border-radius:var(--radius-sm); }
+.tabs button { background:transparent; color:var(--color-text-muted); font-weight:400; }
+.tabs .selected { background:var(--color-primary); color:white; }
+.archived { display:flex; align-items:center; justify-content:flex-start; gap:.75rem; color:var(--color-text-muted); font-size:.9rem; font-weight:400; }
+.archived-toggle { appearance:none; flex-shrink:0; width:2.75rem; height:1.5rem; padding:2px; margin:0; border:0; border-radius:2rem; background:var(--color-border); cursor:pointer; }
+.archived-toggle::before { content:''; display:block; width:1.25rem; height:1.25rem; border-radius:50%; background:white; }
+.archived-toggle:checked { background:var(--color-primary); }
+.archived-toggle:checked::before { transform:translateX(1.25rem); }
+.archived-toggle:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+ul { list-style:none; padding:0 .5rem 0 0; margin:1rem 0 0; flex:1; min-height:0; max-height:24rem; overflow-y:auto; scrollbar-gutter:stable; }
+li { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 0; border-top:1px solid var(--color-border); }
+li > div:first-child { overflow-wrap:anywhere; min-width:0; }
+small { display:block; margin-top:.3rem; color:var(--color-text-muted); }
+form { width:100%; display:grid; gap:.75rem; }
+input:not([type=checkbox]) { box-sizing:border-box; width:100%; }
+p[role=alert] { color:var(--color-danger); }
+button:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@media(max-width:500px) { li { align-items:flex-start; flex-direction:column; } }

@@ -154,3 +154,7 @@ on the user and returned by `/auth/me` and `/users/me/preferences`. Household
 members retain independent choices. Excluded views are labelled explicitly, and
 mortgage balances stay visible separately. Saving updates the shared profile
 state and refreshes any active dashboard/accounts aggregate view.
+
+### Category management
+
+The avatar menu’s **Categories** item opens a household category modal with Expenses and Income tabs. Users can add categories, rename them, archive them, and restore archived categories through the “Show archived categories” option. System categories are protected, and category type stays fixed. Archiving preserves transaction history. Existing Add Transaction buttons and category creation options remain available. Changes use the shared toast notifications.

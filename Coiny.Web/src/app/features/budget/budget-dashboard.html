@@ -13,8 +13,8 @@
     @if (plan.revisionId === null) { <div class="panel"><h3>No published plan for this month</h3><p>Choose a month when your budget is in effect. Draft changes appear here after you publish them.</p></div> }
     @else {
       <div class="totals" aria-label="Monthly planned totals">
-        <div class="panel"><span>Take-home income</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
-        <div class="panel"><span>Planned allocations</span><strong>{{ plan.allocated | currency }}</strong></div>
+        <div class="panel income-total"><span>Take-home income</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
+        <div class="panel allocations-total"><span>Planned allocations</span><strong>{{ plan.allocated | currency }}</strong></div>
         <div class="panel" [class.over]="plan.overBudget > 0"><span>{{ plan.overBudget > 0 ? 'Over budget' : 'Unassigned' }}</span><strong>{{ (plan.overBudget > 0 ? plan.overBudget : plan.unassigned) | currency }}</strong></div>
       </div>
       <div class="outlook-grid">

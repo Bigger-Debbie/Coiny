@@ -7,6 +7,8 @@ export interface DashboardSummary {
         retirement: number;
         liquidFunds: number;
         debt: number;
+        investments?: number;
+        hasInvestments?: boolean;
         mortgage?: number;
         hasMortgage?: boolean;
         includeMortgageInNetWorth?: boolean;

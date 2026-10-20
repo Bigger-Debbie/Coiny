@@ -137,7 +137,7 @@ public class TransactionService : ITransactionService
 
         var category = await _context.Categories
             .FirstOrDefaultAsync(c => 
-                c.Id == request.CategoryId &&
+                c.Id == request.CategoryId && c.IsActive &&
                 c.HouseholdId == householdId);
 
         if (category is null)

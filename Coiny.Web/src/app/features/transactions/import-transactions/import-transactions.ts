@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../../core/services/toast.service';
 import { Component, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -23,7 +24,7 @@ export class ImportTransactions implements OnInit {
   readonly loading = signal(true);
   readonly loadError = signal(false);
   readonly reading = signal(false);
-  readonly error = signal('');
+  readonly error = notificationSignal('error');
   readonly document = signal<CsvDocument | null>(null);
   readonly preview = signal<ImportReviewRow[]>([]);
   readonly importBusy = signal(false);

@@ -39,7 +39,6 @@ dd { margin:0; color:var(--color-primary); font-weight:700; white-space:nowrap; 
 .review-row strong { white-space:nowrap; color:var(--color-primary); }
 .message { padding:1rem; border:1px solid currentColor; border-radius:var(--radius-sm); margin-bottom:1rem; }
 .error,.error dd { color:var(--color-danger); }
-.success { color:var(--color-success); }
 .unsaved { color:var(--color-warning); }
 button:disabled { opacity:.55; cursor:default; transform:none; }
 @media(max-width:950px) { .setup-layout { grid-template-columns:1fr; } .summary { position:static; } .steps { flex-wrap:wrap; } .steps li { flex:1 1 30%; } }

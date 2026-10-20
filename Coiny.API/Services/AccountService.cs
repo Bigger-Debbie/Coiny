@@ -27,6 +27,39 @@ public class AccountService : IAccountService
         _snapshotService = snapshotService;
     }
 
+    public async Task<AccountResponse> UpdateAccountAsync(int id, CreateAccountRequest request)
+    {
+        var household = await _currentUserService.GetCurrentHouseholdIdAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        var account = await _context.Accounts.SingleOrDefaultAsync(a => a.Id == id && a.HouseholdId == household)
+            ?? throw new KeyNotFoundException("Account not found.");
+        var name = request.Name.Trim();
+        if (name.Length is < 1 or > 100) throw new ArgumentException("Enter an account name of up to 100 characters.");
+        if (request.AccountType != account.AccountType) throw new ArgumentException("Account type cannot be changed after creation.");
+        if (request.LoanSubtype.HasValue && (!Enum.IsDefined(request.LoanSubtype.Value) || account.AccountType != AccountType.Loan))
+            throw new ArgumentException("Choose a valid loan subtype, only for a loan account.");
+        if (request.OpeningBalance < 0 || decimal.Round(request.OpeningBalance, 2) != request.OpeningBalance)
+            throw new ArgumentException("Enter an opening balance of zero or more with up to two decimal places.");
+        if (request.OpeningBalanceDate is not { } date || date == DateOnly.MinValue || date > DateOnly.FromDateTime(DateTime.UtcNow))
+            throw new ArgumentException("Choose a valid opening date on or before today.");
+        if (await _context.Transactions.AnyAsync(t => t.AccountId == id && t.TransactionDate < date.ToDateTime(TimeOnly.MinValue)))
+            throw new ArgumentException("The opening date cannot be after an existing transaction. Choose an earlier date.");
+        if (request.InstitutionId.HasValue && !await _context.Institutions.AnyAsync(i => i.Id == request.InstitutionId && i.HouseholdId == household))
+            throw new ArgumentException("Institution does not belong to the current household.");
+        var rebuild = account.OpeningBalance != request.OpeningBalance || account.OpeningBalanceDate != date;
+        account.Name = name; account.InstitutionId = request.InstitutionId;
+        account.LoanSubtype = account.AccountType == AccountType.Loan ? request.LoanSubtype ?? LoanSubtype.Other : null;
+        account.OpeningBalance = request.OpeningBalance; account.OpeningBalanceDate = date;
+        if (rebuild) {
+            var earlier = await _context.AccountBalanceSnapshots.Where(s => s.AccountId == id && s.SnapshotDate < date).ToListAsync();
+            _context.AccountBalanceSnapshots.RemoveRange(earlier);
+        }
+        await _context.SaveChangesAsync();
+        if (rebuild) { await _snapshotService.RecalculateFromAsync(id, date); await _context.SaveChangesAsync(); }
+        await transaction.CommitAsync();
+        return (await GetAccountsAsync()).Single(a => a.Id == id);
+    }
+
     public async Task<List<AccountResponse>> GetAccountsAsync()
     {
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();

@@ -10,6 +10,7 @@ namespace Coiny.API.Controllers;
 
 [ApiController]
 [Authorize]
+[BudgetApiExceptionFilter]
 [Route("api/[controller]")]
 public class AccountsController : ControllerBase
 {
@@ -42,6 +43,14 @@ public class AccountsController : ControllerBase
         }
         catch (ArgumentException ex) { return BadRequest(ex.Message); }
         catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpPut("{id:int:min(1)}")]
+    public async Task<ActionResult<AccountResponse>> UpdateAccount(int id, CreateAccountRequest request)
+    {
+        try { return Ok(await _accountService.UpdateAccountAsync(id, request)); }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
     }
 
     [HttpPost]

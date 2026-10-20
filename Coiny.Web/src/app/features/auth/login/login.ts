@@ -1,3 +1,4 @@
+import { notificationSignal } from '../../../core/services/toast.service';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -16,7 +17,7 @@ export class Login {
   readonly joinCode = inject(ActivatedRoute).snapshot.queryParamMap.get('code')?.slice(0, 32) ?? '';
   readonly passwordVisible = signal(false);
   readonly submitting = signal(false);
-  readonly errorMessage = signal('');
+  readonly errorMessage = notificationSignal('error');
   readonly notice = signal('');
   readonly paused = signal(false);
   readonly coins = Array.from({ length: 14 }, (_, i) => ({

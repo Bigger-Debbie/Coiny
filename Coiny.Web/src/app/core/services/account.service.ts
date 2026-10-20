@@ -21,6 +21,9 @@ export class AccountService {
     getTrend(accountId: number, startDate: string, endDate: string): Observable<TrendResult> {
         return this.http.get<TrendResult>(`${this.apiUrl}/${accountId}/trend`, { params: { startDate, endDate } });
     }
+    updateAccount(id: number, request: CreateAccountRequest): Observable<Account> {
+        return this.http.put<Account>(`${this.apiUrl}/${id}`, request);
+    }
     createAccount(request: CreateAccountRequest): Observable<Account> {
         return this.http.post<Account>(this.apiUrl, request);
     }

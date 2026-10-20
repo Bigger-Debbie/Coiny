@@ -32,7 +32,6 @@
             <div><label for="review-category-type">Category type</label><app-select-menu inputId="review-category-type" label="New category type" [options]="categoryTypes" [(ngModel)]="categoryType" /></div>
           </div><button class="button-primary" type="button" (click)="saveCategory()">Save Category</button><button class="button-ghost" type="button" (click)="creatingCategory.set(false)">Cancel</button></div>
         }
-        @if (notice()) { <p role="status">{{ notice() }}</p> }
         <div class="sheet-legend" aria-label="Row statuses"><span>✓ Ready</span><span>◷ Needs review</span><span>! Fix data</span><span>— Excluded</span><small>Click a cell to edit · Enter saves · Escape cancels · Tab moves to the next cell</small></div>
         <div class="sheet-scroll" tabindex="0" role="region" aria-label="Editable transaction review spreadsheet">
           <table class="review-table"><thead><tr>

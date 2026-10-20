@@ -12,7 +12,8 @@
 .change-value.positive { color: var(--color-success); }
 .change-value.negative { color: var(--color-danger); }
 .change-icon { width: 1.15rem; height: 1.15rem; }
-.net-worth-chart { margin-top: 0.5rem; min-width: 0; }
+.net-worth-chart { display:flex; flex:1; margin-top:0.5rem; min-width:0; min-height:clamp(15rem,27vw,21rem); }
+.net-worth-chart > app-trend-chart, .net-worth-chart > .chart-state { flex:1; min-width:0; }
 .net-worth-range { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; flex-wrap: wrap; padding-top: 1rem; border-top: 1px solid var(--color-border); }
 .range-controls { display: flex; gap: 0.15rem; padding: 0.25rem; background: var(--color-background); border-radius: var(--radius-sm); }
 .range-controls button { padding: 0.55rem 0.65rem; min-height: 2.75rem; color: var(--color-text-muted); background: transparent; font-size: 0.8rem; font-weight: 400; }
@@ -24,11 +25,11 @@ button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 
 .summary-error { margin-top: 1rem; color: var(--color-text-muted); font-size: 0.85rem; }
 .loading-line { width: 5rem; height: 0.2rem; margin-bottom: 1rem; border-radius: 1rem; background: var(--color-border); animation: pulse 1.5s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: 0.3; } }
-.net-worth-sidebar { display: grid; grid-template-rows: minmax(7rem, 1fr) repeat(3, auto); gap: 1.25rem; }
+.net-worth-sidebar { display: grid; grid-template-rows: minmax(7rem, 1fr) repeat(var(--summary-count, 3), auto); gap: 1rem; }
 .welcome-panel { padding: 1.25rem 1.5rem; border-radius: var(--radius-md); background: var(--color-primary); color: white; }
 .welcome-panel h2 { color: white; font-size: 1.5rem; font-weight: 700; margin: 0 0 0.35rem; }
 .welcome-panel p { margin: 0; font-size: 0.9rem; }
-.summary-panel { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.3rem 1rem; padding: 0.9rem 1.25rem; color: white; border-radius: var(--radius-md); }
+.summary-panel { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.3rem 1rem; padding: 0.65rem 1.25rem; color: white; border-radius: var(--radius-md); }
 .retirement { background: var(--color-accent); color: var(--color-primary); }
 .liquid { background: var(--color-success); }
 .debt { background: var(--color-danger); }
@@ -41,8 +42,7 @@ button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 
 @media (max-width: 600px) { .net-worth-sidebar, .dashboard-columns { grid-template-columns: 1fr; } .range-controls { width: 100%; justify-content: space-between; } .range-controls button { padding-inline: 0.35rem; flex: 1; } }
 @media (prefers-reduced-motion: reduce) { .loading-line { animation: none; } }
 
-.summary-panel.mortgage { background:var(--color-primary); color:white; }
+.summary-panel.investments, .summary-panel.mortgage { background:var(--color-primary); color:white; }
 
-.net-worth-sidebar.has-mortgage { grid-template-rows:minmax(7rem,1fr) repeat(4,auto); }
-@media(max-width:1000px) { .net-worth-sidebar.has-mortgage { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; } }
-@media(max-width:600px) { .net-worth-sidebar.has-mortgage { grid-template-columns:1fr; } }
+@media(max-width:1000px) { .net-worth-sidebar:is(.has-mortgage, .has-investments) { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; } }
+@media(max-width:600px) { .net-worth-sidebar:is(.has-mortgage, .has-investments) { grid-template-columns:1fr; } }

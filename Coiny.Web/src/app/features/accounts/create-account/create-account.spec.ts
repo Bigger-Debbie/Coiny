@@ -18,6 +18,20 @@ describe('CreateAccount', () => {
     f.detectChanges(); await f.whenStable();
     return f;
   }
+  it('loads an existing account and saves changes with PUT while keeping account type fixed', async () => {
+    const f = TestBed.createComponent(CreateAccount);
+    const account = { id: 8, name: 'Home', institutionId: 1, institutionName: 'Bank', accountType: 'Loan', loanSubtype: 'Mortgage', openingBalance: 100000, openingBalanceDate: '2026-01-01', currentBalance: 99000, isActive: true };
+    f.componentRef.setInput('account', account); f.componentRef.setInput('embedded', true); f.detectChanges();
+    http.expectOne(r => r.url.endsWith('/institutions')).flush([{ id: 1, name: 'Bank', isActive: true }]);
+    f.detectChanges(); await f.whenStable();
+    expect(f.componentInstance.model.name).toBe('Home');
+    const saved = vi.fn(); f.componentInstance.saved.subscribe(saved);
+    f.componentInstance.model.name = 'Our home';
+    f.componentInstance.save({ invalid: false } as never);
+    const update = http.expectOne(r => r.method === 'PUT' && r.url.endsWith('/accounts/8'));
+    expect(update.request.body.accountType).toBe('Loan'); expect(update.request.body.name).toBe('Our home');
+    update.flush({ ...account, name: 'Our home' }); expect(saved).toHaveBeenCalled();
+  });
   it('blocks empty names and negative opening balances', async () => {
     const f = await render();
     Object.assign(f.componentInstance.model, { name: '', openingBalance: -1 });

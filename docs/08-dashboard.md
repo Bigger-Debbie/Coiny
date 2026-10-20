@@ -330,3 +330,13 @@ history, without recalculating individual ledger balances. Property/home values
 are not inferred or added automatically.
 
 The Accounts pane shows a neutral dash when a percentage change cannot be calculated from a zero starting balance. Its tooltip explains why; a dollar change is not substituted into the percentage column.
+
+### Action notifications
+
+Action confirmations appear as shared toast notifications in the lower-right corner across routes, including account and transaction creation, updates/deletion, CSV imports, budget saves/publication, bill payment updates, household actions, and preference saves. Each notification remains for 30 seconds, stacks independently, and has a dismiss button. Success uses a green accent and errors use red, with text and icons as additional cues. Notifications use the site’s surface, border radius, typography, and shadow tokens. A nonmodal popover keeps feedback visible above dialogs. Error details needed to correct a form remain beside that form as well.
+
+### Edit account details
+
+Select an individual account on the Accounts page and choose **Edit Account** beside **Add Account**. The modal supports name, institution (including on-the-fly institution creation), loan subtype, and opening balance/date corrections. Account type stays fixed. Saving refreshes the selected account’s balances, trend, and transactions and shows a success toast. Opening balance corrections recalculate history; an opening date after an existing transaction is rejected.
+
+The dashboard shows a blue **Investments** total between Welcome and Retirement whenever the household has an Investment account, even if its balance is zero. It sums Investment accounts separately from Retirement and Liquid Funds. Net worth already includes these balances and is unchanged by this display.
