@@ -266,3 +266,67 @@ current boundary.
 Reuse the existing CSS tokens in `src/styles/variables.css`. Keep business signs,
 calendar rules, and API contracts consistent with the backend. See
 [frontend commands](../Coiny.Web/README.md) for build/test entry points.
+
+
+## Transaction corrections
+
+The accounts page highlights transaction rows on hover/focus. Clicking a row or
+activating its full-row button with Enter/Space opens read-only **Transaction Details**.
+It shows the date, amount, account/institution, type/category, merchant, cleared
+status, notes, transfer counterparty, import source, and bill link when present.
+**Edit transaction** switches the same modal into editing. Cancel returns to details,
+with a discard prompt for unsaved changes. The dashboard recent-transactions pane uses the same highlighted rows and details
+modal. The lazily loaded editor supports
+account, type/category, amount, date, description, merchant, notes, and cleared
+status. Loading errors can be retried; stale writes require reloading current
+server details. Closing with unsaved changes prompts before discarding, and
+refresh/close warns while dirty or saving.
+
+The Delete action opens an explicit confirmation. For a linked transfer it names
+the other account and confirms deletion of both entries. Updating a transfer's
+amount adjusts both entries; other fields apply only to the selected side.
+Unknown/external transfer entries can be corrected to income/expense and vice
+versa. Linked transfers keep their type/direction and distinct accounts.
+
+Bill-linked transactions retain their link/payment status on edits. They cannot
+be changed from Expense until unlinked in the bill payment dialog. Deleting one
+detaches its bill while retaining payment status. Imported entries retain batch
+provenance; batch counts describe the original import and are not rewritten.
+
+After save/delete, accounts, trends, filtered transactions, and category totals
+reload. The selected account, range, and filter values remain; the list returns
+to its first page. Account/category editing and archiving remain future work.
+
+
+Dashboard account rows highlight on hover/focus and link to `/accounts?accountId=ID`,
+so keyboard activation and opening in a new tab retain the selected account.
+Dashboard transaction rows open the shared details modal in place. Changes through
+that modal reload dashboard balances, account trends, recent transactions, and
+the hero chart while retaining the selected chart range.
+
+
+## Mortgage and personal settings
+
+The home balance sidebar shows Retirement, Liquid Funds, Other Debt, and—only
+when the household has an explicitly classified mortgage account—Mortgage.
+Mortgage uses the primary blue background with white text. Other Debt excludes
+mortgages; the mortgage pill remains visible even when omitted from the headline.
+A zero-balance mortgage still counts as an existing mortgage account.
+
+The profile menu's **Settings** item opens a modal with **Include mortgage in net
+worth**. It defaults on and is saved per authenticated user. Turning it off labels
+the headline **Net Worth**, followed by a smaller gray **excluding mortgage** label. Saving refreshes the summary and
+hero chart without changing the selected timeframe. The current value, all daily
+points, and dollar/percentage changes use the same preference. Cancelling does
+not change the saved view. Shared account balances, transaction history, and bill
+schedules are unaffected. The accounts page's All accounts view follows the same
+preference; individual loan balances/trends continue to show the actual debt.
+
+New Loan accounts offer Mortgage, Auto, Personal, Student, and Other. For an
+existing loan, select it on the accounts page and choose **Change** beside Loan
+Type in the balance card. Existing loans default to Other until explicitly
+classified. Changing a subtype changes classification across the displayed
+history, without recalculating individual ledger balances. Property/home values
+are not inferred or added automatically.
+
+The Accounts pane shows a neutral dash when a percentage change cannot be calculated from a zero starting balance. Its tooltip explains why; a dollar change is not substituted into the percentage column.

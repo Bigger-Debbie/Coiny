@@ -162,7 +162,27 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
         }
         var current = await balances.GetCurrentBalanceAsync(account.Id);
         var valid = checks.All(c => c.Errors.Count == 0);
-        return new(checks, valid, current, valid ? current + delta : null);
+        ImportBalanceComparison? comparison = null;
+        if (request.BankBalanceCheck is { } bank)
+        {
+            if (account.AccountType is not (AccountType.Checking or AccountType.Savings))
+                throw new ArgumentException("Bank balance comparisons currently support checking and savings accounts only.");
+            if (bank.Date == DateOnly.MinValue || bank.Date < account.OpeningBalanceDate ||
+                bank.Balance < -9_999_999_999_999_999.99m || bank.Balance > 9_999_999_999_999_999.99m || decimal.Round(bank.Balance, 2) != bank.Balance ||
+                request.Rows.Any(r => r.Date > bank.Date))
+                throw new ArgumentException("The bank balance needs a valid date on or after all included rows and the opening date, and an amount with up to two decimal places.");
+            if (valid)
+            {
+                var end = bank.Date.ToDateTime(TimeOnly.MaxValue);
+                var history = await context.Transactions.AsNoTracking().Where(t => t.HouseholdId == householdId && t.AccountId == account.Id && t.TransactionDate <= end)
+                    .Select(t => new { t.Amount, t.Category.CategoryType, t.TransferDirection }).ToListAsync();
+                var calculated = account.OpeningBalance + history.Sum(t => AccountBalanceCalculator.GetBalanceChange(account.AccountType, t.CategoryType, t.Amount, t.TransferDirection)) + delta;
+                var difference = bank.Balance - calculated;
+                comparison = new(bank.Date, bank.Balance, calculated, difference, difference != 0);
+            }
+        }
+        var acknowledged = comparison is null || !comparison.RequiresAcknowledgment || request.BankBalanceCheck!.AcknowledgedCalculatedBalance == comparison.CalculatedBalance;
+        return new(checks, valid && acknowledged, current, valid ? current + delta : null, comparison);
     }
     private static void Headers(TransactionImportRequest request)
     {
@@ -173,12 +193,20 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
             request.Rows.Select(r => r.RowId).Distinct().Count() != request.Rows.Count)
             throw new ArgumentException("Provide 1–2,000 rows with distinct positive row IDs.");
     }
-    private static string Hash(TransactionImportRequest request) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+    private static string Hash(TransactionImportRequest request)
     {
-        request.AccountId, Filename = request.Filename.Trim(), Rows = request.Rows.OrderBy(r => r.RowId).Select(r => new
-        { r.RowId, r.Date, Amount = r.Amount?.ToString("G29", CultureInfo.InvariantCulture), r.Direction, r.CategoryType, r.CategoryId, r.Counterparty,
-            Description = r.Description?.Trim(), Merchant = NullTrim(r.Merchant), Notes = NullTrim(r.Notes), r.IsCleared, r.AllowDuplicate }),
-    }))));
+        // Preserve hashes for CSV batches submitted before optional reconciliation existed.
+        var payload = JsonSerializer.Serialize(new {
+            request.AccountId, Filename = request.Filename.Trim(), Rows = request.Rows.OrderBy(r => r.RowId).Select(r => new
+            { r.RowId, r.Date, Amount = r.Amount?.ToString("G29", CultureInfo.InvariantCulture), r.Direction, r.CategoryType, r.CategoryId, r.Counterparty,
+                Description = r.Description?.Trim(), Merchant = NullTrim(r.Merchant), Notes = NullTrim(r.Notes), r.IsCleared, r.AllowDuplicate }),
+        });
+        if (request.BankBalanceCheck is { } check)
+            payload += "\nBankBalanceCheck:" + JsonSerializer.Serialize(new { check.Date,
+                Balance = check.Balance.ToString("G29", CultureInfo.InvariantCulture),
+                AcknowledgedCalculatedBalance = check.AcknowledgedCalculatedBalance?.ToString("G29", CultureInfo.InvariantCulture) });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
+    }
     private static string? NullTrim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static string Normalize(string value) => string.Join(' ', value.Normalize(NormalizationForm.FormKC).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)).ToUpperInvariant();
     private readonly record struct EntryKey(DateOnly Date, decimal Amount, TransferDirection Direction, string Description);

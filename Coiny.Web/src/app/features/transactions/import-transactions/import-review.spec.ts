@@ -17,9 +17,9 @@ describe('Import transaction review', () => {
     line: 2, date: '2026-10-16', description: 'Coffee', amount: 5, direction: 'Out', classification: 'Dining',
     merchant: null, sourceAccount: null, status: 'Posted', excluded: false, exclusionReason: null, errors: [], ...overrides,
   });
-  async function render(rows = [mapped()]) {
+  async function render(rows = [mapped()], bank: { date: string; balance: number } | null = null) {
     const f = TestBed.createComponent(ImportReview);
-    f.componentRef.setInput('mappedRows', rows);
+    f.componentRef.setInput('mappedRows', rows); f.componentRef.setInput('bankBalance', bank);
     f.componentRef.setInput('account', { id: 1, name: 'Checking', accountType: 'Checking', openingBalanceDate: '2026-10-01' });
     f.componentRef.setInput('filename', 'bank.csv'); f.detectChanges();
     http.expectOne(r => r.url.endsWith('/categories')).flush([
@@ -29,6 +29,27 @@ describe('Import transaction review', () => {
     http.expectOne(r => r.url.endsWith('/transaction-imports')).flush([]);
     f.detectChanges(); await f.whenStable(); return f;
   }
+  it('requires balance difference acknowledgment and binds it to the reviewed calculation', async () => {
+    const f = await render([mapped()], { date: '2026-10-16', balance: 1000 }); const c = f.componentInstance;
+    c.validate(); const preview = http.expectOne(r => r.url.endsWith('/validate'));
+    expect(preview.request.body.bankBalanceCheck).toEqual({ date: '2026-10-16', balance: 1000, acknowledgedCalculatedBalance: null });
+    preview.flush({ ...valid(), canImport: false, balanceComparison: { date: '2026-10-16', bankBalance: 1000, calculatedBalance: 995, difference: 5, requiresAcknowledgment: true } });
+    f.detectChanges(); expect(f.nativeElement.textContent).toContain('Bank balance differs');
+    c.finalConfirmed = true; c.import(); http.expectNone(r => r.method === 'POST' && !r.url.endsWith('/validate'));
+    c.balanceAcknowledged = true; c.finalConfirmed = true; c.import();
+    const save = http.expectOne(r => r.method === 'POST' && !r.url.endsWith('/validate'));
+    expect(save.request.body.bankBalanceCheck.acknowledgedCalculatedBalance).toBe(995);
+    save.flush({ ...valid(), canImport: false, balanceComparison: { date: '2026-10-16', bankBalance: 1000, calculatedBalance: 994, difference: 6, requiresAcknowledgment: true } }, { status: 422, statusText: 'Review again' });
+    expect(c.balanceAcknowledged).toBe(false); expect(c.canImportReviewed).toBe(false); expect(c.locked()).toBe(false);
+  });
+  it('retains the original bank reference when an overlapping source row is skipped', async () => {
+    const f = await render([mapped(), mapped({ line: 3, date: '2026-10-15' })], { date: '2026-10-16', balance: 1000 }); const c = f.componentInstance;
+    c.rows()[0].excluded = true; c.changed(); c.validate();
+    const request = http.expectOne(r => r.url.endsWith('/validate'));
+    expect(request.request.body.rows.map((r: { rowId: number }) => r.rowId)).toEqual([3]);
+    expect(request.request.body.bankBalanceCheck).toMatchObject({ date: '2026-10-16', balance: 1000 });
+    request.flush(valid([3]));
+  });
   function valid(rowIds = [2]): TransactionImportValidation {
     return { rows: rowIds.map(rowId => ({ rowId, errors: [], duplicateTransactionIds: [], duplicateRowIds: [] })), canImport: true, currentBalance: 1000, projectedBalance: 995 };
   }

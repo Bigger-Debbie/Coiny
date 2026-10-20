@@ -3,6 +3,7 @@ import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
 import { DashboardService } from '../../core/services/dashboard.service';
+import { UserPreferencesService } from '../../core/services/user-preferences.service';
 import { AuthService } from '../../core/services/auth.service';
 import { HouseholdService } from '../../core/services/household.service';
 import { DashboardSummary } from '../../shared/models/dashboard/dashboard-summary';
@@ -11,21 +12,25 @@ import { TrendChart } from '../../shared/components/trend-chart/trend-chart';
 import { Icon } from '../../shared/components/icon/icon';
 import { getTrendDates, TrendRange } from './trend-range';
 import { AccountList } from './account-list/account-list';
+import { EditTransaction } from '../transactions/edit-transaction/edit-transaction';
 import { TransactionList } from './transaction-list/transaction-list';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CurrencyPipe, DecimalPipe, TrendChart, Icon, AccountList, TransactionList],
+  imports: [CurrencyPipe, DecimalPipe, TrendChart, Icon, AccountList, TransactionList, EditTransaction],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
 export class Dashboard implements OnInit {
   private readonly dashboardService = inject(DashboardService);
+  private readonly preferences = inject(UserPreferencesService);
   private readonly authService = inject(AuthService);
   private readonly householdService = inject(HouseholdService);
   private readonly destroyRef = inject(DestroyRef);
   private trendRequest?: Subscription;
 
+  readonly transactionId = signal<number | null>(null);
+  transactionChanged(): void { this.transactionId.set(null); this.loadSummary(); this.loadTrend(); }
   readonly dashboard = signal<DashboardSummary | null>(null);
   readonly summaryLoading = signal(true);
   readonly summaryError = signal(false);
@@ -54,6 +59,7 @@ export class Dashboard implements OnInit {
   ngOnInit(): void {
     this.loadSummary();
     this.loadTrend();
+    this.preferences.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => { this.loadSummary(); this.loadTrend(); });
     this.authService.getCurrentUser().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       error: () => { /* AuthService exposes the shared fallback state. */ },
     });

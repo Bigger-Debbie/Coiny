@@ -1,11 +1,12 @@
 import { Component, Input } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { Icon } from '../../../shared/components/icon/icon';
 import { DashboardAccount } from '../../../shared/models/dashboard/dashboard-account';
 
 @Component({
   selector: 'app-account-list',
-  imports: [CurrencyPipe, DecimalPipe, Icon],
+  imports: [CurrencyPipe, DecimalPipe, Icon, RouterLink],
   templateUrl: './account-list.html',
   styleUrl: './account-list.css',
 })

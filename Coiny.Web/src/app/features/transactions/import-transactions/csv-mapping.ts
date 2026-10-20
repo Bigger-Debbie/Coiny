@@ -2,6 +2,7 @@ import { CsvDocument, CsvError } from './csv-parser';
 
 export type CsvDateFormat = 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MM-DD-YYYY' | 'DD-MM-YYYY' | 'DD.MM.YYYY' | 'YYYYMMDD' | 'MM/DD/YY' | 'DD/MM/YY' | 'MM-DD-YY' | 'DD-MM-YY' | 'DD.MM.YY';
 export interface CsvMapping {
+  balanceColumn?: number;
   dateColumn: number;
   descriptionColumn: number;
   amount: { mode: 'split'; debitColumn: number; creditColumn: number } |
@@ -16,6 +17,7 @@ export interface CsvMapping {
   excludedStatuses?: string[];
 }
 export interface ImportReviewRow {
+  bankBalance?: number | null;
   line: number;
   date: string | null;
   description: string;
@@ -43,6 +45,7 @@ export function suggestColumns(headers: string[]): Partial<CsvMapping> {
     dateColumn: find('postdate', 'posteddate', 'transactiondate', 'date'),
     descriptionColumn: find('description', 'transactiondescription', 'memo'),
     statusColumn: find('status'), classificationColumn: find('classification', 'category'),
+    balanceColumn: find('balance', 'runningbalance', 'ledgerbalance', 'postedbalance'),
     merchantColumn: find('merchant', 'payee'), accountColumn: find('accountnumber', 'account'),
     ...(debit !== undefined && credit !== undefined ? { amount: { mode: 'split' as const, debitColumn: debit, creditColumn: credit } } : {}),
   };
@@ -52,7 +55,7 @@ export function mapCsv(document: CsvDocument, mapping: CsvMapping, openingDate: 
   const required = [mapping.dateColumn, mapping.descriptionColumn,
     ...(mapping.amount?.mode === 'split' ? [mapping.amount.debitColumn, mapping.amount.creditColumn] :
       mapping.amount?.mode === 'indicator' ? [mapping.amount.column, mapping.amount.directionColumn] : [mapping.amount?.column])];
-  const optional = [mapping.statusColumn, mapping.classificationColumn, mapping.merchantColumn, mapping.accountColumn].filter(v => v !== undefined);
+  const optional = [mapping.statusColumn, mapping.classificationColumn, mapping.merchantColumn, mapping.accountColumn, mapping.balanceColumn].filter(v => v !== undefined);
   if ([...required, ...optional].some(index => !Number.isInteger(index) || index! < 0 || index! >= document.headers.length))
     throw new CsvError('Choose valid columns for the import.');
   if (new Set([...required, ...optional]).size !== required.length + optional.length)
@@ -92,7 +95,7 @@ export function mapCsv(document: CsvDocument, mapping: CsvMapping, openingDate: 
       mapping.excludedStatuses.some(value => value.trim().toLowerCase() === status.toLowerCase());
     const merchant = get(mapping.merchantColumn) || null;
     if (merchant && merchant.length > 150) errors.push('Shorten the merchant to 150 characters or fewer.');
-    return { line: row.line, date, description, amount, direction, merchant,
+    return { ...(mapping.balanceColumn !== undefined ? { bankBalance: money(get(mapping.balanceColumn), mapping.decimalSeparator) ?? null } : {}), line: row.line, date, description, amount, direction, merchant,
       classification: decodeEntities(get(mapping.classificationColumn)), sourceAccount: get(mapping.accountColumn) || null,
       status, excluded, exclusionReason: excluded ? mapping.excludedStatuses === undefined ? 'Pending transaction — import after it posts.' : 'Excluded by posting-status selection.' : null, errors };
   });
@@ -128,4 +131,22 @@ function money(value: string, decimalSeparator: '.' | ',' = '.'): number | null 
 function decodeEntities(value: string): string {
   const entities: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' };
   return value.replace(/&(amp|quot|apos|lt|gt);/g, (_, key: string) => entities[key]);
+}
+
+
+export type BankBalanceOrder = 'NewestFirst' | 'OldestFirst';
+/** Use the immutable final posted source row, even if users later skip/edit it in review. */
+export function bankBalanceReference(rows: readonly ImportReviewRow[], order: BankBalanceOrder): { date: string; balance: number } {
+  const posted = rows.filter(row => !row.excluded);
+  if (!posted.length || posted.some(row => !row.date)) throw new CsvError('Check the date mapping before verifying a bank balance.');
+  if (order !== 'NewestFirst' && order !== 'OldestFirst') throw new CsvError('Choose the bank’s transaction order.');
+  for (let index = 1; index < posted.length; index++) {
+    const earlier = posted[index - 1].date!, later = posted[index].date!;
+    if (order === 'NewestFirst' ? later > earlier : later < earlier)
+      throw new CsvError('The dates do not match the selected bank order. Check the order/date mapping or ignore the balance column.');
+  }
+  const last = order === 'NewestFirst' ? posted[0] : posted.at(-1)!;
+  if (last.bankBalance == null || !Number.isFinite(last.bankBalance))
+    throw new CsvError('The final posted row needs a valid running balance. Check its column/number format or ignore the balance column.');
+  return { date: last.date!, balance: last.bankBalance };
 }

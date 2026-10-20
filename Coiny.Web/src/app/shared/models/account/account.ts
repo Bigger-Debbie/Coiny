@@ -5,6 +5,7 @@ export interface Account {
 
     name: string; 
 
+    loanSubtype?: string | null;
     accountType: string;
 
     openingBalance: number;

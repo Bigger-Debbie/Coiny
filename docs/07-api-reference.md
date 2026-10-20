@@ -44,10 +44,16 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/accounts/{accountId}/trend` | 200 | Daily balance trend for one owned account |
 | GET | `/api/categories` | 200 | Household categories |
 | POST | `/api/categories` | 201 | Create category |
+| PUT | `/api/accounts/{id}/loan-subtype` | 204 | Classify an existing household loan |
+| GET | `/api/users/me/preferences` | 200 | Current user’s saved dashboard preferences |
+| PUT | `/api/users/me/preferences` | 200 | Save current user’s dashboard preferences |
 | GET | `/api/transactions` | 200 | Household transactions, newest first |
 | GET | `/api/transactions/paged` | 200 | Filtered transaction page with total count |
 | GET | `/api/transactions/category-breakdown` | 200 | Income or expense totals grouped by category |
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
+| GET | `/api/transactions/{id}` | 200 | Editable transaction details, pair version, and optional bill link |
+| PUT | `/api/transactions/{id}` | 200 | Correct a transaction and recalculate affected balances/trends |
+| DELETE | `/api/transactions/{id}` | 204 | Delete a transaction or both linked transfer entries |
 | POST | `/api/transaction-imports/validate` | 200 | Check included rows, categories, duplicates, and projected balance without writing |
 | POST | `/api/transaction-imports` | 200 | Import a reviewed batch atomically or replay its result |
 | GET | `/api/transaction-imports` | 200 | Last 50 household/account import batches |
@@ -872,3 +878,169 @@ Errors: 400 invalid occurrence, payment date, or foreign/ineligible transaction;
 401 unauthenticated; 403 no household; 409 transaction already linked or a write
 conflict. Partial payments and multiple ledger entries per bill are not supported
 in this first version.
+
+
+### Editing and deleting transactions
+
+`GET /api/transactions/{{transactionId}}` returns:
+
+```json
+{
+  "transaction": {
+    "id": 42,
+    "editVersion": 0,
+    "accountId": 1,
+    "categoryId": 3,
+    "categoryType": "Expense",
+    "amount": 25.00,
+    "transactionDate": "2026-10-16T00:00:00",
+    "description": "Dinner",
+    "merchant": "Cafe",
+    "notes": null,
+    "isCleared": true,
+    "importBatchId": null,
+    "pairedTransactionId": null
+  },
+  "pairedEditVersion": null,
+  "bill": null
+}
+```
+
+The nested `transaction` also includes the existing account, institution,
+category, and transfer display fields. `bill`, when present, contains
+`allocationKey`, `dueDate`, and `isPaid`. Transaction list projections now also
+include `editVersion`, `notes`, and `importBatchId`.
+
+Send the full editable state to `PUT /api/transactions/{{transactionId}}`:
+
+```json
+{
+  "expectedEditVersion": 0,
+  "expectedPairedEditVersion": null,
+  "accountId": 1,
+  "categoryType": "Expense",
+  "categoryId": 3,
+  "amount": 30.00,
+  "date": "2026-10-16",
+  "description": "Dinner",
+  "merchant": "Cafe",
+  "notes": "Corrected amount",
+  "isCleared": true,
+  "direction": null,
+  "counterparty": null
+}
+```
+
+The selected account/category must belong to the household. Choose an active
+account/category, or retain the entry's existing inactive one. Amounts must be
+positive and use at most two decimal places; dates cannot precede the selected
+account's opening balance date. Description is required (250 characters), merchant
+allows 150 characters, notes 1,000. Success returns refreshed edit details.
+
+For a single Transfer entry, send `categoryType: "Transfer"`, `direction: "In"`
+or `"Out"`, and `counterparty: "Unknown"` or `"External"`. The service resolves
+its household Transfer category; `categoryId` is ignored. Unlinked entries can be
+reclassified between Income, Expense, and Transfer. An expense linked to a bill
+must stay Expense until explicitly unlinked from that bill.
+
+For a linked transfer, retain its Transfer type/direction and supply the returned
+`expectedPairedEditVersion`. Amount changes update both entries atomically;
+account/date/description/merchant/notes/cleared changes apply only to the selected
+entry. The two accounts must stay different. Existing source dates on the
+counterpart are preserved to reflect different bank posting dates.
+
+Delete using `DELETE /api/transactions/{{transactionId}}?expectedEditVersion=1`.
+For a linked transfer, also include `expectedPairedEditVersion=1`; this deletes
+**both entries**. No request body is needed. A stale/missing counterpart version
+cannot authorize deleting a pair. Deletion is permanent. A bill reference is
+cleared while its independent payment status/date/note remain. Import batch
+history and its original imported count remain for provenance.
+
+Every update/deletion recalculates snapshots from the earliest affected date in
+each account, covering old/new dates, moved accounts, later history, and both
+transfer accounts. Ledger changes, pair changes, and snapshots commit atomically.
+`EditVersion` is a concurrency token; edits and transfer linking/unlinking advance
+it. Reload details after 409 before retrying; do not silently retry stale writes.
+
+Errors: 400 invalid fields/account/category/date/type; 401 unauthenticated;
+403 no household; 404 missing/foreign transaction; 409 stale transaction/pair
+or an incompatible bill link. DELETE requires `expectedEditVersion` in the query.
+
+
+### Optional CSV bank balance check
+
+The existing `POST /api/transaction-imports/validate` and
+`POST /api/transaction-imports` requests accept optional `bankBalanceCheck`:
+
+```json
+{
+  "date": "2026-10-16",
+  "balance": 2450.00,
+  "acknowledgedCalculatedBalance": null
+}
+```
+
+`date` and `balance` are required when the object is supplied. The account must
+be Checking or Savings; the date must be on/after its opening date and all included
+row dates. Balance may be zero or negative, within 18,2 precision. Omitting the
+object retains existing import behavior and preexisting submission hashes.
+
+When rows are valid, validation adds `balanceComparison`:
+
+```json
+{
+  "date": "2026-10-16",
+  "bankBalance": 2450.00,
+  "calculatedBalance": 2425.00,
+  "difference": 25.00,
+  "requiresAcknowledgment": true
+}
+```
+
+The calculation uses opening balance and existing + included ledger entries
+through the supplied date; future entries relative to that date are omitted.
+`difference` is bank minus Coiny. Row errors prevent a comparison and leave
+`balanceComparison` null. A mismatch sets `canImport: false` unless
+`bankBalanceCheck.acknowledgedCalculatedBalance` exactly equals the calculated
+balance. The client can present the acknowledgment after validation and submit
+that reviewed value with the otherwise unchanged request.
+
+Import revalidates under its existing database transaction. An unacknowledged or
+changed difference returns 422 with fresh validation and writes nothing. A valid
+acknowledgment allows importing without any adjustment. A changed bank reference
+or acknowledgment changes the submission hash; reuse of an already-completed
+submission ID with different data returns 409. Response/history shapes are
+unchanged; this feature adds no persistent reconciliation records or migration.
+
+
+### Loan subtypes and personal net-worth preferences
+
+Account creation accepts optional `loanSubtype`: `Mortgage`, `Auto`, `Personal`,
+`Student`, or `Other`, only when `accountType` is `Loan`. Omitted loan subtypes
+default to Other. Non-loan accounts must omit it or send null. Account responses
+and dashboard account summaries include nullable `loanSubtype`.
+
+`PUT /api/accounts/{{accountId}}/loan-subtype` with `{ "loanSubtype": "Mortgage" }`
+classifies an existing household Loan account. Success is 204; missing/foreign
+accounts return 404, non-loans/invalid values return 400. This changes classification,
+not account balances, ledger entries, or snapshots. Existing loans migrate to Other;
+no mortgage inference is made from names.
+
+`GET /api/users/me/preferences` returns `{ "includeMortgageInNetWorth": true }`.
+`PUT` replaces that preference with the same shape; the boolean is required.
+Both routes authenticate the current user, never accept a user/household ID, and
+return 401 when unauthenticated or the authenticated user no longer exists.
+The preference defaults to true for existing and new users. `/api/auth/me` also
+includes `includeMortgageInNetWorth` for shared frontend state.
+
+Dashboard `netWorth` adds `mortgage`, `hasMortgage`, and
+`includeMortgageInNetWorth`. `debt` now means **Other Debt**, excluding mortgages.
+Net-worth current value subtracts both Other Debt and Mortgage by default; when
+the user excludes mortgages, only Other Debt is subtracted. Mortgage is summed
+once from household Loan accounts explicitly classified Mortgage. `hasMortgage`
+remains true for a zero-balance mortgage account.
+
+`GET /api/dashboard/net-worth-trend` applies the same saved preference to every
+daily point and derived dollar/percentage change. Account-specific trends and
+recorded balances remain unchanged. Current loan classifications apply across
+the displayed history. Each household member may choose their own view.

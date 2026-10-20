@@ -6,6 +6,7 @@ public class AccountResponse
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
+    public LoanSubtype? LoanSubtype { get; set; }
     public AccountType AccountType { get; set; }
     public decimal OpeningBalance { get; set; }
     public DateOnly OpeningBalanceDate { get; set; }

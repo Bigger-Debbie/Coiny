@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using Coiny.API.Enums;
 
 namespace Coiny.API.DTOs.Transactions;
 
 public class TransactionImportRequest
 {
+    public ImportBankBalanceCheck? BankBalanceCheck { get; set; }
     [Range(1, int.MaxValue)] public int AccountId { get; set; }
     public Guid SubmissionId { get; set; }
     [Required, MaxLength(255)] public string Filename { get; set; } = "";
@@ -30,6 +32,16 @@ public class TransactionImportRow
 public record ImportRowCheck(int RowId, IReadOnlyList<string> Errors,
     IReadOnlyList<int> DuplicateTransactionIds, IReadOnlyList<int> DuplicateRowIds);
 public record TransactionImportValidation(IReadOnlyList<ImportRowCheck> Rows, bool CanImport,
-    decimal CurrentBalance, decimal? ProjectedBalance);
+    decimal CurrentBalance, decimal? ProjectedBalance, ImportBalanceComparison? BalanceComparison = null);
 public record TransactionImportResponse(int BatchId, Guid SubmissionId, int AccountId,
     string Filename, int ImportedCount, DateTime CompletedAt, decimal BalanceAfter);
+
+
+public class ImportBankBalanceCheck
+{
+    [JsonRequired] public DateOnly Date { get; set; }
+    [JsonRequired] public decimal Balance { get; set; }
+    // Acknowledgment is bound to the exact calculated balance the user reviewed.
+    public decimal? AcknowledgedCalculatedBalance { get; set; }
+}
+public record ImportBalanceComparison(DateOnly Date, decimal BankBalance, decimal CalculatedBalance, decimal Difference, bool RequiresAcknowledgment);

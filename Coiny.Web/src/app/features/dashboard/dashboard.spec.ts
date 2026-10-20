@@ -1,4 +1,8 @@
-import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
+import { EditTransaction } from '../transactions/edit-transaction/edit-transaction';
+import { UserPreferencesService } from '../../core/services/user-preferences.service';
+import { getTrendDates } from './trend-range';
+import { DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
@@ -12,8 +16,14 @@ const trend: TrendResult = {
 const summaryData = { netWorth: { currentValue: 500, retirement: 300, liquidFunds: 250, debt: 50 }, accounts: [], recentTransactions: [] };
 describe('Dashboard', () => {
   let http: HttpTestingController;
-  beforeEach(() => {
+  beforeAll(() => {
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', { configurable: true, value() {} });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', { configurable: true, value() {} });
+  });
+  afterAll(() => { Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal'); Reflect.deleteProperty(HTMLDialogElement.prototype, 'close'); });
+  beforeEach(async () => {
     TestBed.configureTestingModule({ imports: [Dashboard, AppHeader], providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])] });
+    await TestBed.compileComponents();
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
@@ -53,6 +63,23 @@ describe('Dashboard', () => {
     expect(f.nativeElement.querySelector('.welcome-panel p').textContent).toBe('The Ross household at a glance.');
     expect(Array.from(f.nativeElement.querySelectorAll('.range-controls button'), (button: any) => button.textContent.trim()))
       .toEqual(['1D', '1W', '1M', '3M', '6M', '1Y', 'YTD']);
+  });
+  it('shows mortgage separately and clearly labels the excluded view', () => {
+    const { f, summary, initial } = render();
+    summary.flush({ ...summaryData, netWorth: { ...summaryData.netWorth, hasMortgage: true, mortgage: 250000, includeMortgageInNetWorth: false } }); initial.flush(trend); f.detectChanges();
+    expect(f.nativeElement.querySelector('.net-worth-label').textContent).toBe('Net Worthexcluding mortgage');
+    expect(f.nativeElement.querySelector('.summary-panel.mortgage').textContent).toContain('$250,000.00');
+    expect(f.nativeElement.querySelector('.summary-panel.debt').textContent).toContain('Other Debt');
+    f.componentInstance.dashboard.set(summaryData); f.detectChanges(); expect(f.nativeElement.querySelector('.summary-panel.mortgage')).toBeNull();
+  });
+  it('refreshes balances and the current chart range when personal settings are saved', () => {
+    const { f, summary, initial } = render(); summary.flush(summaryData); initial.flush(trend);
+    f.componentInstance.selectRange('1W'); http.expectOne(r => r.url.endsWith('/net-worth-trend')).flush(trend);
+    TestBed.inject(UserPreferencesService).save({ includeMortgageInNetWorth: false }).subscribe();
+    http.expectOne(r => r.method === 'PUT').flush({ includeMortgageInNetWorth: false });
+    http.expectOne(r => r.url.endsWith('/dashboard')).flush({ ...summaryData, netWorth: { ...summaryData.netWorth, includeMortgageInNetWorth: false } });
+    const refreshed = http.expectOne(r => r.url.endsWith('/net-worth-trend')); expect(refreshed.request.params.get('startDate')).toBe(getTrendDates('1W').startDate); refreshed.flush(trend); f.detectChanges();
+    expect(f.componentInstance.selectedRange()).toBe('1W'); expect(f.nativeElement.querySelector('.net-worth-label').textContent).toBe('Net Worthexcluding mortgage');
   });
   it('shares one profile request with the header', () => {
     const header = TestBed.createComponent(AppHeader);
@@ -99,9 +126,29 @@ describe('Dashboard', () => {
     f.detectChanges();
     expect(f.nativeElement.querySelector('app-transaction-list').textContent).toContain('Weekly groceries');
     expect(f.nativeElement.querySelector('app-transaction-list').textContent).toContain('−$92.35');
-    expect(f.nativeElement.querySelector('.transactions-section button')).toBeNull();
+    expect([...f.nativeElement.querySelectorAll('.transactions-section button')].some((button: unknown) => /Add/.test((button as HTMLButtonElement).textContent ?? ''))).toBe(false);
+    expect(f.nativeElement.querySelector('.transaction-open').getAttribute('aria-label')).toContain('View transaction: Weekly groceries');
     expect(f.nativeElement.querySelector('.accounts-section button')).toBeNull();
     http.expectNone(r => r.url.endsWith('/transactions'));
+  });
+  it('opens dashboard transaction details and refreshes totals and the selected trend range after changes', async () => {
+    const { f, summary, initial } = render();
+    summary.flush({ ...summaryData, recentTransactions: [{ id: 7, accountName: 'Checking', institutionName: 'Bank', categoryName: 'Food', categoryType: 'Expense', amount: 25, transactionDate: '2026-10-16', description: 'Dinner', merchant: 'Cafe' }] });
+    initial.flush(trend); f.componentInstance.selectRange('1W'); http.expectOne(r => r.url.endsWith('/net-worth-trend')).flush(trend); f.detectChanges();
+    f.nativeElement.querySelector('.transaction-open').click(); f.detectChanges();
+    const blocks = await f.getDeferBlocks(); await blocks[0].render(DeferBlockState.Complete); f.detectChanges();
+    http.expectOne(r => r.url.endsWith('/transactions/7')).flush({ transaction: { id: 7, editVersion: 0, accountId: 1, categoryId: 1, accountName: 'Checking', institutionName: 'Bank', categoryType: 'Expense', categoryName: 'Food', amount: 25, transactionDate: '2026-10-16', description: 'Dinner', merchant: 'Cafe', notes: 'Original note', isCleared: true }, pairedEditVersion: null, bill: null });
+    http.expectOne(r => r.url.endsWith('/accounts')).flush([{ id: 1, name: 'Checking', isActive: true, openingBalanceDate: '2026-10-01' }]);
+    http.expectOne(r => r.url.endsWith('/categories')).flush([{ id: 1, name: 'Food', categoryType: 'Expense', isActive: true }]);
+    f.detectChanges(); await f.whenStable();
+    expect(f.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Transaction Details');
+    expect(f.nativeElement.querySelector('dialog form')).toBeNull();
+    const editor = f.debugElement.query(By.directive(EditTransaction)).componentInstance as EditTransaction;
+    editor.changed.emit('updated'); f.detectChanges();
+    http.expectOne(r => r.url.endsWith('/dashboard')).flush(summaryData);
+    const refreshed = http.expectOne(r => r.url.endsWith('/net-worth-trend'));
+    expect(refreshed.request.params.get('startDate')).toBe(getTrendDates('1W').startDate); refreshed.flush(trend); f.detectChanges();
+    expect(f.componentInstance.selectedRange()).toBe('1W'); expect(f.nativeElement.querySelector('dialog')).toBeNull();
   });
   it('retries a failed transactions pane using the existing summary request', () => {
     const { f, summary, initial } = render();

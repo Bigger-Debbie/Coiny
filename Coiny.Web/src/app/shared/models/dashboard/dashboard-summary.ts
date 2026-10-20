@@ -7,6 +7,9 @@ export interface DashboardSummary {
         retirement: number;
         liquidFunds: number;
         debt: number;
+        mortgage?: number;
+        hasMortgage?: boolean;
+        includeMortgageInNetWorth?: boolean;
     };
     accounts: DashboardAccount[];
     recentTransactions: DashboardTransaction[];

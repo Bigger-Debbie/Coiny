@@ -10,7 +10,7 @@ import { Component, Input, output } from '@angular/core';
 
 @Component({ selector: 'app-import-review', template: '<p>Review stub</p>' })
 class ReviewStub {
-  @Input() mappedRows: unknown; @Input() account: unknown; @Input() filename = '';
+  @Input() bankBalance: unknown; @Input() mappedRows: unknown; @Input() account: unknown; @Input() filename = '';
   readonly busyChange = output<boolean>(); readonly lockedChange = output<boolean>(); readonly completed = output<void>();
 }
 
@@ -29,11 +29,20 @@ describe('Import transaction mapping screen', () => {
   async function render() {
     const f = TestBed.createComponent(ImportTransactions); f.detectChanges();
     http.expectOne(r => r.url.endsWith('/accounts')).flush([
-      { id: 2, name: 'Checking', openingBalanceDate: '2026-10-01', isActive: true },
+      { id: 2, name: 'Checking', accountType: 'Checking', openingBalanceDate: '2026-10-01', isActive: true },
       { id: 3, name: 'Closed', isActive: false },
     ]);
     f.detectChanges(); await f.whenStable(); return f;
   }
+  it('maps a final posted bank balance only after explicit order/meaning confirmation', async () => {
+    const f = await render(); const c = f.componentInstance;
+    c.source = 'Date,Description,Amount,Balance,Status\n10/16/2026,Pending,-5,995,Pending\n10/15/2026,Coffee,-10,1000,Posted'; c.parse();
+    Object.assign(c, { amountColumn: 2, positiveMeans: 'In', dateFormat: 'MM/DD/YYYY', confirmed: true });
+    c.showPreview(); expect(c.error()).toContain('Confirm the bank order');
+    c.balanceOrder = 'NewestFirst'; c.balanceConfirmed = true; c.showPreview();
+    expect(c.bankBalance()).toEqual({ date: '2026-10-15', balance: 1000 });
+    expect(c.preview()).toHaveLength(2); expect(c.preview()[0].excluded).toBe(true);
+  });
   it('preselects an active account and requires date, sign, and confirmation without writing data', async () => {
     const f = await render(); const c = f.componentInstance;
     expect(c.accountId).toBe(2); expect(c.accounts()).toHaveLength(1);

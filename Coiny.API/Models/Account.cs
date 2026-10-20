@@ -9,6 +9,7 @@ public class Account : BaseEntity
     public int? InstitutionId { get; set; }
     public Institution? Institution { get; set; }
     public string Name { get; set; } = string.Empty;
+    public LoanSubtype? LoanSubtype { get; set; }
     public AccountType AccountType { get; set; }
     public decimal OpeningBalance { get; set; }
     /// <summary>The opening balance is the balance at the start of this date.</summary>

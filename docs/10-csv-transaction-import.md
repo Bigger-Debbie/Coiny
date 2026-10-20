@@ -143,3 +143,44 @@ rather than rejected solely by its filename.
 
 Apply `AddTransactionImportBatches` before using the import API. Payload examples
 and HTTP responses are in the [API reference](07-api-reference.md#transaction-imports).
+
+
+## Optional bank balance verification
+
+Checking and savings imports can map a **Posted running balance** column. Common
+Balance/Running Balance/Ledger Balance/Posted Balance headers are suggested;
+Available Balance is deliberately not suggested. The user can choose **ignore**
+to import without a comparison. Other account types do not offer this check yet.
+
+Confirm newest-first or oldest-first order, including the original order within
+one date. Also confirm the balance is posted balance **after** each transaction
+and the export covers all posted activity through its final date, rather than an
+available balance or an incomplete selection. Pending/status-excluded rows do not
+supply the reference. Multi-account source filtering happens before reference
+selection. Invalid date order, a missing final balance, or invalid balance number
+format requires correcting the mapping or ignoring the balance column.
+
+This first pass compares **one closing balance**, using the original final posted
+source row on the latest date. It does not claim to reconcile every intermediate
+running balance. The reference stays fixed if review later edits/skips that row,
+including when skipping an already-imported duplicate. Skipping a missing posted
+entry can therefore reveal a difference rather than silently moving the reference.
+Included edited transactions cannot have dates later than the reference date.
+
+The server calculates opening balance + every existing ledger change through the
+reference date + included import changes. Transfers count toward account balance
+without becoming income/expense. Skipped duplicates are not sent again; their
+existing ledger entries are already counted. Later Coiny transactions affect the
+normal projected current balance but are excluded from the dated bank comparison.
+
+The review summary shows the date, bank balance, Coiny calculated closing balance,
+and **bank − Coiny** difference. Matching checks have a green border; mismatches
+require acknowledgment plus the usual final import confirmation. Acknowledgment
+is bound to the exact calculated balance reviewed. Import repeats the check in
+its database transaction; a newly changed difference returns 422 for fresh review.
+Safe retries retain the exact original request and reference.
+
+No opening balance is changed, adjustment entry created, or bank number treated
+as authoritative ledger data. The comparison is optional, and a deliberately
+acknowledged mismatch can be imported. It is not yet a persistent reconciliation
+statement/history or a credit-card sign conversion feature.

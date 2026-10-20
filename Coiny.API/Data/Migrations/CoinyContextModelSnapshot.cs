@@ -38,6 +38,9 @@ namespace Coiny.API.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("LoanSubtype")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -55,7 +58,10 @@ namespace Coiny.API.Data.Migrations
 
                     b.HasIndex("InstitutionId");
 
-                    b.ToTable("Accounts");
+                    b.ToTable("Accounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_Accounts_LoanSubtype", "LoanSubtype IS NULL OR (AccountType = 5 AND LoanSubtype BETWEEN 0 AND 4)");
+                        });
                 });
 
             modelBuilder.Entity("Coiny.API.Models.AccountBalanceSnapshot", b =>
@@ -106,6 +112,11 @@ namespace Coiny.API.Data.Migrations
                     b.Property<string>("FirstName")
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IncludeMortgageInNetWorth")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("INTEGER");
@@ -548,6 +559,10 @@ namespace Coiny.API.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(250)
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("EditVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("HouseholdId")
                         .HasColumnType("INTEGER");

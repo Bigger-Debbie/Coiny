@@ -85,21 +85,33 @@
 
         <nav class="review-pagination" aria-label="Import review pages"><button type="button" [disabled]="page <= 1" (click)="page = page - 1">Previous</button><span>Page {{ page > pageCount ? pageCount : page }} of {{ pageCount }} · {{ filtered.length }} matching rows</span><button type="button" [disabled]="page >= pageCount" (click)="page = page + 1">Next</button></nav>
         <label class="check-label"><input type="checkbox" [(ngModel)]="cleared" (ngModelChange)="changed(true)" />Mark included transactions as cleared</label>
-        <button class="button-primary" data-grid-next type="button" [disabled]="!included.length" (click)="validate()">Check categories and duplicates</button>
+        <button class="button-primary" data-grid-next type="button" [disabled]="!included.length" (click)="validate()">{{ bankBalance ? 'Check categories, duplicates, and balance' : 'Check categories and duplicates' }}</button>
       </fieldset>
       @if (busy()) { <p role="status">Checking or saving the batch…</p> }
       @if (validation(); as checked) {
         <div class="import-summary">
-          <h3>{{ checked.canImport ? 'Ready to import' : 'Some rows need attention' }}</h3>
-          @if (checked.canImport) {
+          <h3>{{ canImportReviewed ? 'Ready to import' : checked.balanceComparison ? 'Review the bank balance difference' : 'Some rows need attention' }}</h3>
+          @if (checked.projectedBalance !== null) {
             <p>{{ included.length }} transactions will be added to {{ account.name }}, including {{ transferCount }} one-sided transfers.</p>
             <p>{{ isDebt ? 'Amount owed' : 'Current balance' }}: {{ checked.currentBalance | currency }} → {{ isDebt ? 'Amount owed after import' : 'Balance after import' }}: <strong>{{ checked.projectedBalance | currency }}</strong></p>
+            @if (checked.balanceComparison; as balance) {
+              <section class="balance-comparison" [class.balance-mismatch]="balance.requiresAcknowledgment" aria-label="Bank balance comparison">
+                <h4>{{ balance.requiresAcknowledgment ? 'Bank balance differs' : 'Bank balance matches' }}</h4>
+                <p>Closing balance on {{ balance.date | date:'MMM d, yyyy':'UTC' }}, after the included transactions are imported.</p>
+                <dl><div><dt>Bank balance</dt><dd>{{ balance.bankBalance | currency }}</dd></div><div><dt>Coiny calculated balance</dt><dd>{{ balance.calculatedBalance | currency }}</dd></div><div><dt>Difference (bank − Coiny)</dt><dd>{{ balance.difference | currency }}</dd></div></dl>
+                <p class="hint">This includes existing Coiny history through that date and only the rows included in this import. Later Coiny transactions are excluded from this check.</p>
+                @if (balance.requiresAcknowledgment) {
+                  <p>Review the opening balance, skipped or missing transactions, duplicates, and the bank balance column. Coiny will not create an adjustment or change your opening balance.</p>
+                  <label class="check-label"><input type="checkbox" [(ngModel)]="balanceAcknowledged" (ngModelChange)="finalConfirmed = false" [disabled]="busy() || locked()" />I’ve reviewed this difference and want to import without adjusting any balance.</label>
+                }
+              </section>
+            }
             <label class="check-label"><input type="checkbox" [(ngModel)]="finalConfirmed" [disabled]="busy() || locked()" />I’ve reviewed the categories, transfer classifications, and duplicate decisions. Import these transactions.</label>
           } @else { <p>Correct or exclude flagged rows, then run the check again. Duplicate entries need an explicit Import anyway choice if you keep them.</p> }
         </div>
       }
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-      <button class="button-primary" type="button" [disabled]="busy() || (!locked() && (!validation()?.canImport || !finalConfirmed))" (click)="import()">{{ locked() ? 'Retry this batch safely' : 'Import ' + included.length + ' transactions' }}</button>
+      <button class="button-primary" type="button" [disabled]="busy() || (!locked() && (!canImportReviewed || !finalConfirmed))" (click)="import()">{{ locked() ? 'Retry this batch safely' : 'Import ' + included.length + ' transactions' }}</button>
     }
   }
 </section>

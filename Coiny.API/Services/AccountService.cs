@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Coiny.API.Enums;
 using Coiny.API.Data;
 using Coiny.API.DTOs.Accounts;
 using Coiny.API.Interfaces;
@@ -44,7 +45,7 @@ public class AccountService : IAccountService
             {
                 Id = account.Id,
                 Name = account.Name,
-                AccountType = account.AccountType,
+                AccountType = account.AccountType, LoanSubtype = account.LoanSubtype,
                 OpeningBalance = account.OpeningBalance,
                 OpeningBalanceDate = account.OpeningBalanceDate,
                 CurrentBalance = await _accountBalanceService
@@ -63,6 +64,8 @@ public class AccountService : IAccountService
         if (!request.OpeningBalanceDate.HasValue || request.OpeningBalanceDate.Value == DateOnly.MinValue)
             throw new InvalidOperationException("A valid opening balance date is required.");
 
+        if (!Enum.IsDefined(request.AccountType) || (request.LoanSubtype.HasValue && (!Enum.IsDefined(request.LoanSubtype.Value) || request.AccountType != AccountType.Loan)))
+            throw new InvalidOperationException("Choose a valid account type and use loan subtypes only for loans.");
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
 
         if (request.InstitutionId.HasValue)
@@ -81,7 +84,7 @@ public class AccountService : IAccountService
             HouseholdId = householdId,
             InstitutionId = request.InstitutionId,
             Name = request.Name,
-            AccountType = request.AccountType,
+            AccountType = request.AccountType, LoanSubtype = request.AccountType == AccountType.Loan ? request.LoanSubtype ?? LoanSubtype.Other : null,
             OpeningBalance = request.OpeningBalance,
             OpeningBalanceDate = request.OpeningBalanceDate.Value,
             IsActive = true
@@ -108,7 +111,7 @@ public class AccountService : IAccountService
         {
             Id = account.Id,
             Name = account.Name,
-            AccountType = account.AccountType,
+            AccountType = account.AccountType, LoanSubtype = account.LoanSubtype,
             OpeningBalance = account.OpeningBalance,
             OpeningBalanceDate = account.OpeningBalanceDate,
             CurrentBalance = account.OpeningBalance,

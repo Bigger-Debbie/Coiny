@@ -1,4 +1,4 @@
-import { CsvMapping, mapCsv, suggestColumns } from './csv-mapping';
+import { bankBalanceReference, CsvMapping, mapCsv, suggestColumns } from './csv-mapping';
 import { parseCsv } from './csv-parser';
 
 describe('CSV column mapping', () => {
@@ -108,5 +108,21 @@ describe('CSV column mapping', () => {
       dateColumn: 0, descriptionColumn: 1, dateFormat, amount: { mode: 'signed', column: 2, positiveMeans: 'In' },
     }, '1900-01-01')[0];
     expect(row.date).toBe(expected);
+  });
+});
+
+
+describe('Bank running balance reference', () => {
+  const rows = (text: string) => mapCsv(parseCsv(text), { dateColumn: 0, descriptionColumn: 1, amount: { mode: 'signed', column: 2, positiveMeans: 'In' }, balanceColumn: 3, dateFormat: 'YYYY-MM-DD', statusColumn: 4 }, '2026-10-01');
+  it('uses original same-day order, skips pending, and accepts zero/negative balances', () => {
+    const data = rows('Date,Description,Amount,Balance,Status\n2026-10-16,Pending,-5,-5,Pending\n2026-10-15,Final,-10,0,Posted\n2026-10-15,Earlier,10,10,Posted');
+    expect(bankBalanceReference(data, 'NewestFirst')).toEqual({ date: '2026-10-15', balance: 0 });
+    const reverse = rows('Date,Description,Amount,Balance,Status\n2026-10-14,Earlier,-5,0,Posted\n2026-10-15,Final,-10,-10,Posted');
+    expect(bankBalanceReference(reverse, 'OldestFirst')).toEqual({ date: '2026-10-15', balance: -10 });
+  });
+  it('rejects wrong ordering or a missing final balance rather than selecting another anchor', () => {
+    const data = rows('Date,Description,Amount,Balance,Status\n2026-10-15,First,-10,90,Posted\n2026-10-16,Final,-10,,Posted');
+    expect(() => bankBalanceReference(data, 'NewestFirst')).toThrow(/dates do not match/);
+    expect(() => bankBalanceReference(data, 'OldestFirst')).toThrow(/final posted row/);
   });
 });

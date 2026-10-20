@@ -10,7 +10,7 @@
               <span [attr.aria-label]="summaryLoading() ? 'Loading net worth' : 'Net worth unavailable'">—</span>
             }
           </h1>
-          <span class="net-worth-label">Net Worth</span>
+          <span class="net-worth-label">Net Worth@if (dashboard()?.netWorth?.includeMortgageInNetWorth === false) {<small class="net-worth-exclusion">excluding mortgage</small>}</span>
         </div>
         <div class="net-worth-change" aria-live="polite">
           @if (trend(); as result) {
@@ -58,11 +58,12 @@
         </div>
       </div>
     </div>
-    <aside class="net-worth-sidebar" aria-label="Balance breakdown">
+    <aside class="net-worth-sidebar" [class.has-mortgage]="dashboard()?.netWorth?.hasMortgage" aria-label="Balance breakdown">
       <div class="welcome-panel"><h2>Welcome back@if (firstName()) {, {{ firstName() }}}</h2><p>{{ householdGreeting() }}</p></div>
       <div class="summary-panel retirement"><strong>{{ dashboard() ? (dashboard()!.netWorth.retirement | currency) : '—' }}</strong><span>Retirement</span></div>
       <div class="summary-panel liquid"><strong>{{ dashboard() ? (dashboard()!.netWorth.liquidFunds | currency) : '—' }}</strong><span>Liquid Funds</span></div>
-      <div class="summary-panel debt"><strong>{{ dashboard() ? (dashboard()!.netWorth.debt | currency) : '—' }}</strong><span>Debt</span></div>
+      <div class="summary-panel debt"><strong>{{ dashboard() ? (dashboard()!.netWorth.debt | currency) : '—' }}</strong><span>Other Debt</span></div>
+      @if (dashboard()?.netWorth?.hasMortgage) { <div class="summary-panel mortgage"><strong>{{ dashboard()!.netWorth.mortgage | currency }}</strong><span>Mortgage</span></div> }
     </aside>
   </section>
   <div class="dashboard-columns">
@@ -88,7 +89,7 @@
         <div role="status"><p>Your transactions couldn’t load.</p><button type="button" class="retry-button" (click)="loadSummary()">Retry transactions</button></div>
       } @else if (dashboard(); as summary) {
         @if (summary.recentTransactions.length) {
-          <app-transaction-list [transactions]="summary.recentTransactions" />
+          <app-transaction-list [transactions]="summary.recentTransactions" [interactive]="true" (open)="transactionId.set($event)" />
         } @else {
           <p class="text-muted" role="status">No transactions yet. Your latest activity will appear here once recorded.</p>
         }
@@ -96,3 +97,7 @@
     </section>
   </div>
 </div>
+
+@defer (when transactionId() !== null) {
+  @if (transactionId(); as id) { <app-edit-transaction [transactionId]="id" (dismiss)="transactionId.set(null)" (changed)="transactionChanged()" /> }
+}

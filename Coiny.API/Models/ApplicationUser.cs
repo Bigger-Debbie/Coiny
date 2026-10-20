@@ -5,6 +5,8 @@ namespace Coiny.API.Models;
 
 public class ApplicationUser : IdentityUser
 {
+    public bool IncludeMortgageInNetWorth { get; set; } = true;
+
     [MaxLength(100)]
     public string? FirstName { get; set; }
 

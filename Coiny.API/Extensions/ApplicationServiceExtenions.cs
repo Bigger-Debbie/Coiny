@@ -29,6 +29,8 @@ public static class ApplicationServceExtensions
         services.AddSingleton<IBudgetScheduleService, BudgetScheduleService>();
         services.AddScoped<IBudgetService, BudgetService>();
         services.AddScoped<BillPaymentService>();
+        services.AddScoped<TransactionManagementService>();
+        services.AddScoped<UserPreferencesService>();
 
 
         return services;

@@ -1,7 +1,8 @@
 <div class="column-labels" aria-hidden="true"><span>Account</span><span>Amount</span><span>Details</span></div>
 <ul class="transaction-list">
   @for (transaction of transactions; track transaction.id) {
-    <li class="transaction-row">
+    <li class="transaction-row" [class.interactive]="interactive">
+      @if (interactive) { <button class="transaction-open" type="button" [attr.aria-label]="'View transaction: ' + (transaction.description.trim() || transaction.categoryName) + ', ' + transaction.accountName + ', ' + calendarDate(transaction)" (click)="open.emit(transaction.id)"></button> }
       <span class="institution-avatar" aria-hidden="true">{{ initial(transaction) }}</span>
       <div class="account-details"><strong>{{ transaction.accountName }}</strong><span>{{ transaction.institutionName || 'No institution' }}</span></div>
       <div class="amount-details">

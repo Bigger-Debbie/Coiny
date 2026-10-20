@@ -92,6 +92,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         if (other.PairedTransactionId != entry.Id) throw new TransferConflictException("The transfer link has changed.");
         foreach (var item in new[] { entry, other })
         {
+            item.EditVersion++;
             item.PairedTransactionId = null;
             item.PairedTransaction = null;
             item.TransferCounterparty = TransferCounterparty.Unknown;
@@ -134,6 +135,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         };
     private static void Pair(Transaction first, Transaction second)
     {
+        first.EditVersion++; second.EditVersion++;
         first.PairedTransactionId = second.Id; second.PairedTransactionId = first.Id;
         first.TransferCounterparty = second.TransferCounterparty = TransferCounterparty.Linked;
     }

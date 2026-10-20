@@ -8,6 +8,7 @@ internal static class TransactionProjection
 {
     public static readonly Expression<Func<Transaction, TransactionResponse>> Response = t => new TransactionResponse
     {
+        EditVersion = t.EditVersion, Notes = t.Notes, ImportBatchId = t.ImportBatchId,
         Id = t.Id, AccountId = t.AccountId, CategoryId = t.CategoryId,
         AccountName = t.Account.Name,
         AccountType = t.Account.AccountType,

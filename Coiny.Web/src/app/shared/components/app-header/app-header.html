@@ -45,6 +45,7 @@
                             }
                         </div>
                         <button class="logout-button" role="menuitem" type="button" (click)="openHousehold()">Household</button>
+                        <button class="logout-button" role="menuitem" type="button" (click)="openSettings()">Settings</button>
                         <button #logoutButton type="button" role="menuitem" class="logout-button" (click)="logout()">Log out</button>
                     </div>
                 }
@@ -59,5 +60,11 @@
 @if (householdOpen()) {
   <app-modal title="Household" [busy]="householdSettings.busy()" (dismiss)="householdOpen.set(false)">
     <app-household-settings #householdSettings />
+  </app-modal>
+}
+
+@if (settingsOpen()) {
+  <app-modal title="Settings" [busy]="settings.busy()" (dismiss)="settingsOpen.set(false)">
+    <app-user-settings #settings (saved)="settingsOpen.set(false)" (cancelled)="settingsOpen.set(false)" />
   </app-modal>
 }

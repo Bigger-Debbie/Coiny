@@ -52,3 +52,5 @@ a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid
   .transactions-pane { padding: 1rem; }
 }
 @media (max-width: 450px) { .account-overview { grid-template-columns: 1fr; } .range-controls button { padding: .6rem; } }
+
+.loan-form { border:0; padding:0; margin:0; } .loan-actions { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1rem; }

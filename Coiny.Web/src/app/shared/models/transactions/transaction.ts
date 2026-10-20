@@ -2,6 +2,9 @@ import { TransferDetails } from './transfer';
 
 export interface Transaction extends TransferDetails {
     id: number;
+    editVersion?: number;
+    notes?: string | null;
+    importBatchId?: number | null;
     accountId: number;
     categoryId: number;
     accountName: string;

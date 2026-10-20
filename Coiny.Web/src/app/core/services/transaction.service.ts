@@ -1,3 +1,4 @@
+import { TransactionEditDetails, UpdateTransactionRequest } from "../../shared/models/transactions/transaction-management";
 import { Injectable, inject } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
@@ -15,6 +16,13 @@ export class TransactionService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environemnt.apiUrl}/transactions`;
 
+    getDetails(id: number) { return this.http.get<TransactionEditDetails>(`${this.apiUrl}/${id}`); }
+    update(id: number, request: UpdateTransactionRequest) { return this.http.put<TransactionEditDetails>(`${this.apiUrl}/${id}`, request); }
+    delete(id: number, expectedEditVersion: number, pairedVersion: number | null) {
+        const params: Record<string, number> = { expectedEditVersion };
+        if (pairedVersion !== null) params['expectedPairedEditVersion'] = pairedVersion;
+        return this.http.delete<void>(`${this.apiUrl}/${id}`, { params });
+    }
     getTransactions(): Observable<Transaction[]> {
         return this.http.get<Transaction[]>(this.apiUrl);
     }

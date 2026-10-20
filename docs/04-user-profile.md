@@ -144,3 +144,13 @@ not implemented; copyable join codes work without it. Login currently does not i
 
 For local signing-key setup, see [development setup](06-development-setup.md).
 For the seeded login, see [demo data](05-demo-data.md).
+
+
+## Personal dashboard preferences
+
+The avatar menu includes Settings. Each user can choose whether mortgages are
+included in their net-worth view; inclusion defaults on. This setting is stored
+on the user and returned by `/auth/me` and `/users/me/preferences`. Household
+members retain independent choices. Excluded views are labelled explicitly, and
+mortgage balances stay visible separately. Saving updates the shared profile
+state and refreshes any active dashboard/accounts aggregate view.

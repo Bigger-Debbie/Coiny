@@ -41,6 +41,19 @@ describe('AppHeader profile menu', () => {
   function avatar(): HTMLButtonElement { return fixture.nativeElement.querySelector('.avatar-button'); }
   function open() { avatar().click(); fixture.detectChanges(); }
 
+  it('opens Settings from the avatar menu and closes after saving preferences', async () => {
+    loadProfile(); open();
+    const settings = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].find((item: unknown) => (item as HTMLElement).textContent?.trim() === 'Settings') as HTMLButtonElement;
+    settings.click(); fixture.detectChanges(); await fixture.whenStable();
+    expect(fixture.componentInstance.menuOpen()).toBe(false);
+    http.expectOne(r => r.url.endsWith('/users/me/preferences')).flush({ includeMortgageInNetWorth: true }); fixture.detectChanges(); await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Settings');
+    const toggle = fixture.nativeElement.querySelector('[role="switch"]') as HTMLInputElement; toggle.click(); fixture.detectChanges();
+    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    const save = http.expectOne(r => r.method === 'PUT'); expect(save.request.body).toEqual({ includeMortgageInNetWorth: false });
+    save.flush({ includeMortgageInNetWorth: false }); fixture.detectChanges();
+    expect(auth.currentUser()?.includeMortgageInNetWorth).toBe(false); expect(fixture.nativeElement.querySelector('dialog')).toBeNull();
+  });
   it('shows the current initial, name and email and toggles the menu', () => {
     loadProfile();
     expect(avatar().textContent?.trim()).toBe('A');

@@ -73,6 +73,8 @@ export class AuthService {
         return localStorage.getItem(this.tokenKey);
     }
 
+    updateNetWorthPreference(includeMortgageInNetWorth: boolean): void { this.profile.update(user => user ? { ...user, includeMortgageInNetWorth } : null); }
+
     logout(): void {
         localStorage.removeItem(this.tokenKey);
         this.clearProfile();

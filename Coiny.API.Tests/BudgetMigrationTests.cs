@@ -14,6 +14,27 @@ public class BudgetMigrationTests
     private const string Foundation = "20261016182722_AddHouseholdBudgetFoundation";
 
     [Fact]
+    public async Task LoanMigrationPreservesValuesAndDefaultsExistingUsersToIncludeMortgage()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
+        await using var context = new CoinyContext(new DbContextOptionsBuilder<CoinyContext>().UseSqlite(connection).Options);
+        var migrator = context.GetService<IMigrator>(); await migrator.MigrateAsync("20261019232321_AddTransactionEditVersion");
+        context.Households.Add(new() { Id = 1, Name = "Existing" }); await context.SaveChangesAsync();
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO AspNetUsers (Id, UserName, EmailConfirmed, PhoneNumberConfirmed, TwoFactorEnabled, LockoutEnabled, AccessFailedCount)
+                VALUES ('legacy', 'legacy', 0, 0, 0, 0, 0);
+            INSERT INTO Accounts (Id, HouseholdId, Name, AccountType, OpeningBalance, OpeningBalanceDate, IsActive, CreatedAt)
+                VALUES (1, 1, 'Legacy loan', 5, '1234.56', '2026-10-01', 1, '2026-10-19'),
+                       (2, 1, 'Checking', 0, '100', '2026-10-01', 1, '2026-10-19');
+            """);
+        await migrator.MigrateAsync();
+        Assert.True((await context.Users.SingleAsync()).IncludeMortgageInNetWorth);
+        var loan = await context.Accounts.SingleAsync(a => a.Id == 1); Assert.Equal(LoanSubtype.Other, loan.LoanSubtype); Assert.Equal(1234.56m, loan.OpeningBalance);
+        Assert.Null((await context.Accounts.SingleAsync(a => a.Id == 2)).LoanSubtype);
+        Assert.Empty(await context.Transactions.ToListAsync());
+    }
+
+    [Fact]
     public async Task BillIdentityMigrationBackfillsExistingAllocationsAndPreservesValues()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync();
@@ -70,12 +91,12 @@ public class BudgetMigrationTests
         var migrator = context.GetService<IMigrator>();
         await migrator.MigrateAsync(BeforeBudgets);
         context.Households.Add(new() { Id = 1, Name = "Existing household" });
-        context.Accounts.Add(new() { Id = 1, HouseholdId = 1, Name = "Checking", AccountType = AccountType.Checking,
-            OpeningBalance = 100, OpeningBalanceDate = new(2026,10,1) });
         context.Categories.Add(new() { Id = 1, HouseholdId = 1, Name = "Groceries", CategoryType = CategoryType.Expense, IsActive = true });
         await context.SaveChangesAsync();
         // Seed the historical schema without asking today's model to write newer columns.
         await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO Accounts (Id, HouseholdId, Name, AccountType, OpeningBalance, OpeningBalanceDate, IsActive, CreatedAt)
+            VALUES (1, 1, 'Checking', 0, '100', '2026-10-01', 1, '2026-10-16');
             INSERT INTO Transactions (AccountId, HouseholdId, CategoryId, Amount, TransactionDate, Description, IsCleared, CreatedAt)
             VALUES (1, 1, 1, '12.34', '2026-10-16', 'Existing groceries', 0, '2026-10-16');
             """);
@@ -84,7 +105,7 @@ public class BudgetMigrationTests
         Assert.False(context.Database.HasPendingModelChanges());
         Assert.Equal(12.34m, (await context.Transactions.SingleAsync()).Amount);
         await migrator.MigrateAsync(BeforeBudgets);
-        Assert.Equal(100, (await context.Accounts.SingleAsync()).OpeningBalance);
+        Assert.Equal(100, await context.Database.SqlQueryRaw<decimal>("SELECT OpeningBalance AS Value FROM Accounts").SingleAsync());
         Assert.Equal(12.34m, await context.Database.SqlQueryRaw<decimal>("SELECT Amount AS Value FROM Transactions").SingleAsync());
         await migrator.MigrateAsync();
         Assert.Empty(await context.HouseholdBudgets.ToListAsync());

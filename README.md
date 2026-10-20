@@ -12,11 +12,11 @@ experience remain future work.
 
 | Area | Implemented | Still planned |
 | --- | --- | --- |
-| Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, local logout, token storage and route guard | Password recovery, complete expired-session handling |
+| Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, personal net-worth settings, local logout, token storage and route guard | Password recovery, complete expired-session handling |
 | Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
-| Financial data | Create/list APIs, scoped trends and category breakdown; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, atomic import and history | Transfer matching UI, edit/delete flows, saved bank mappings |
+| Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic import and history | Transfer matching UI, account/category management, saved bank mappings |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
-| Dashboard | Interactive net-worth chart, balance breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
+| Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Budget schema, recurrence, draft/preview/publish API, setup wizard, monthly allocation donut, breakdown, income-period bills, and calendar | Goals, forecasting |
 
 ## Get started
@@ -70,8 +70,8 @@ now has models, recurrence, a draft/preview/publish API, and a resumable fronten
 setup wizard and published monthly allocation dashboard. The calendar highlights
 the current income period and scheduled items. Next are richer budget editing
 and reporting.
-Signup and create/join household setup are implemented. Account editing, deletion,
-imports, password recovery, and complete expired-session handling remain future work.
+Signup and create/join household setup are implemented. Transaction corrections and CSV imports are implemented. Account/category management,
+password recovery, and complete expired-session handling remain future work.
 
 For current development limitations and test status, see the
 [setup guide](docs/06-development-setup.md#verification).

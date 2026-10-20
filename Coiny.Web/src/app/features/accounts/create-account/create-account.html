@@ -11,6 +11,7 @@
         </div>
         <div><label for="account-type">Account type</label><app-select-menu inputId="account-type" label="Account type"
           name="accountType" [options]="typeOptions" [(ngModel)]="model.accountType" /></div>
+        @if (model.accountType === 'Loan') { <div><label for="loan-subtype">Loan type</label><app-select-menu inputId="loan-subtype" label="Loan type" name="loanSubtype" [options]="loanTypes" [ngModel]="model.loanSubtype || 'Other'" (ngModelChange)="model.loanSubtype = $event" /></div> }
         <div><label for="institution">Institution</label><app-select-menu inputId="institution" label="Institution"
           name="institutionId" [options]="institutionOptions" [(ngModel)]="model.institutionId" />
           @if (!addingInstitution()) {

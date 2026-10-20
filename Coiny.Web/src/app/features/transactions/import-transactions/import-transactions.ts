@@ -6,7 +6,8 @@ import { AccountService } from '../../../core/services/account.service';
 import { Account } from '../../../shared/models/account/account';
 import { SelectMenu, SelectOption } from '../../../shared/components/select-menu/select-menu';
 import { CSV_MAX_BYTES, CsvDelimiter, CsvDocument, CsvError, parseCsv } from './csv-parser';
-import { CsvDateFormat, CsvMapping, ImportReviewRow, mapCsv, suggestColumns } from './csv-mapping';
+import { BankBalanceOrder, bankBalanceReference, CsvDateFormat, CsvMapping, ImportReviewRow, mapCsv, suggestColumns } from './csv-mapping';
+import { BankBalanceReference } from '../../../shared/models/transactions/transaction-import';
 import { ImportReview } from './import-review';
 
 @Component({
@@ -48,6 +49,12 @@ export class ImportTransactions implements OnInit {
   positiveMeans: 'In' | 'Out' | null = null;
   dateFormat: CsvDateFormat | null = null;
   decimalSeparator: '.' | ',' = '.';
+  readonly bankBalance = signal<BankBalanceReference | null>(null);
+  balanceColumn: number | null = null;
+  balanceOrder: BankBalanceOrder | null = null;
+  balanceConfirmed = false;
+  readonly balanceOrders: SelectOption[] = [{ value: null, label: 'Choose bank order' }, { value: 'NewestFirst', label: 'Newest first (last transaction at the top)' }, { value: 'OldestFirst', label: 'Oldest first (last transaction at the bottom)' }];
+  get supportsBalanceCheck() { return ['Checking', 'Savings'].includes(this.selectedAccount?.accountType ?? ''); }
   statusColumn: number | null = null;
   classificationColumn: number | null = null;
   merchantColumn: number | null = null;
@@ -127,6 +134,7 @@ export class ImportTransactions implements OnInit {
       const document = parseCsv(this.source, this.delimiter === 'auto' ? undefined : this.delimiter, this.headerLine);
       this.document.set(document);
       const suggested = suggestColumns(document.headers);
+      this.balanceColumn = suggested.balanceColumn ?? null; this.balanceOrder = null; this.balanceConfirmed = false;
       this.dateColumn = suggested.dateColumn ?? null; this.descriptionColumn = suggested.descriptionColumn ?? null;
       this.statusColumn = suggested.statusColumn ?? null; this.classificationColumn = suggested.classificationColumn ?? null;
       this.merchantColumn = suggested.merchantColumn ?? null; this.accountColumn = suggested.accountColumn ?? null;
@@ -138,7 +146,7 @@ export class ImportTransactions implements OnInit {
       this.statusChanged();
     } catch (error) { this.error.set(error instanceof Error ? error.message : 'The CSV couldn’t be parsed.'); }
   }
-  invalidate(): void { if (this.importBusy() || this.importLocked()) return; this.preview.set([]); this.confirmed = false; }
+  invalidate(): void { if (this.importBusy() || this.importLocked()) return; this.preview.set([]); this.bankBalance.set(null); this.confirmed = false; }
   statusChanged(): void { this.excludedStatuses = this.statuses.filter(value => /\bpending\b/i.test(value)); this.invalidate(); }
   toggleStatus(status: string, excluded: boolean): void {
     this.excludedStatuses = excluded ? [...this.excludedStatuses, status] : this.excludedStatuses.filter(value => value !== status);
@@ -162,6 +170,7 @@ export class ImportTransactions implements OnInit {
             { mode: 'signed', column: this.amountColumn!, positiveMeans: this.positiveMeans! },
         decimalSeparator: this.decimalSeparator, excludedStatuses: this.excludedStatuses,
         statusColumn: this.statusColumn ?? undefined, classificationColumn: this.classificationColumn ?? undefined,
+        balanceColumn: this.supportsBalanceCheck ? this.balanceColumn ?? undefined : undefined,
         merchantColumn: this.merchantColumn ?? undefined, accountColumn: this.accountColumn ?? undefined,
       };
       let rows = mapCsv(this.document()!, mapping, account.openingBalanceDate);
@@ -170,11 +179,15 @@ export class ImportTransactions implements OnInit {
         rows = rows.filter(row => row.sourceAccount === (this.sourceAccount || null));
       }
       if (!rows.length) throw new CsvError('No rows match the chosen source account.');
+      if (this.supportsBalanceCheck && this.balanceColumn !== null) {
+        if (!this.balanceOrder || !this.balanceConfirmed) throw new CsvError('Confirm the bank order and posted running-balance meaning, or ignore the balance column.');
+        this.bankBalance.set(bankBalanceReference(rows, this.balanceOrder));
+      } else this.bankBalance.set(null);
       this.preview.set(rows);
       void this.navigateStep('review');
     } catch (error) { this.error.set(error instanceof Error ? error.message : 'Check the column mappings.'); }
   }
-  restart(): void { this.preview.set([]); this.document.set(null); this.source = ''; this.file = undefined; this.filename = ''; this.importLocked.set(false); this.importCompleted.set(false); this.error.set(''); this.confirmed = false; void this.navigateStep('mapping', true); }
+  restart(): void { this.bankBalance.set(null); this.balanceConfirmed = false; this.preview.set([]); this.document.set(null); this.source = ''; this.file = undefined; this.filename = ''; this.importLocked.set(false); this.importCompleted.set(false); this.error.set(''); this.confirmed = false; void this.navigateStep('mapping', true); }
   canLeave(): boolean {
     return !this.reading() && !this.importBusy() && (this.importCompleted() || !this.source || window.confirm(this.importLocked()
       ? 'The import result is not confirmed. Retry this batch before leaving to avoid starting it again. Leave anyway?'

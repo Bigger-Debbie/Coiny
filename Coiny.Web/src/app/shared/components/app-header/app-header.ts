@@ -2,13 +2,14 @@ import { ChangeDetectorRef, Component, computed, DestroyRef, ElementRef, HostLis
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserSettings } from '../../../features/settings/user-settings';
 import { Modal } from '../modal/modal';
 import { HouseholdSettings } from '../../../features/households/household-settings';
 import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings],
+  imports: [Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })
@@ -17,6 +18,8 @@ export class AppHeader implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  readonly settingsOpen = signal(false);
+  openSettings() { this.menuOpen.set(false); this.avatarButton?.nativeElement.focus(); this.settingsOpen.set(true); }
   readonly householdOpen = signal(false);
   readonly menuOpen = signal(false);
   readonly initial = computed(() => Array.from(this.auth.currentUser()?.firstName?.trim() || '')[0]?.toUpperCase() || '?');

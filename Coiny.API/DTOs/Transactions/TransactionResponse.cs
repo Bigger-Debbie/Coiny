@@ -4,6 +4,9 @@ namespace Coiny.API.DTOs.Transactions;
 
 public class TransactionResponse
 {
+    public int EditVersion { get; set; }
+    public string? Notes { get; set; }
+    public int? ImportBatchId { get; set; }
     public int Id { get; set; }
     public int AccountId { get; set; }
     public int CategoryId { get; set; }

@@ -49,10 +49,16 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 93 passing tests. Build output and TestResults are ignored
+The current suite has 112 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the
 [setup guide](../docs/06-development-setup.md#verification) for repository checks.
 
 Bill payment tests cover per-occurrence status, optional expense links, household isolation, duplicate-link rejection, ledger preservation, stable allocation identity, HTTP binding/authorization, and migration backfill.
+
+Transaction management tests cover moving entries across dates/accounts, category corrections, notes/provenance, stale edits/deletes, household ownership, linked transfer updates/deletion, storage-failure rollback, bill status retention, and HTTP contracts.
+
+CSV bank balance tests cover dated ledger comparisons, later-history exclusion, mismatch acknowledgment, concurrent balance changes, immutable opening balances, idempotent retries, and unsupported/invalid references.
+
+Mortgage tests cover loan classification/defaults, per-user preference isolation, matching summary/chart calculations, zero-balance mortgages, migration preservation/defaults, and authenticated preference/subtype endpoints.

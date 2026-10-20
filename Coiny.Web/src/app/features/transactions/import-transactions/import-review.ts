@@ -8,7 +8,7 @@ import { CategoryService } from '../../../core/services/category.service';
 import { TransactionImportService } from '../../../core/services/transaction-import.service';
 import { Account } from '../../../shared/models/account/account';
 import { Category } from '../../../shared/models/category/category';
-import { ImportRowCheck, TransactionImportRequest, TransactionImportResult, TransactionImportValidation } from '../../../shared/models/transactions/transaction-import';
+import { BankBalanceReference, ImportRowCheck, TransactionImportRequest, TransactionImportResult, TransactionImportValidation } from '../../../shared/models/transactions/transaction-import';
 import { SelectMenu, SelectOption } from '../../../shared/components/select-menu/select-menu';
 import { ImportReviewRow } from './csv-mapping';
 import { ReviewCell } from './review-cell';
@@ -22,6 +22,7 @@ interface ReviewRow extends ImportReviewRow {
 export class ImportReview implements OnChanges {
   @Input({ required: true }) mappedRows: readonly ImportReviewRow[] = [];
   @Input({ required: true }) account!: Account;
+  @Input() bankBalance: BankBalanceReference | null = null;
   @Input({ required: true }) filename = '';
   readonly busyChange = output<boolean>();
   readonly completed = output<void>();
@@ -75,6 +76,11 @@ export class ImportReview implements OnChanges {
   }
   search = ''; classification = ''; page = 1;
   bulkChoice: string | null = null;
+  balanceAcknowledged = false;
+  get canImportReviewed(): boolean {
+    const checked = this.validation();
+    return !!checked && (checked.canImport || (!!checked.balanceComparison?.requiresAcknowledgment && this.balanceAcknowledged && checked.rows.every(row => !row.errors.length)));
+  }
   finalConfirmed = false;
   cleared = true;
   categoryName = ''; categoryType: 'Expense' | 'Income' = 'Expense';
@@ -104,7 +110,7 @@ export class ImportReview implements OnChanges {
   duplicate(row: ReviewRow): boolean { const check = this.check(row); return !!check && (check.duplicateRowIds.length > 0 || check.duplicateTransactionIds.length > 0); }
   ngOnChanges(): void {
     this.rows.set(this.mappedRows.map(row => ({ ...row, errors: [...row.errors], selected: false, categoryChoice: null, counterparty: 'Unknown', allowDuplicate: false })));
-    this.validation.set(null); this.result.set(null); this.submissionId = crypto.randomUUID(); this.load();
+    this.balanceAcknowledged = false; this.validation.set(null); this.result.set(null); this.submissionId = crypto.randomUUID(); this.load();
   }
   load(): void {
     this.loading.set(true); this.loadError.set(false);
@@ -122,7 +128,7 @@ export class ImportReview implements OnChanges {
         error: () => { this.loadError.set(true); this.loading.set(false); },
       });
   }
-  changed(keepDuplicates = false): void { this.validation.set(null); if (!keepDuplicates) this.lastChecks.set([]); this.finalConfirmed = false; this.error.set(''); this.notice.set(''); this.submissionId = crypto.randomUUID(); }
+  changed(keepDuplicates = false): void { this.balanceAcknowledged = false; this.validation.set(null); if (!keepDuplicates) this.lastChecks.set([]); this.finalConfirmed = false; this.error.set(''); this.notice.set(''); this.submissionId = crypto.randomUUID(); }
   directionChanged(row: ReviewRow): void { if (row.categoryChoice !== 'transfer') row.categoryChoice = null; this.changed(); }
   filterChanged(): void { this.page = 1; this.rows().forEach(row => row.selected = false); }
   selectFiltered(selected: boolean): void { const filtered = new Set(this.filtered); this.rows().forEach(row => { if (filtered.has(row)) row.selected = selected; }); }
@@ -148,7 +154,7 @@ export class ImportReview implements OnChanges {
   }
   validate(): void {
     if (this.busy() || this.locked()) return;
-    this.error.set(''); this.finalConfirmed = false;
+    this.error.set(''); this.finalConfirmed = false; this.balanceAcknowledged = false;
     if (!this.included.length) { this.error.set('Include at least one transaction.'); return; }
     if (this.included.some(row => this.localErrors(row).length)) { this.error.set('Correct the dates, descriptions, and amounts, or exclude the flagged rows.'); return; }
     this.setBusy(true);
@@ -159,7 +165,7 @@ export class ImportReview implements OnChanges {
   }
   import(): void {
     if (this.busy() || this.result()) return;
-    if (!this.pendingRequest && (!this.validation()?.canImport || !this.finalConfirmed)) return;
+    if (!this.pendingRequest && (!this.canImportReviewed || !this.finalConfirmed)) return;
     this.pendingRequest ??= this.request();
     this.locked.set(true); this.lockedChange.emit(true); this.setBusy(true); this.error.set('');
     this.api.import(this.pendingRequest).pipe(takeUntilDestroyed(this.destroy)).subscribe({
@@ -170,7 +176,7 @@ export class ImportReview implements OnChanges {
       error: response => {
         this.setBusy(false);
         if (response.status === 422 && response.error?.rows) {
-          this.validation.set(response.error); this.lastChecks.set(response.error.rows); this.pendingRequest = null; this.locked.set(false); this.lockedChange.emit(false); this.finalConfirmed = false;
+          this.balanceAcknowledged = false; this.validation.set(response.error); this.lastChecks.set(response.error.rows); this.pendingRequest = null; this.locked.set(false); this.lockedChange.emit(false); this.finalConfirmed = false;
           this.error.set('The ledger changed or some rows need attention. Review the updated checks before importing.');
         } else if ([400, 403, 409].includes(response.status)) {
           this.pendingRequest = null; this.locked.set(false); this.lockedChange.emit(false); this.validation.set(null); this.finalConfirmed = false;
@@ -194,7 +200,7 @@ export class ImportReview implements OnChanges {
     });
   }
   private request(): TransactionImportRequest {
-    return { accountId: this.account.id, filename: this.filename || 'transactions.csv', submissionId: this.submissionId,
+    return { ...(this.bankBalance ? { bankBalanceCheck: { ...this.bankBalance, acknowledgedCalculatedBalance: this.balanceAcknowledged ? this.validation()?.balanceComparison?.calculatedBalance ?? null : null } } : {}), accountId: this.account.id, filename: this.filename || 'transactions.csv', submissionId: this.submissionId,
       rows: this.included.map(row => ({ rowId: row.line, date: row.date || null, amount: row.amount, direction: row.direction,
         categoryType: row.categoryChoice === 'transfer' ? 'Transfer' : row.direction === 'In' ? 'Income' : 'Expense',
         categoryId: row.categoryChoice?.startsWith('c:') ? Number(row.categoryChoice.slice(2)) : null,

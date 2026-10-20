@@ -14,6 +14,7 @@ export class AccountService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environemnt.apiUrl}/accounts`;
 
+    setLoanSubtype(id: number, loanSubtype: string) { return this.http.put<void>(`${this.apiUrl}/${id}/loan-subtype`, { loanSubtype }); }
     getAccounts(): Observable<Account[]> {
         return this.http.get<Account[]>(this.apiUrl);
     }

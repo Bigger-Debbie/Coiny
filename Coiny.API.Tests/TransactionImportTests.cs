@@ -35,6 +35,70 @@ public class TransactionImportTests
     { AccountId = 1, SubmissionId = Guid.NewGuid(), Filename = "bank.csv", Rows = rows.Length > 0 ? rows.ToList() : [Row()] };
 
     [Fact]
+    public async Task Bank_comparison_uses_existing_history_and_included_rows_through_its_date_only()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);
+        c.Transactions.AddRange(new Transaction { HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 25, TransactionDate = Day.ToDateTime(TimeOnly.MinValue), Description = "Already imported" },
+            new Transaction { HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 40, TransactionDate = Day.AddDays(10).ToDateTime(TimeOnly.MinValue), Description = "Later spending" });
+        await c.SaveChangesAsync();
+        var request = Request(); request.BankBalanceCheck = new() { Date = Day.AddDays(1), Balance = 955 };
+        var validation = await Service(c).ValidateAsync(request);
+        Assert.True(validation.CanImport); Assert.Equal(915, validation.ProjectedBalance);
+        Assert.Equal(955, validation.BalanceComparison!.CalculatedBalance); Assert.Equal(0, validation.BalanceComparison.Difference);
+        Assert.False(validation.BalanceComparison.RequiresAcknowledgment);
+        Assert.Equal(1000, (await c.Accounts.SingleAsync(a => a.Id == 1)).OpeningBalance);
+    }
+
+    [Fact]
+    public async Task Balance_mismatch_requires_exact_acknowledgment_without_creating_adjustments()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);
+        var request = Request(); request.BankBalanceCheck = new() { Date = Day.AddDays(1), Balance = 990 };
+        var validation = await Service(c).ValidateAsync(request);
+        Assert.False(validation.CanImport); Assert.Equal(10, validation.BalanceComparison!.Difference);
+        await Assert.ThrowsAsync<ImportValidationException>(() => Service(c).ImportAsync(request));
+        Assert.Empty(await c.Transactions.ToListAsync()); Assert.Empty(await c.TransactionImportBatches.ToListAsync());
+        request.BankBalanceCheck.AcknowledgedCalculatedBalance = 980;
+        Assert.True((await Service(c).ValidateAsync(request)).CanImport);
+        var result = await Service(c).ImportAsync(request); Assert.Equal(980, result.BalanceAfter);
+        Assert.Single(await c.Transactions.ToListAsync()); Assert.Equal(1000, (await c.Accounts.SingleAsync(a => a.Id == 1)).OpeningBalance);
+        Assert.Equal(result, await Service(db.Context()).ImportAsync(request));
+        request.BankBalanceCheck.Balance = 991;
+        await Assert.ThrowsAsync<ImportConflictException>(() => Service(db.Context()).ImportAsync(request));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Commit_rechecks_balances_and_rejects_new_or_changed_differences(bool initiallyMatches)
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);
+        var request = Request(); request.BankBalanceCheck = new() { Date = Day.AddDays(1), Balance = initiallyMatches ? 980 : 990 };
+        var preview = await Service(c).ValidateAsync(request);
+        request.BankBalanceCheck.AcknowledgedCalculatedBalance = initiallyMatches ? null : preview.BalanceComparison!.CalculatedBalance;
+        c.Transactions.Add(new() { HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 1, TransactionDate = Day.ToDateTime(TimeOnly.MinValue), Description = "Concurrent spending" }); await c.SaveChangesAsync();
+        var error = await Assert.ThrowsAsync<ImportValidationException>(() => Service(db.Context()).ImportAsync(request));
+        Assert.Equal(979, error.Validation.BalanceComparison!.CalculatedBalance); Assert.False(error.Validation.CanImport);
+        Assert.Empty(await c.TransactionImportBatches.ToListAsync());
+        request.BankBalanceCheck.AcknowledgedCalculatedBalance = 979;
+        Assert.Equal(979, (await Service(db.Context()).ImportAsync(request)).BalanceAfter);
+    }
+
+    [Fact]
+    public async Task Bank_reference_rejects_unsupported_accounts_invalid_precision_and_dates()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);
+        var request = Request(); request.BankBalanceCheck = new() { Date = Day, Balance = 1000 };
+        await Assert.ThrowsAsync<ArgumentException>(() => Service(c).ValidateAsync(request));
+        request.BankBalanceCheck.Date = Day.AddDays(1); request.BankBalanceCheck.Balance = 1.001m;
+        await Assert.ThrowsAsync<ArgumentException>(() => Service(c).ValidateAsync(request));
+        request.BankBalanceCheck.Balance = -20;
+        Assert.Equal(-20, (await Service(c).ValidateAsync(request)).BalanceComparison!.BankBalance);
+        var account = await c.Accounts.SingleAsync(a => a.Id == 1); account.AccountType = AccountType.CreditCard; await c.SaveChangesAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() => Service(c).ValidateAsync(request));
+    }
+
+    [Fact]
     public async Task Batch_updates_all_dates_once_and_preserves_later_history_and_transfer_exclusion()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);

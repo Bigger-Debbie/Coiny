@@ -12,18 +12,20 @@ public class DashboardService : IDashboardService
     private readonly ITransactionService _transactionService;
     private readonly IAccountTrendService _accountTrendService;
     private readonly TimeProvider _timeProvider;
+    private readonly UserPreferencesService _preferences;
 
     public DashboardService(IAccountService accountService, ITransactionService transactionService,
-        IAccountTrendService accountTrendService, TimeProvider timeProvider)
+        IAccountTrendService accountTrendService, TimeProvider timeProvider, UserPreferencesService preferences)
     {
         _accountService = accountService;
         _transactionService = transactionService;
         _accountTrendService = accountTrendService;
-        _timeProvider = timeProvider;
+        _timeProvider = timeProvider; _preferences = preferences;
     }
 
     public async Task<DashboardSummaryResponse> GetSummaryAsync()
     {
+        var includeMortgage = (await _preferences.GetAsync()).IncludeMortgageInNetWorth;
         var accounts = await _accountService.GetAccountsAsync();
         var transactions = await _transactionService.GetTransactionsAsync();
 
@@ -41,7 +43,7 @@ public class DashboardService : IDashboardService
             {
                 Id = account.Id,
                 Name = account.Name,
-                AccountType = account.AccountType,
+                AccountType = account.AccountType, LoanSubtype = account.LoanSubtype,
                 CurrentBalance = account.CurrentBalance,
                 InstitutionName = account.InstitutionName,
                 MonthlyTrend = new DashboardAccountTrendResponse
@@ -57,7 +59,10 @@ public class DashboardService : IDashboardService
 
         var NetWorthSummary = new NetWorthSummaryResponse
         {
-            CurrentValue = dashboardAccounts.Sum(account => 
+            IncludeMortgageInNetWorth = includeMortgage,
+            HasMortgage = accounts.Any(a => a.AccountType == AccountType.Loan && a.LoanSubtype == LoanSubtype.Mortgage),
+            Mortgage = accounts.Where(a => a.AccountType == AccountType.Loan && a.LoanSubtype == LoanSubtype.Mortgage).Sum(a => a.CurrentBalance),
+            CurrentValue = dashboardAccounts.Where(a => includeMortgage || a.LoanSubtype != LoanSubtype.Mortgage).Sum(account =>
                 IsLiability(account.AccountType)
                     ? -account.CurrentBalance
                     : account.CurrentBalance),
@@ -74,7 +79,7 @@ public class DashboardService : IDashboardService
 
             Debt = dashboardAccounts
                 .Where(account =>
-                    IsLiability(account.AccountType))
+                    IsLiability(account.AccountType) && account.LoanSubtype != LoanSubtype.Mortgage)
                 .Sum(account => account.CurrentBalance)
         };
 
@@ -111,9 +116,12 @@ public class DashboardService : IDashboardService
         };
     }
 
-    public Task<TrendResult> GetNetWorthTrendAsync(DateOnly startDate, DateOnly endDate)
+    public async Task<TrendResult> GetNetWorthTrendAsync(DateOnly startDate, DateOnly endDate)
     {
-        return _accountTrendService.GetTrendAsync(startDate, endDate,
+        var includeMortgage = (await _preferences.GetAsync()).IncludeMortgageInNetWorth;
+        var ids = includeMortgage ? null : (await _accountService.GetAccountsAsync())
+            .Where(a => a.LoanSubtype != LoanSubtype.Mortgage).Select(a => a.Id).ToArray();
+        return await _accountTrendService.GetTrendAsync(startDate, endDate, ids,
             aggregation: AccountTrendAggregation.NetWorth);
     }
 

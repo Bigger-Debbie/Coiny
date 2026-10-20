@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 
 [ApiController]
+[BudgetApiExceptionFilter]
 [Authorize]
 [Route("api/[controller]")]
 public class DashboardController : ControllerBase

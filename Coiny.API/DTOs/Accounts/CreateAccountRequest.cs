@@ -9,6 +9,7 @@ public class CreateAccountRequest
     [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
 
+    public LoanSubtype? LoanSubtype { get; set; }
     [Required]
     public AccountType AccountType { get; set; }
     public int? InstitutionId { get; set; }

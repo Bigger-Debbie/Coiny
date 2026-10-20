@@ -16,6 +16,13 @@ describe('TransactionList', () => {
     fixture.detectChanges();
     return fixture;
   }
+  it('offers an accessible full-row action only when enabled and emits the selected transaction id', () => {
+    const f = render([transaction({ id: 7 })]); expect(f.nativeElement.querySelector('.transaction-open')).toBeNull();
+    f.componentRef.setInput('interactive', true); f.detectChanges(); const edit = vi.fn(); f.componentInstance.open.subscribe(edit);
+    expect(f.nativeElement.querySelector('.transaction-open').tagName).toBe('BUTTON');
+    expect(f.nativeElement.querySelector('.transaction-open').getAttribute('aria-label')).toContain('View transaction: Weekly groceries');
+    f.nativeElement.querySelector('.transaction-open').click(); expect(edit).toHaveBeenCalledWith(7);
+  });
   it('shows account, institution, description, merchant and calendar date', () => {
     const f = render([transaction()]);
     expect(f.nativeElement.querySelector('.institution-avatar').textContent).toBe('D');

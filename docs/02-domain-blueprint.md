@@ -102,3 +102,11 @@ currently filter inactive accounts.
 | Transaction audit | Attribution and designed correction history |
 
 These are design directions, not existing entities or API capabilities.
+
+
+Loan accounts have a nullable `LoanSubtype` (Mortgage, Auto, Personal, Student,
+Other); non-loans have no subtype. Existing loans default to Other and require
+explicit classification. `ApplicationUser.IncludeMortgageInNetWorth` defaults to
+true and affects personal net-worth aggregation, not the shared ledger. Dashboard
+Other Debt and Mortgage are disjoint totals. Mortgage inclusion is applied to
+both current net worth and historical chart calculations.

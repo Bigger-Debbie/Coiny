@@ -2,19 +2,20 @@
 <ul class="account-list">
   @for (account of accounts; track account.id) {
     <li class="account-row">
+      <a class="account-open" [routerLink]="['/accounts']" [queryParams]="{ accountId: account.id }" [attr.aria-label]="'Open account: ' + account.name + ', ' + (account.institutionName || 'No institution')" [attr.title]="trendDescription(account)"></a>
       <span class="institution-avatar" aria-hidden="true">{{ initial(account) }}</span>
       <div class="account-details"><strong>{{ account.name }}</strong><span>{{ account.institutionName || 'No institution' }}</span></div>
       <span class="account-balance">{{ account.currentBalance | currency }}@if (isLiability(account)) {<small>owed</small>}</span>
-      <span class="account-trend" role="img" [class.positive]="account.monthlyTrend.direction !== 'Neutral' && isImproving(account)"
-        [class.negative]="account.monthlyTrend.direction !== 'Neutral' && !isImproving(account)"
+      <span class="account-trend" role="img" [class.positive]="account.monthlyTrend.percentageChange !== null && account.monthlyTrend.direction !== 'Neutral' && isImproving(account)"
+        [class.negative]="account.monthlyTrend.percentageChange !== null && account.monthlyTrend.direction !== 'Neutral' && !isImproving(account)"
         [attr.aria-label]="trendDescription(account)" [attr.title]="trendDescription(account)">
         @if (account.monthlyTrend.absoluteChange !== null) {
-          @if (account.monthlyTrend.direction !== 'Neutral') {
+          @if (account.monthlyTrend.percentageChange !== null && account.monthlyTrend.direction !== 'Neutral') {
             <app-icon class="trend-icon" [name]="account.monthlyTrend.direction === 'Up' ? 'up' : 'down'" />
           }
           <span aria-hidden="true">@if (account.monthlyTrend.percentageChange !== null) {
             {{ magnitude(account.monthlyTrend.percentageChange!) | number:'1.1-1' }}%
-          } @else { {{ magnitude(account.monthlyTrend.absoluteChange!) | currency }} }</span>
+          } @else { — }</span>
         } @else {<span aria-hidden="true">No history</span>}
       </span>
     </li>

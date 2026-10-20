@@ -144,7 +144,7 @@ npm test -- --watch=false \
   --include='src/app/shared/components/select-menu/**/*.spec.ts'
 ```
 
-Current verification baseline after the category-breakdown implementation:
+Current verification baseline after transaction management:
 
 - Backend and frontend production builds pass.
 - The dashboard, accounts, budgeting wizard, creation-form, and shared-component tests pass.
@@ -152,15 +152,15 @@ Current verification baseline after the category-breakdown implementation:
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The last full frontend run had 202 passing tests out of 203; the remaining failure
+- The last full frontend run had 223 passing tests out of 224; the remaining failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
-- Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.03 kB
-  and 4.25 kB respectively). The initial bundle is about 509.85 kB against a
-  500 kB warning budget; the production build still passes. CSV import loads lazily.
-- The backend suite has 93 passing xUnit tests for bill payments, batch imports, transfers, recurrence, household-scoped
+- Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.39 kB
+  and 4.37 kB respectively). The initial bundle is about 529.80 kB against a
+  500 kB warning budget; the production build still passes. CSV import and the transaction editor load lazily.
+- The backend suite has 112 passing xUnit tests for transaction management, bill payments, batch imports, transfers, recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).

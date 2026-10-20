@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, output } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Icon } from '../../../shared/components/icon/icon';
 import { DashboardTransaction } from '../../../shared/models/dashboard/dashboard-transaction';
@@ -11,6 +11,8 @@ import { DashboardTransaction } from '../../../shared/models/dashboard/dashboard
 })
 export class TransactionList {
   @Input() transactions: readonly DashboardTransaction[] = [];
+  @Input() interactive = false;
+  readonly open = output<number>();
   readonly magnitude = Math.abs;
 
   sign(transaction: DashboardTransaction): string {

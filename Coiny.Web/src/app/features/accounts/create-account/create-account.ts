@@ -21,6 +21,7 @@ export class CreateAccount implements OnInit {
   readonly cancelled = output<void>();
   readonly typeOptions: SelectOption[] = ['Checking', 'Savings', 'CreditCard', 'Investment', 'Retirement', 'Loan', 'Cash', 'Crypto', 'Other']
     .map(value => ({ value, label: value === 'CreditCard' ? 'Credit card' : value }));
+  readonly loanTypes: SelectOption[] = ['Mortgage', 'Auto', 'Personal', 'Student', 'Other'].map(value => ({ value, label: value }));
   get institutionOptions(): SelectOption[] {
     return [{ value: null, label: 'No institution' }, ...this.institutions().map(i => ({ value: i.id, label: i.name }))];
   }
@@ -41,7 +42,7 @@ export class CreateAccount implements OnInit {
   readonly error = signal('');
   readonly today = getTrendDates('1D').endDate;
   readonly model: CreateAccountRequest = {
-    name: '', accountType: 'Checking', institutionId: null, openingBalance: 0, openingBalanceDate: this.today,
+    name: '', accountType: 'Checking', loanSubtype: null, institutionId: null, openingBalance: 0, openingBalanceDate: this.today,
   };
 
   ngOnInit(): void { this.loadInstitutions(); }
@@ -58,7 +59,7 @@ export class CreateAccount implements OnInit {
     if (form.invalid || !this.model.name.trim() || this.model.openingBalanceDate > this.today || this.busy() || this.addingInstitution()) return;
     this.saving.set(true);
     this.error.set('');
-    this.accountService.createAccount({ ...this.model, name: this.model.name.trim() })
+    this.accountService.createAccount({ ...this.model, loanSubtype: this.model.accountType === 'Loan' ? this.model.loanSubtype ?? 'Other' : null, name: this.model.name.trim() })
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: account => {
           this.saving.set(false);

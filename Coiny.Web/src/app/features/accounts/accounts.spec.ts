@@ -34,12 +34,13 @@ describe('Accounts', () => {
     Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal');
     Reflect.deleteProperty(HTMLDialogElement.prototype, 'close');
   });
-  beforeEach(() => {
+  beforeEach(async () => {
     TestBed.configureTestingModule({ imports: [Accounts], providers: [
       provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
       { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({}) } } },
     ] });
     TestBed.overrideComponent(Accounts, { remove: { imports: [CategoryBreakdownPanel] }, add: { imports: [BreakdownStub] } });
+    await TestBed.compileComponents();
     http = TestBed.inject(HttpTestingController);
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   });
@@ -57,6 +58,24 @@ describe('Accounts', () => {
   function flushPage(totalCount = 0, page = 1) {
     http.expectOne(r => r.url.endsWith('/paged')).flush({ items: [], totalCount, page, pageSize: 10 });
   }
+  it('refreshes balances, trends, and category summaries after a transaction change', () => {
+    const f = render(); flushTrend(); flushPage(); const c = f.componentInstance;
+    const refresh = c.breakdownRefresh(); c.editingId.set(7); c.transactionChanged('deleted');
+    expect(c.editingId()).toBeNull(); expect(c.notice()).toBe('Transaction deleted.');
+    http.expectOne(r => r.url.endsWith('/accounts')).flush(accounts);
+    http.expectOne(r => r.url.endsWith('/categories')).flush([]);
+    http.expectOne(r => r.url.endsWith('/institutions')).flush([]);
+    flushTrend(); flushPage(); expect(c.breakdownRefresh()).toBeGreaterThan(refresh);
+  });
+  it('classifies an existing loan and refreshes the account metadata', () => {
+    const f = render(); flushTrend(); flushPage(); const c = f.componentInstance;
+    const loan = { ...accounts[0], id: 7, accountType: 'Loan', loanSubtype: 'Other' };
+    c.accounts.set([...accounts, loan]); c.selectAccount('7'); flushTrend(); flushPage(); c.openLoan(loan); c.loanSubtype = 'Mortgage'; c.saveLoan();
+    const request = http.expectOne(r => r.url.endsWith('/7/loan-subtype')); expect(request.request.body).toEqual({ loanSubtype: 'Mortgage' }); request.flush(null);
+    http.expectOne(r => r.url.endsWith('/accounts')).flush([...accounts, { ...loan, loanSubtype: 'Mortgage' }]);
+    http.expectOne(r => r.url.endsWith('/categories')).flush([]); http.expectOne(r => r.url.endsWith('/institutions')).flush([]); flushTrend(); flushPage();
+    expect(c.loanAccount()).toBeNull(); expect(c.selectedAccount()?.loanSubtype).toBe('Mortgage');
+  });
   it('defaults to all accounts net worth, 1M, and ten results for the same dates', () => {
     const f = render();
     const dates = getTrendDates('1M');

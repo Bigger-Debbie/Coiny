@@ -26,6 +26,12 @@ describe('CreateAccount', () => {
     await f.whenStable();
     http.expectNone(r => r.method === 'POST');
   });
+  it('offers loan subtypes and sends the selected mortgage classification', async () => {
+    const f = await render(); Object.assign(f.componentInstance.model, { name: 'Home loan', accountType: 'Loan', loanSubtype: 'Mortgage', openingBalance: 1000, openingBalanceDate: '2026-01-01' });
+    f.detectChanges(); await f.whenStable(); expect(f.nativeElement.querySelector('#loan-subtype')).toBeTruthy();
+    f.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await f.whenStable();
+    const request = http.expectOne(r => r.method === 'POST'); expect(request.request.body).toMatchObject({ accountType: 'Loan', loanSubtype: 'Mortgage' }); request.flush({ id: 9 });
+  });
   it('creates an account with its opening date and navigates to it', async () => {
     const f = await render();
     Object.assign(f.componentInstance.model, { name: ' New savings ', openingBalance: 500, openingBalanceDate: '2026-01-01' });

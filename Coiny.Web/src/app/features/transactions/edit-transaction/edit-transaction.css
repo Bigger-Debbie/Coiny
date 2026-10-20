@@ -1,0 +1,17 @@
+fieldset { border:0; padding:0; margin:0; display:grid; gap:1rem; min-width:0; }
+h3 { font-size:1.2rem; font-weight:400; text-transform:none; letter-spacing:normal; }
+p { line-height:1.6; }
+.hint { color:var(--color-text-muted); font-size:.85rem; }
+label { display:block; margin-bottom:.4rem; font-size:.85rem; }
+.check { display:flex; gap:.5rem; align-items:center; } .check input { width:auto; }
+.actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:.75rem; margin-top:1.5rem; }
+.delete-link { margin-right:auto; color:var(--color-danger); }
+.delete-button { background:var(--color-danger); color:white; }
+.error { color:var(--color-danger); }
+
+.detail-description { color:var(--color-primary); font-size:1.2rem; margin-top:0; overflow-wrap:anywhere; }
+.transaction-information { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem 1.5rem; }
+.transaction-information dt { color:var(--color-text-muted); font-size:.8rem; margin-bottom:.3rem; }
+.transaction-information dd { margin:0; overflow-wrap:anywhere; line-height:1.5; }
+.notes-detail { grid-column:1 / -1; } .notes-detail dd { white-space:pre-wrap; }
+@media(max-width:500px) { .transaction-information { grid-template-columns:1fr; } }

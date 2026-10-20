@@ -4,6 +4,7 @@ namespace Coiny.API.Models;
 
 public class Transaction : BaseEntity
 {
+    public int EditVersion { get; set; }
     public int HouseholdId { get; set; }
     public Household Household { get; set; } = null!;
     public int AccountId { get; set; }

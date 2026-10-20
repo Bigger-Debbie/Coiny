@@ -52,12 +52,23 @@
           <div><label for="map-decimals">Number format</label><app-select-menu inputId="map-decimals" label="Number format" [options]="decimals" [(ngModel)]="decimalSeparator" (ngModelChange)="invalidate()" /></div>
         </div>
         <p class="hint">For a credit card, a purchase is money out and a payment is money in. Banks use different signs—check the preview against your statement.</p>
-        <details><summary>Optional columns</summary><div class="fields">
+        <details [open]="supportsBalanceCheck && balanceColumn !== null"><summary>Optional columns and bank balance check</summary><div class="fields">
           <div><label for="map-status">Posting status</label><app-select-menu inputId="map-status" label="Posting status column" [options]="optionalColumns" [(ngModel)]="statusColumn" (ngModelChange)="statusChanged()" /></div>
           <div><label for="map-classification">Bank category / classification</label><app-select-menu inputId="map-classification" label="Bank classification column" [options]="optionalColumns" [(ngModel)]="classificationColumn" (ngModelChange)="invalidate()" /></div>
           <div><label for="map-merchant">Merchant / payee</label><app-select-menu inputId="map-merchant" label="Merchant column" [options]="optionalColumns" [(ngModel)]="merchantColumn" (ngModelChange)="invalidate()" /></div>
           <div><label for="map-source-account">Account identifier in the file</label><app-select-menu inputId="map-source-account" label="Source account column" [options]="optionalColumns" [(ngModel)]="accountColumn" (ngModelChange)="sourceAccount = null; invalidate()" /></div>
-        </div></details>
+        </div>
+          @if (supportsBalanceCheck) {
+            <div class="fields">
+              <div><label for="map-bank-balance">Posted running balance (optional)</label><app-select-menu inputId="map-bank-balance" label="Posted running balance column" [options]="optionalColumns" [(ngModel)]="balanceColumn" (ngModelChange)="balanceConfirmed = false; invalidate()" /></div>
+              @if (balanceColumn !== null) { <div><label for="map-bank-order">Transaction order in the export</label><app-select-menu inputId="map-bank-order" label="Bank transaction order" [options]="balanceOrders" [(ngModel)]="balanceOrder" (ngModelChange)="balanceConfirmed = false; invalidate()" /></div> }
+            </div>
+            @if (balanceColumn !== null) {
+              <p class="hint">We compare the final posted bank balance with Coiny’s closing balance on that date, after this import. Existing transactions after that date are excluded from the comparison. Nothing is adjusted automatically.</p>
+              <label class="check-label"><input type="checkbox" [(ngModel)]="balanceConfirmed" (ngModelChange)="invalidate()" />This is the posted balance after each transaction, not an available balance. The export includes all posted activity through its final date, in the bank’s original order.</label>
+            }
+          } @else { <p class="hint">Bank balance checks currently support checking and savings accounts.</p> }
+        </details>
         @if (sourceAccounts.length > 2) {
           <div class="source-choice"><label for="source-account-choice">This file contains multiple accounts. Which belongs to the selected Coiny account?</label><app-select-menu inputId="source-account-choice" label="Source account to include" [options]="sourceAccounts" [(ngModel)]="sourceAccount" (ngModelChange)="invalidate()" /></div>
         }
@@ -77,7 +88,7 @@
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
     @if (preview().length) {
       @if (selectedAccount; as account) {
-        <app-import-review [hidden]="step() !== 'review'" [mappedRows]="preview()" [account]="account" [filename]="filename" (busyChange)="importBusy.set($event)" (lockedChange)="importLocked.set($event)" (completed)="importCompleted.set(true)" />
+        <app-import-review [hidden]="step() !== 'review'" [mappedRows]="preview()" [bankBalance]="bankBalance()" [account]="account" [filename]="filename" (busyChange)="importBusy.set($event)" (lockedChange)="importLocked.set($event)" (completed)="importCompleted.set(true)" />
       }
     }
     @if (importCompleted()) { <button class="button-outline" type="button" (click)="restart()">Import another file</button> }

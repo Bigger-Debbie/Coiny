@@ -62,7 +62,7 @@ public class AuthController : ControllerBase
         {
             Id = user.Id,
             Email = user.Email ?? string.Empty,
-            FirstName = user.FirstName
+            FirstName = user.FirstName, IncludeMortgageInNetWorth = user.IncludeMortgageInNetWorth
         });
     }
 

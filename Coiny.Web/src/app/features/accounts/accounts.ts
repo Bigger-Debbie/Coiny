@@ -22,16 +22,38 @@ import { Modal } from '../../shared/components/modal/modal';
 import { CreateAccount } from './create-account/create-account';
 import { CreateTransaction } from '../transactions/create-transaction/create-transaction';
 import { CreateCategory } from './create-category/create-category';
+import { AuthService } from '../../core/services/auth.service';
+import { UserPreferencesService } from '../../core/services/user-preferences.service';
+import { EditTransaction } from '../transactions/edit-transaction/edit-transaction';
 import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown';
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel],
+  imports: [CurrencyPipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel, EditTransaction],
   templateUrl: './accounts.html',
   styleUrl: './accounts.css',
 })
 export class Accounts implements OnInit {
   readonly modal = signal<'account' | 'transaction' | 'category' | null>(null);
+  readonly editingId = signal<number | null>(null);
+  transactionChanged(action: 'updated' | 'deleted') { this.editingId.set(null); this.notice.set(action === 'updated' ? 'Transaction updated.' : 'Transaction deleted.'); this.loadOverview(true); }
+  private readonly auth = inject(AuthService);
+  private readonly preferences = inject(UserPreferencesService);
+  readonly includeMortgage = computed(() => this.auth.currentUser()?.includeMortgageInNetWorth ?? true);
+  readonly loanAccount = signal<Account | null>(null);
+  readonly loanSaving = signal(false);
+  readonly loanError = signal('');
+  loanSubtype = 'Other';
+  readonly loanTypes: SelectOption[] = ['Mortgage', 'Auto', 'Personal', 'Student', 'Other'].map(value => ({ value, label: value }));
+  openLoan(account: Account) { this.loanSubtype = account.loanSubtype || 'Other'; this.loanError.set(''); this.loanAccount.set(account); }
+  saveLoan() {
+    const account = this.loanAccount(); if (!account || this.loanSaving()) return;
+    this.loanSaving.set(true); this.loanError.set('');
+    this.accountService.setLoanSubtype(account.id, this.loanSubtype).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.loanSaving.set(false); this.loanAccount.set(null); this.loadOverview(true); },
+      error: () => { this.loanSaving.set(false); this.loanError.set('The loan type couldn’t save. Please try again.'); },
+    });
+  }
   readonly notice = signal('');
   readonly breakdownRefresh = signal(0);
   private readonly money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -68,7 +90,7 @@ export class Accounts implements OnInit {
   readonly selectedAccount = computed(() => this.accounts().find(a => a.id === this.selectedId()) ?? null);
   readonly isDebt = computed(() => ['CreditCard', 'Loan'].includes(this.selectedAccount()?.accountType ?? ''));
   readonly balance = computed(() => this.selectedAccount()?.currentBalance ??
-    this.accounts().reduce((sum, a) => sum + (['CreditCard', 'Loan'].includes(a.accountType) ? -a.currentBalance : a.currentBalance), 0));
+    this.accounts().filter(a => this.includeMortgage() || a.loanSubtype !== 'Mortgage').reduce((sum, a) => sum + (['CreditCard', 'Loan'].includes(a.accountType) ? -a.currentBalance : a.currentBalance), 0));
   readonly institution = computed(() => this.institutions().find(i => i.id === this.selectedAccount()?.institutionId));
   readonly website = computed(() => {
     const raw = this.institution()?.website?.trim();
@@ -115,6 +137,7 @@ export class Accounts implements OnInit {
     const create = this.route.snapshot.queryParamMap.get('create');
     if (create === 'account' || create === 'transaction') this.modal.set(create);
     this.loadOverview();
+    this.preferences.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadOverview(true));
   }
 
   loadOverview(refresh = false): void {

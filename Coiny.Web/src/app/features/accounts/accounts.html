@@ -18,7 +18,7 @@
           <span>{{ selectedAccount()?.institutionName || (selectedId() === null ? 'Your household' : 'No institution') }}</span>
         </div>
         <div class="balance-card">
-          <span class="balance-label">{{ selectedId() === null ? 'Net Worth' : isDebt() ? 'Amount owed' : 'Current balance' }}</span>
+          <span class="balance-label">{{ selectedId() === null ? (includeMortgage() ? 'Net Worth' : 'Net worth excluding mortgage') : isDebt() ? 'Amount owed' : 'Current balance' }}</span>
           <strong class="balance">{{ balance() | currency }}</strong>
           @if (trend(); as result) {
             @if (result.absoluteChange !== null) {
@@ -37,6 +37,7 @@
           @if (selectedAccount(); as account) {
             <div class="account-meta">
               <span>Account Type: {{ account.accountType === 'CreditCard' ? 'Credit card' : account.accountType }}</span>
+              @if (account.accountType === 'Loan') { <span>Loan Type: {{ account.loanSubtype || 'Other' }} <button type="button" class="button-ghost" (click)="openLoan(account)">Change</button></span> }
               @if (website(); as url) {
                 <a [href]="url" target="_blank" rel="noopener noreferrer">Institution website ↗</a>
               }
@@ -96,7 +97,7 @@
         @else if (transactionError()) {
           <div role="status"><p>Your transactions couldn’t load.</p><button (click)="loadTransactions()">Retry transactions</button></div>
         } @else if (page(); as result) {
-          @if (result.items.length) { <app-transaction-list [transactions]="result.items" /> }
+          @if (result.items.length) { <app-transaction-list [transactions]="result.items" [interactive]="true" (open)="editingId.set($event)" /> }
           @else { <p role="status">No transactions match this account, timeframe, and filters.</p> }
         }
       </div>
@@ -131,3 +132,19 @@
     </app-modal>
   }
 </div>
+
+@defer (when editingId() !== null) {
+  @if (editingId(); as id) { <app-edit-transaction [transactionId]="id" (dismiss)="editingId.set(null)" (changed)="transactionChanged($event)" /> }
+}
+
+@if (loanAccount(); as account) {
+  <app-modal title="Loan type" [busy]="loanSaving()" (dismiss)="loanAccount.set(null)">
+    <p>{{ account.name }}</p>
+    <form (ngSubmit)="saveLoan()"><fieldset class="loan-form" [disabled]="loanSaving()">
+      <label for="existing-loan-subtype">Loan type</label><app-select-menu inputId="existing-loan-subtype" label="Loan type" name="loanSubtype" [options]="loanTypes" [(ngModel)]="loanSubtype" />
+      <p>Mortgage loans appear separately from other debt on your dashboard.</p>
+      @if (loanError()) { <p role="alert">{{ loanError() }}</p> }
+      <div class="loan-actions"><button class="button-outline" type="button" (click)="loanAccount.set(null)">Cancel</button><button class="button-primary" type="submit">{{ loanSaving() ? 'Saving…' : 'Save loan type' }}</button></div>
+    </fieldset></form>
+  </app-modal>
+}
