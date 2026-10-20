@@ -4,7 +4,11 @@
             <img src="/assets/icons/favicon.svg" alt="Coiny Logo" class="brand-logo">
             <span class="brand-name">COINY</span>
         </a>
-        <nav class="navigation">
+        <nav class="navigation" aria-label="Main navigation">
+            <a class="navigation-link" routerLink="/dashboard" routerLinkActive="active"
+                ariaCurrentWhenActive="page" aria-label="Home dashboard" title="Home dashboard">
+                <app-icon class="navigation-icon" name="home"></app-icon>
+            </a>
             <a
                 class="navigation-link"
                 routerLink="/accounts"

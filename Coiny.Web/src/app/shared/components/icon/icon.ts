@@ -1,6 +1,7 @@
 import { Component, Input } from '@angular/core';
 
 export type IconName = 
+  | 'home'
   | 'accounts'
   | 'transactions'
   | 'budget'
@@ -13,6 +14,7 @@ interface IconDefinition {
 }
 
 const ICONS: Record<IconName, IconDefinition> = {
+  home: { viewBox: '0 0 48 48', paths: ['M21.1 1.9a4 4 0 0 1 5.8 0l19 17.7a3 3 0 0 1-4.1 4.4l-.8-.7V40a5 5 0 0 1-5 5h-7V32a3 3 0 0 0-3-3h-4a3 3 0 0 0-3 3v13h-7a5 5 0 0 1-5-5V23.3l-.8.7a3 3 0 0 1-4.1-4.4Z'] },
   up: {
     viewBox: '0 0 25.93 25.92',
     paths: [
