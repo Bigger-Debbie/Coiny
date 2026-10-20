@@ -32,6 +32,104 @@ public class TransferServiceTests
     { AccountId = account, Direction = direction, Amount = 250, Date = date ?? Day, Description = "Bank transfer" };
 
     [Fact]
+    public async Task Candidates_prioritize_same_day_and_exclude_wrong_amount_direction_account_and_linked_entries()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var source = await service.CreateEntryAsync(Entry(1, TransferDirection.Out));
+        var nearby = await service.CreateEntryAsync(Entry(2, TransferDirection.In, Day.AddDays(3)));
+        var sameDay = await service.CreateEntryAsync(Entry(2, TransferDirection.In));
+        var sameDayAgain = await service.CreateEntryAsync(Entry(2, TransferDirection.In));
+        await service.CreateEntryAsync(Entry(2, TransferDirection.Out));
+        var wrongAmount = Entry(2, TransferDirection.In); wrongAmount.Amount = 249; await service.CreateEntryAsync(wrongAmount);
+        await service.CreateEntryAsync(Entry(3, TransferDirection.In));
+        await service.CreateEntryAsync(Entry(2, TransferDirection.In, Day.AddDays(8)));
+        await service.CreateAsync(Pair());
+        var rows = await service.GetCandidatesAsync(source.Id, 2, 7);
+        Assert.Equal(new[] { sameDay.Id, sameDayAgain.Id, nearby.Id }, rows.Select(r => r.Id));
+        Assert.Equal(2, (await service.GetCandidatesAsync(source.Id, 2, 0)).Count);
+        Assert.Equal(4, (await service.GetCandidatesAsync(source.Id, 2, 30)).Count);
+        await Assert.ThrowsAsync<TransferNotFoundException>(() => service.GetCandidatesAsync(source.Id, 4, 7));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.GetCandidatesAsync(source.Id, 1, 7));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.GetCandidatesAsync(source.Id, 2, 366));
+        var foreign = new TransferService(c, new User(2), new AccountBalanceSnapshotService(c,new User(2)));
+        await Assert.ThrowsAsync<TransferNotFoundException>(() => foreign.GetCandidatesAsync(source.Id, 2, 7));
+    }
+
+    [Fact]
+    public async Task Reviewed_link_and_unlink_preserve_both_ledgers_dates_fields_and_snapshots()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var first = await service.CreateEntryAsync(Entry(1, TransferDirection.Out));
+        var request = Entry(2, TransferDirection.In, Day.AddDays(2)); request.Description = "Bank posted deposit"; request.Notes = "Keep this note"; request.IsCleared = true;
+        var second = await service.CreateEntryAsync(request); var balances = new AccountBalanceService(c);
+        var before = new[] { await balances.GetCurrentBalanceAsync(1), await balances.GetCurrentBalanceAsync(2) };
+        var snapshots = await c.AccountBalanceSnapshots.AsNoTracking().OrderBy(s => s.Id).Select(s => new { s.AccountId, s.SnapshotDate, s.Balance }).ToArrayAsync();
+        var linked = await service.LinkAsync(new() { FirstTransactionId = first.Id, SecondTransactionId = second.Id,
+            ExpectedFirstEditVersion = first.EditVersion, ExpectedSecondEditVersion = second.EditVersion });
+        Assert.Equal(2, await c.Transactions.CountAsync());
+        Assert.Equal(second.TransactionDate, linked.Incoming.TransactionDate); Assert.Equal(second.Description, linked.Incoming.Description);
+        Assert.Equal(second.Notes, linked.Incoming.Notes); Assert.True(linked.Incoming.IsCleared);
+        await service.UnlinkAsync(first.Id, linked.Outgoing.EditVersion, linked.Incoming.EditVersion);
+        Assert.Equal(before, new[] { await balances.GetCurrentBalanceAsync(1), await balances.GetCurrentBalanceAsync(2) });
+        Assert.Equal(snapshots, await c.AccountBalanceSnapshots.AsNoTracking().OrderBy(s => s.Id).Select(s => new { s.AccountId, s.SnapshotDate, s.Balance }).ToArrayAsync());
+        Assert.Equal(2, await c.Transactions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Version_checks_reject_changed_amounts_before_link_create_or_unlink()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var first = await service.CreateEntryAsync(Entry(1, TransferDirection.Out)); var second = await service.CreateEntryAsync(Entry(2, TransferDirection.In));
+        var entry = await c.Transactions.SingleAsync(t => t.Id == second.Id); entry.EditVersion++; await c.SaveChangesAsync();
+        await Assert.ThrowsAsync<TransferConflictException>(() => service.LinkAsync(new() { FirstTransactionId = first.Id, SecondTransactionId = second.Id, ExpectedFirstEditVersion = first.EditVersion, ExpectedSecondEditVersion = second.EditVersion }));
+        var original = await c.Transactions.SingleAsync(t => t.Id == first.Id); original.EditVersion++; await c.SaveChangesAsync();
+        await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateCounterpartAsync(first.Id, new() { AccountId = 2, Date = Day, ExpectedEditVersion = first.EditVersion }));
+        var linked = await service.LinkAsync(new() { FirstTransactionId = first.Id, SecondTransactionId = second.Id, ExpectedFirstEditVersion = original.EditVersion, ExpectedSecondEditVersion = entry.EditVersion });
+        await Assert.ThrowsAsync<TransferConflictException>(() => service.UnlinkAsync(first.Id, first.EditVersion, linked.Incoming.EditVersion));
+        Assert.Equal(2, await c.Transactions.CountAsync()); Assert.NotNull((await c.Transactions.SingleAsync(t => t.Id == first.Id)).PairedTransactionId);
+    }
+
+    [Fact]
+    public async Task Explicit_counterpart_creation_adds_only_one_entry_and_leaves_original_balance_unchanged()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var source = await service.CreateEntryAsync(Entry(1, TransferDirection.Out));
+        var originalSnapshot = await c.AccountBalanceSnapshots.SingleAsync(s => s.AccountId == 1);
+        var pair = await service.CreateCounterpartAsync(source.Id, new() { AccountId = 3, Date = Day.AddDays(2), ExpectedEditVersion = source.EditVersion });
+        Assert.Equal(source.Id, pair.Outgoing.Id); Assert.Equal(source.TransactionDate, pair.Outgoing.TransactionDate);
+        Assert.Equal(Day.AddDays(2).ToDateTime(TimeOnly.MinValue), pair.Incoming.TransactionDate); Assert.False(pair.Incoming.IsCleared);
+        Assert.Equal(2, await c.Transactions.CountAsync()); Assert.Equal(750, await new AccountBalanceService(c).GetCurrentBalanceAsync(1));
+        Assert.Equal(450, await new AccountBalanceService(c).GetCurrentBalanceAsync(3)); Assert.Equal(750, originalSnapshot.Balance);
+        await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateCounterpartAsync(source.Id, new() { AccountId = 3, Date = Day, ExpectedEditVersion = source.EditVersion }));
+        Assert.Equal(2, await c.Transactions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Counterpart_failure_rolls_back_new_entry_link_and_snapshots()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var source = await service.CreateEntryAsync(Entry(1, TransferDirection.Out));
+        await c.Database.ExecuteSqlRawAsync("CREATE TRIGGER reject_counterpart_snapshot BEFORE INSERT ON AccountBalanceSnapshots WHEN NEW.AccountId = 2 BEGIN SELECT RAISE(ABORT, 'test failure'); END;");
+        await Assert.ThrowsAsync<DbUpdateException>(() => service.CreateCounterpartAsync(source.Id, new() { AccountId = 2, Date = Day, ExpectedEditVersion = source.EditVersion }));
+        using var verify = db.Context(); Assert.Equal(1, await verify.Transactions.CountAsync());
+        Assert.Null((await verify.Transactions.SingleAsync()).PairedTransactionId); Assert.Equal(0, (await verify.Transactions.SingleAsync()).EditVersion);
+        Assert.Single(await verify.AccountBalanceSnapshots.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Counterpart_creation_rejects_foreign_closed_same_and_early_accounts()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var source = await service.CreateEntryAsync(Entry(1, TransferDirection.Out));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCounterpartAsync(source.Id,new() { AccountId = 1, Date = Day, ExpectedEditVersion = source.EditVersion }));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCounterpartAsync(source.Id,new() { AccountId = 4, Date = Day, ExpectedEditVersion = source.EditVersion }));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCounterpartAsync(source.Id,new() { AccountId = 2, Date = Day.AddDays(-1), ExpectedEditVersion = source.EditVersion }));
+        (await c.Accounts.FindAsync(2))!.IsActive = false; await c.SaveChangesAsync();
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateCounterpartAsync(source.Id,new() { AccountId = 2, Date = Day, ExpectedEditVersion = source.EditVersion }));
+        Assert.Single(await c.Transactions.ToListAsync());
+    }
+
+    [Fact]
     public async Task Manual_transfer_updates_both_ledgers_and_snapshots_and_preserves_net_worth()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);

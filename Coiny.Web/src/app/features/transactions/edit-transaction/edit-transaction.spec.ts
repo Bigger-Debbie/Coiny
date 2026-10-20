@@ -57,6 +57,18 @@ describe('EditTransaction', () => {
     expect(f.nativeElement.textContent).toContain('Delete both entries'); c.remove();
     const request = http.expectOne(r => r.method === 'DELETE'); expect(request.request.params.get('expectedPairedEditVersion')).toBe('4'); request.flush(null);
   });
+  it('opens reconciliation from read-only transfer details and unlinks without deleting entries', async () => {
+    const transfer = { ...details, transaction: { ...details.transaction, categoryType: 'Transfer', transferDirection: 'Out' as const, transferCounterparty: 'Unknown' as const }, bill: null };
+    const f = await render(transfer, false); const c = f.componentInstance;
+    expect(f.nativeElement.textContent).toContain('Reconcile transfer'); c.reconcile(); f.detectChanges();
+    expect(f.nativeElement.querySelector('app-transfer-reconciliation')).toBeTruthy();
+    http.expectNone(r => r.method === 'POST'); c.reconciling.set(false);
+    c.details = { ...transfer, transaction: { ...transfer.transaction, pairedTransactionId: 8 }, pairedEditVersion: 4 };
+    vi.spyOn(window, 'confirm').mockReturnValue(true); const changed = vi.fn(); c.changed.subscribe(changed); c.unlink();
+    const request = http.expectOne(r => r.method === 'DELETE'); expect(request.request.url).toContain('/transfers/links/7');
+    expect(request.request.params.get('expectedEditVersion')).toBe('2'); expect(request.request.params.get('expectedPairedEditVersion')).toBe('4');
+    request.flush(null); expect(changed).toHaveBeenCalledWith('updated');
+  });
   it('blocks stale saves until reloaded and warns before discarding edits', async () => {
     const f = await render(); const c = f.componentInstance; c.request!.notes = 'Unsaved';
     c.save({ invalid: false } as NgForm); http.expectOne(r => r.method === 'PUT').flush({ detail: 'Transaction changed.' }, { status: 409, statusText: 'Conflict' });

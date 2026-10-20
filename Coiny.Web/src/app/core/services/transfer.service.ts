@@ -8,6 +8,18 @@ import { Transaction } from '../../shared/models/transactions/transaction';
 export class TransferService {
   private readonly http = inject(HttpClient);
   private readonly url = `${environemnt.apiUrl}/transfers`;
+  candidates(id: number, accountId: number, days = 7) {
+    return this.http.get<Transaction[]>(`${this.url}/entries/${id}/candidates`, { params: { accountId, days } });
+  }
+  link(firstTransactionId: number, secondTransactionId: number, expectedFirstEditVersion: number, expectedSecondEditVersion: number) {
+    return this.http.post<{ outgoing: Transaction; incoming: Transaction }>(`${this.url}/links`, { firstTransactionId, secondTransactionId, expectedFirstEditVersion, expectedSecondEditVersion });
+  }
+  unlink(id: number, expectedEditVersion: number, expectedPairedEditVersion: number) {
+    return this.http.delete<void>(`${this.url}/links/${id}`, { params: { expectedEditVersion, expectedPairedEditVersion } });
+  }
+  createCounterpart(id: number, accountId: number, date: string, expectedEditVersion: number) {
+    return this.http.post<{ outgoing: Transaction; incoming: Transaction }>(`${this.url}/entries/${id}/counterpart`, { accountId, date, expectedEditVersion });
+  }
   create(request: CreateTransfer) {
     return this.http.post<{ outgoing: Transaction; incoming: Transaction }>(this.url, request);
   }

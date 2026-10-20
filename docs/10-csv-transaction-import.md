@@ -184,3 +184,7 @@ No opening balance is changed, adjustment entry created, or bank number treated
 as authoritative ledger data. The comparison is optional, and a deliberately
 acknowledged mismatch can be imported. It is not yet a persistent reconciliation
 statement/history or a credit-card sign conversion feature.
+
+### Reconciling transfers after separate account imports
+
+Import each file into its own Coiny account and classify the relevant rows as Transfer (with Unknown or External counterparty). After both imports, open either entry from transaction details and choose **Reconcile transfer**. Select the other account and link the matching existing entry. Coiny does not add another ledger entry or change either balance. Different bank posting dates are preserved; widen the date window when needed. Review ambiguous matches manually. Use **Create the other side** only when that counterpart is not recorded; it adds one transaction to the selected account. Do not use Add Transaction to recreate a movement already imported. Multi-account import sessions remain a future stage.

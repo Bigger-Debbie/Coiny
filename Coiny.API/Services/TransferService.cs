@@ -13,6 +13,55 @@ public sealed class TransferConflictException(string message) : Exception(messag
 public class TransferService(CoinyContext context, ICurrentUserService currentUser,
     IAccountBalanceSnapshotService snapshots) : ITransferService
 {
+    public async Task<List<TransactionResponse>> GetCandidatesAsync(int transactionId, int accountId, int days)
+    {
+        if (days is < 0 or > 365) throw new ArgumentException("Choose a date window between 0 and 365 days.");
+        var household = await currentUser.GetCurrentHouseholdIdAsync();
+        var source = await OwnedEntry(transactionId, household);
+        if (source.PairedTransactionId.HasValue) throw new TransferConflictException("This entry is already linked. Reload before trying again.");
+        if (source.AccountId == accountId) throw new ArgumentException("Choose a different account.");
+        if (!await context.Accounts.AnyAsync(a => a.Id == accountId && a.HouseholdId == household)) throw new TransferNotFoundException();
+        var date = DateOnly.FromDateTime(source.TransactionDate);
+        var start = DateOnly.FromDayNumber(Math.Max(DateOnly.MinValue.DayNumber, date.DayNumber - days)).ToDateTime(TimeOnly.MinValue);
+        var end = DateOnly.FromDayNumber(Math.Min(DateOnly.MaxValue.DayNumber, date.DayNumber + days)).ToDateTime(TimeOnly.MaxValue);
+        var opposite = source.TransferDirection == TransferDirection.Out ? TransferDirection.In : TransferDirection.Out;
+        var rows = await context.Transactions.AsNoTracking().Where(t => t.HouseholdId == household && t.AccountId == accountId &&
+            t.Category.CategoryType == CategoryType.Transfer && t.PairedTransactionId == null && t.TransferDirection == opposite &&
+            t.Amount == source.Amount && t.TransactionDate >= start && t.TransactionDate <= end)
+            .Select(TransactionProjection.Response).ToListAsync();
+        return rows.OrderBy(t => Math.Abs(DateOnly.FromDateTime(t.TransactionDate).DayNumber - date.DayNumber))
+            .ThenBy(t => t.TransactionDate).ThenBy(t => t.Id).ToList();
+    }
+
+    public async Task<TransferPairResponse> CreateCounterpartAsync(int transactionId, CreateTransferCounterpartRequest request)
+    {
+        if (request.Date is not { } date || date == DateOnly.MinValue) throw new ArgumentException("Choose a posting date for the new entry.");
+        var household = await currentUser.GetCurrentHouseholdIdAsync();
+        await using var unit = await context.Database.BeginTransactionAsync();
+        var source = await OwnedEntry(transactionId, household);
+        CheckVersion(source, request.ExpectedEditVersion);
+        if (source.PairedTransactionId.HasValue) throw new TransferConflictException("This entry is already linked. Reload before trying again.");
+        if (source.AccountId == request.AccountId) throw new ArgumentException("Choose a different account.");
+        var account = await Account(request.AccountId, household, date);
+        var category = await Category(household);
+        var other = Entry(account, category, source.Amount, date,
+            source.TransferDirection == TransferDirection.Out ? TransferDirection.In : TransferDirection.Out,
+            TransferCounterparty.Unknown, source.Description, null, false);
+        context.Transactions.Add(other); await context.SaveChangesAsync();
+        Pair(source, other); await context.SaveChangesAsync();
+        await snapshots.RecalculateFromAsync(account.Id, date); await context.SaveChangesAsync();
+        await unit.CommitAsync();
+        var outgoing = source.TransferDirection == TransferDirection.Out ? source : other;
+        var incoming = outgoing == source ? other : source;
+        return new(await Response(outgoing.Id, household), await Response(incoming.Id, household));
+    }
+
+    private static void CheckVersion(Transaction entry, int? expected)
+    {
+        if (expected.HasValue && entry.EditVersion != expected.Value)
+            throw new TransferConflictException("A transfer entry changed. Reload and review the match again.");
+    }
+
     public async Task<TransferPairResponse> CreateAsync(CreateTransferRequest request)
     {
         Validate(request.Amount, request.Date, request.Description, request.Notes);
@@ -68,6 +117,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         await using var unit = await context.Database.BeginTransactionAsync();
         var first = await OwnedEntry(request.FirstTransactionId, householdId);
         var second = await OwnedEntry(request.SecondTransactionId, householdId);
+        CheckVersion(first, request.ExpectedFirstEditVersion); CheckVersion(second, request.ExpectedSecondEditVersion);
         if (first.PairedTransactionId.HasValue || second.PairedTransactionId.HasValue)
             throw new TransferConflictException("An entry is already linked. Reload before trying again.");
         if (first.AccountId == second.AccountId || first.Amount != second.Amount ||
@@ -81,7 +131,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         return new(await Response(outgoing.Id, householdId), await Response(incoming.Id, householdId));
     }
 
-    public async Task UnlinkAsync(int transactionId)
+    public async Task UnlinkAsync(int transactionId, int? expectedEditVersion = null, int? expectedPairedEditVersion = null)
     {
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
         await using var unit = await context.Database.BeginTransactionAsync();
@@ -89,6 +139,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         if (entry.PairedTransactionId is not int pairedId)
             throw new TransferConflictException("This entry is not linked.");
         var other = await OwnedEntry(pairedId, householdId);
+        CheckVersion(entry, expectedEditVersion); CheckVersion(other, expectedPairedEditVersion);
         if (other.PairedTransactionId != entry.Id) throw new TransferConflictException("The transfer link has changed.");
         foreach (var item in new[] { entry, other })
         {

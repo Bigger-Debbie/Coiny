@@ -1,0 +1,43 @@
+<section aria-label="Reconcile transfer">
+  <h3>Reconcile transfer</h3>
+  <p>{{ transaction.accountName }} · {{ transaction.transferDirection === 'Out' ? 'Money out' : 'Money in' }} · {{ transaction.amount | currency }}<br />{{ transaction.transactionDate | date:'MMM d, yyyy':'UTC' }} · {{ transaction.description }}</p>
+  <p class="hint">Imported both accounts? Link the two recorded entries. No transaction is added and neither balance changes.</p>
+  <fieldset [disabled]="busy() || stale()">
+    <label for="transfer-other-account">Other account</label>
+    <app-select-menu inputId="transfer-other-account" label="Other account" [options]="accountOptions" [(ngModel)]="accountId" (ngModelChange)="search()" />
+    @if (accountId) {
+      <label for="transfer-date-window">Find existing transfers</label>
+      <app-select-menu inputId="transfer-date-window" label="Posting date window" [options]="windows" [(ngModel)]="days" (ngModelChange)="search()" />
+      <p class="hint">Equal amounts and opposite directions. Same-day matches appear first; posting dates may differ between banks. Review the descriptions before linking.</p>
+      @if (searching()) { <p role="status">Looking for matching entries…</p> }
+      @else if (searched()) {
+        @if (candidates().length > 1) { <p>Several entries could match. Choose the correct one below.</p> }
+        <div class="matches" role="group" aria-label="Existing transfer matches">
+          @for (candidate of candidates(); track candidate.id) {
+            <label class="match" [class.selected]="selected()?.id === candidate.id">
+              <input type="radio" name="transfer-match" [value]="candidate" [ngModel]="selected()" (ngModelChange)="selected.set($event); mode.set('existing')" />
+              <span>{{ candidate.accountName }} · {{ candidate.amount | currency }}<small>{{ candidate.transactionDate | date:'MMM d, yyyy':'UTC' }} · {{ candidate.description }}</small><small>{{ candidate.transactionDate.slice(0,10) === transaction.transactionDate.slice(0,10) ? 'Same posting date' : 'Different posting date — review before linking' }} · {{ candidate.importBatchId ? 'Imported · Batch #' + candidate.importBatchId : 'Recorded in Coiny' }}</small></span>
+            </label>
+          } @empty { <p>No matching unlinked transfers in this date window. Try a wider window, or confirm that the other entry still needs to be created.</p> }
+        </div>
+        @if (mode() === 'existing') {
+          <p class="hint">Linking preserves both entries, their posting dates, import history, and account balances.</p>
+          <div class="actions"><button class="button-primary" type="button" [disabled]="!selected() || busy() || stale()" (click)="link()">Link existing entries</button></div>
+          <button class="button-ghost" type="button" (click)="chooseMode('create')">The other entry hasn’t been recorded — create it</button>
+        } @else {
+          <div class="create-warning">
+            <h3>Create the other side</h3>
+            <p>This adds one {{ transaction.transferDirection === 'Out' ? 'money-in' : 'money-out' }} entry of {{ transaction.amount | currency }} to {{ destination?.name }} and links it to this entry. That account’s balance and trend will change. The existing entry stays unchanged.</p>
+            @if (candidates().length) { <p class="warning">Possible matches already exist above. Linking one avoids recording this movement twice.</p> }
+            <label for="counterpart-date">Posting date in {{ destination?.name }}</label><input id="counterpart-date" type="date" [min]="destination?.openingBalanceDate" [(ngModel)]="date" />
+            <label class="check"><input type="checkbox" [(ngModel)]="confirmed" /> I’ve checked the other account and this transfer entry is not already recorded there.</label>
+            @if (!destination?.isActive) { <p class="warning">New entries cannot be added to a closed account. You can still link existing entries.</p> }
+            <div class="actions"><button class="button-outline" type="button" (click)="chooseMode('existing')">Back to existing entries</button><button class="button-primary" type="button" [disabled]="!confirmed || !date || !destination?.isActive || busy() || stale()" (click)="create()">Create and link one entry</button></div>
+          </div>
+        }
+      }
+    }
+  </fieldset>
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p>@if (stale()) { <p>Return to transaction details and reload before continuing.</p> } @else if (accountId) { <button class="button-outline" (click)="search()">Retry search</button> } }
+  <div class="actions"><button class="button-outline" type="button" [disabled]="busy()" (click)="cancelled.emit()">Back to details</button></div>
+</section>

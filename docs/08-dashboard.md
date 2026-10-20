@@ -168,7 +168,7 @@ to both entries for a paired transfer.
 
 External and unknown-counterparty modes offer Money in/out and create only the selected
 account's entry. Unknown entries can be linked later; no second entry is inferred.
-Linking/unlinking APIs are available, while the matching UI comes with the import work.
+Open an existing transfer’s details and choose **Reconcile transfer** to link recorded entries or explicitly create a missing counterpart.
 Failures preserve the draft and show the API's explanation. The modal cannot close
 while a transaction or inline category save is pending.
 
@@ -340,3 +340,11 @@ Action confirmations appear as shared toast notifications in the lower-right cor
 Select an individual account on the Accounts page and choose **Edit Account** beside **Add Account**. The modal supports name, institution (including on-the-fly institution creation), loan subtype, and opening balance/date corrections. Account type stays fixed. Saving refreshes the selected account’s balances, trend, and transactions and shows a success toast. Opening balance corrections recalculate history; an opening date after an existing transaction is rejected.
 
 The dashboard shows a blue **Investments** total between Welcome and Retirement whenever the household has an Investment account, even if its balance is zero. It sums Investment accounts separately from Retirement and Liquid Funds. Net worth already includes these balances and is unchanged by this display.
+
+### Reconcile existing transfer entries
+
+From an unlinked transfer’s details (Accounts or the home dashboard), choose **Reconcile transfer**, select the other account, and review same-amount/opposite-direction candidates. Date windows are same day, ±7 days, ±30 days, or ±1 year. Same-day candidates appear first; none is automatically selected, including a unique match. Candidates show account, posting date, description, amount, and import batch when present. Multiple matches require the user to choose the correct entry.
+
+**Link existing entries** records only the relationship, preserving both balances, dates, transaction fields, import history, and snapshots. If only one side exists, **The other entry hasn’t been recorded — create it** opens a distinct confirmation with posting date, balance-impact explanation, existing-match warning, and a required acknowledgment. It adds exactly one counterpart, never a replacement pair. Closed accounts permit matching but not new counterparts. Changed entries require reloading before retrying.
+
+Linked transfer details offer **Unlink entries (keep both)** with confirmation; both ledger entries and balances stay intact. This differs from deleting a linked transfer, which still removes both entries. Reconciliation does not automatically repair duplicates from earlier workflows or provide multi-account CSV import; those are separate steps.

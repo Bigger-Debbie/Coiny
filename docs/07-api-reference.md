@@ -371,7 +371,9 @@ Linked cannot be supplied here. Description is required. Returns one transaction
 ```json
 {
   "firstTransactionId": 101,
-  "secondTransactionId": 102
+  "secondTransactionId": 102,
+  "expectedFirstEditVersion": 0,
+  "expectedSecondEditVersion": 0
 }
 ```
 
@@ -379,11 +381,11 @@ Both must be unlinked transfers in the current household, on different accounts,
 with equal amounts and opposite directions. Posting dates may differ and are
 preserved. An explicitly external entry can be linked when the user later tracks
 the other account. Returns outgoing/incoming. No entries, balance effects, or
-snapshots are added by linking. No automatic matching is performed.
+snapshots are added by linking. Optional expected edit versions reject stale review with 409; the UI always supplies both. No entries are linked automatically.
 
-`DELETE /api/transfers/links/101` unlinks both entries, sets each counterparty to
+`DELETE /api/transfers/links/101?expectedEditVersion=1&expectedPairedEditVersion=1` unlinks both entries, sets each counterparty to
 Unknown, and preserves all amounts, dates, cleared flags, and snapshots. This
-does not undo or delete a transfer's financial effects.
+does not undo or delete a transfer's financial effects. Optional expected versions protect against stale unlinking; the UI supplies both.
 
 List, paged, dashboard recent-transaction, and transfer responses expose nullable
 `transferDirection` (In/Out), `transferCounterparty` (Unknown/External/Linked),
@@ -402,8 +404,7 @@ Errors: 400 invalid accounts, dates, amounts, directions, or incompatible pairs;
 entry; 409 already-linked/not-linked entries or a concurrent link change.
 Domain errors use Problem Details; malformed bodies use validation responses.
 The Add Transaction modal supports manual paired, unknown, and external entries.
-Link/unlink APIs are implemented; the matching UI and CSV import follow on the
-feature branch.
+Link/unlink matching is available from transaction details. Multi-account import sessions are a future stage.
 
 ## Transaction payload
 
@@ -1060,3 +1061,17 @@ Returns the updated category. Names are trimmed, limited to 100 characters, and 
 `PUT /api/accounts/{id}` (Bearer authentication) accepts the same fields as account creation and returns the updated account, including its recalculated current balance. Editable fields: `name`, `institutionId`, `loanSubtype` (loans only), `openingBalance`, and `openingBalanceDate`. Send the existing `accountType`; changing it is rejected to protect ledger interpretation. Opening balances must be nonnegative with at most two decimal places. The opening date cannot be in the future or after an existing transaction. The account and institution must belong to the current household. Missing/foreign accounts return 404; invalid edits return 400. Opening-balance/date changes rebuild stored balance history atomically and preserve transaction records. No database migration is required.
 
 Dashboard summary `netWorth` includes `investments` (sum of Investment account balances) and `hasInvestments` (whether the household has any Investment accounts). These are separate from `retirement` and `liquidFunds`; net-worth calculation is unchanged.
+
+### Reconcile separately recorded transfers
+
+`GET /api/transfers/entries/{transactionId}/candidates?accountId=2&days=7`
+
+Returns existing unlinked Transfer entries from the specified other account in the current household with equal amounts and opposite directions. The source must also be an unlinked Transfer. `days` defaults to 7 and accepts 0–365 (inclusive, before/after the source posting date). Results use the transaction response shape, including edit version and import batch, and sort by distance from the source date, then date and ID. Closed accounts can participate in existing-entry matching. It never creates or links entries. Foreign/missing source or target returns 404, same-account/invalid window returns 400, and an already-linked source returns 409. The client must let the user review and select; equal amounts and dates alone do not prove a transfer.
+
+`POST /api/transfers/entries/{transactionId}/counterpart`
+
+```json
+{ "accountId": 2, "date": "2026-10-20", "expectedEditVersion": 0 }
+```
+
+Explicitly creates **one** missing counterpart, using the source amount and opposite direction, and links it to the existing source. Target account must be active, different, and in the current household; the date must be on/after its opening balance date. The source must still be unlinked and match the required expected edit version. The source posting date, amount, description, notes, cleared status, and import provenance remain intact. The new entry copies the description, starts uncleared, has no imported provenance, and uses the supplied posting date. Only the new entry’s account snapshots are recalculated. Changes commit atomically. Returns 201 with outgoing/incoming; stale/already-linked sources return 409. Retrying after success cannot add another counterpart. This operation does not infer whether another bank row exists; choose it only after checking existing entries. Existing pair creation with `POST /api/transfers` remains for brand-new movements, not reconciling movements already recorded.

@@ -1,3 +1,5 @@
+import { TransferReconciliation } from '../transfer-reconciliation/transfer-reconciliation';
+import { TransferService } from '../../../core/services/transfer.service';
 import { notificationSignal } from '../../../core/services/toast.service';
 import { afterNextRender, ElementRef, Injector, Component, DestroyRef, inject, Input, HostListener, OnInit, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -14,13 +16,15 @@ import { Modal } from '../../../shared/components/modal/modal';
 import { SelectMenu, SelectOption } from '../../../shared/components/select-menu/select-menu';
 
 @Component({
-  selector: 'app-edit-transaction', imports: [FormsModule, CurrencyPipe, DatePipe, Modal, SelectMenu],
+  selector: 'app-edit-transaction', imports: [FormsModule, CurrencyPipe, DatePipe, Modal, SelectMenu, TransferReconciliation],
   templateUrl: './edit-transaction.html', styleUrl: './edit-transaction.css',
 })
 export class EditTransaction implements OnInit {
   @Input({ required: true }) transactionId!: number;
   readonly dismiss = output<void>();
   readonly changed = output<'updated' | 'deleted'>();
+  private readonly transfers = inject(TransferService);
+  readonly reconciling = signal(false);
   private readonly api = inject(TransactionService);
   private readonly accountApi = inject(AccountService);
   private readonly categoryApi = inject(CategoryService);
@@ -54,7 +58,7 @@ export class EditTransaction implements OnInit {
   ngOnInit() { this.load(); }
   load() {
     if (this.busy() || (this.dirty && !window.confirm('Reload this transaction and discard your unsaved changes?'))) return;
-    this.loading.set(true); this.error.set(''); this.deleting.set(false);
+    this.loading.set(true); this.error.set(''); this.deleting.set(false); this.reconciling.set(false);
     forkJoin({ details: this.api.getDetails(this.transactionId), accounts: this.accountApi.getAccounts(), categories: this.categoryApi.getCategories() })
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
         next: ({ details, accounts, categories }) => {
@@ -68,6 +72,14 @@ export class EditTransaction implements OnInit {
         },
         error: response => { this.loading.set(false); this.error.set(response.error?.detail ?? 'This transaction couldn’t load. Please try again.'); },
       });
+  }
+  reconcile() { if (!this.busy() && !this.stale()) this.reconciling.set(true); }
+  unlink() {
+    const details = this.details;
+    if (!details || !this.linked || this.busy() || this.stale() || !window.confirm('Unlink these transfer entries? Both transactions will stay recorded and neither account balance will change.')) return;
+    this.busy.set(true); this.error.set('');
+    this.transfers.unlink(this.transactionId, details.transaction.editVersion ?? 0, details.pairedEditVersion ?? 0)
+      .pipe(takeUntilDestroyed(this.destroy)).subscribe({ next: () => { this.busy.set(false); this.changed.emit('updated'); }, error: response => this.fail(response) });
   }
   startEditing() { if (!this.busy() && !this.stale()) { this.editing.set(true); this.focusAfterRender('#edit-kind'); } }
   cancelEditing() {

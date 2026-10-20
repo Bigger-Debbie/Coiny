@@ -1,7 +1,9 @@
-<app-modal [title]="editing() ? 'Edit Transaction' : 'Transaction Details'" [busy]="busy()" (dismiss)="close()">
+<app-modal [title]="reconciling() ? 'Reconcile Transfer' : editing() ? 'Edit Transaction' : 'Transaction Details'" [busy]="busy()" (dismiss)="close()">
   @if (loading()) { <p role="status">Loading transaction…</p> }
   @else if (details && request; as r) {
-    @if (!editing()) {
+    @if (reconciling()) {
+      <app-transfer-reconciliation [transaction]="details.transaction" [accounts]="accounts" (busyChange)="busy.set($event)" (staleDetected)="stale.set(true)" (cancelled)="reconciling.set(false)" (completed)="changed.emit('updated')" />
+    } @else if (!editing()) {
       <section aria-label="Transaction details">
         <p class="detail-description">{{ details.transaction.description }}</p>
         <dl class="transaction-information">
@@ -21,6 +23,12 @@
           @if (details.transaction.importBatchId) { <div><dt>Source</dt><dd>Imported transaction · Batch #{{ details.transaction.importBatchId }}</dd></div> }
           @if (details.bill) { <div><dt>Linked bill</dt><dd>Due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }} · {{ details.bill.isPaid ? 'Paid' : 'Unpaid' }}</dd></div> }
         </dl>
+        @if (details.transaction.categoryType === 'Transfer') {
+          <div class="actions">
+            @if (linked) { <button class="button-outline" type="button" [disabled]="busy() || stale()" (click)="unlink()">Unlink entries (keep both)</button> }
+            @else { <button class="button-outline" type="button" [disabled]="stale()" (click)="reconcile()">Reconcile transfer</button> }
+          </div>
+        }
         <div class="actions"><button class="button-outline" type="button" (click)="close()">Close</button><button class="button-primary" type="button" data-edit-transaction [disabled]="stale()" (click)="startEditing()">Edit transaction</button></div>
       </section>
     } @else if (deleting()) {
@@ -45,7 +53,7 @@
           } @else if (!linked) {
             <div><label for="edit-direction">Direction</label><app-select-menu inputId="edit-direction" label="Direction" name="direction" [options]="directions" [(ngModel)]="r.direction" /></div>
             <div><label for="edit-counterparty">Other account</label><app-select-menu inputId="edit-counterparty" label="Other account" name="counterparty" [options]="counterparties" [(ngModel)]="r.counterparty" /></div>
-            <p class="hint">This changes only the selected transfer entry. Use Add Transaction to create a new transfer between two Coiny accounts.</p>
+            <p class="hint">This changes only the selected entry. To connect it to another recorded transfer, return to transaction details and choose Reconcile transfer. Do not use Add Transaction to record this same movement again.</p>
           }
           <div><label for="edit-amount">Amount</label><input id="edit-amount" name="amount" type="number" min="0.01" step="0.01" required [(ngModel)]="r.amount" /></div>
           <div><label for="edit-date">Date</label><input id="edit-date" name="date" type="date" [min]="openingDate" required [(ngModel)]="r.date" /></div>
@@ -58,5 +66,6 @@
       </form>
     }
   }
+  @if (stale() && !error()) { <p class="error" role="alert">This transfer changed. Reload it before continuing.</p><button class="button-outline" type="button" [disabled]="busy()" (click)="load()">Reload transaction</button> }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> @if (!busy()) { <button class="button-outline" type="button" (click)="load()">Reload transaction</button> } }
 </app-modal>

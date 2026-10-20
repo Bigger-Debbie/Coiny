@@ -21,7 +21,10 @@ Coverage includes:
 - Atomic manual transfers, liability payments, unlinked/external entries, different
   posting dates, reporting exclusion, link/unlink without financial changes,
   incompatible/foreign pairs, stale-link concurrency, backdated snapshots, and
-  rollback of both entries and snapshots on storage failure.
+  rollback of both entries and snapshots on storage failure. Reconciliation coverage includes
+  candidate filtering/ranking, reviewed versions, one-sided counterpart creation, rollback,
+  and linking two separately imported Bills/Spending rows without changing balances,
+  snapshots, transaction count, import provenance, or idempotent batch retries.
 
 - Household-scoped member rosters, owner-only removal, protected owners, preserved
   login/financial data, access after removal, and transactional invitation revocation.

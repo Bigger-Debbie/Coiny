@@ -28,8 +28,17 @@ public class CreateTransferEntryRequest
 
 public class LinkTransferRequest
 {
+    [Range(0, int.MaxValue)] public int? ExpectedFirstEditVersion { get; set; }
+    [Range(0, int.MaxValue)] public int? ExpectedSecondEditVersion { get; set; }
     [Range(1, int.MaxValue)] public int FirstTransactionId { get; set; }
     [Range(1, int.MaxValue)] public int SecondTransactionId { get; set; }
 }
 
 public record TransferPairResponse(TransactionResponse Outgoing, TransactionResponse Incoming);
+
+public class CreateTransferCounterpartRequest
+{
+    [Range(1, int.MaxValue)] public int AccountId { get; set; }
+    [Required] public DateOnly? Date { get; set; }
+    [System.Text.Json.Serialization.JsonRequired, Range(0, int.MaxValue)] public int ExpectedEditVersion { get; set; }
+}

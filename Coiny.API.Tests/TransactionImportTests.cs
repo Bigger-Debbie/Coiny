@@ -35,6 +35,32 @@ public class TransactionImportTests
     { AccountId = 1, SubmissionId = Guid.NewGuid(), Filename = "bank.csv", Rows = rows.Length > 0 ? rows.ToList() : [Row()] };
 
     [Fact]
+    public async Task Separately_imported_bills_and_spending_transfers_reconcile_without_changing_balances_or_import_history()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);
+        c.Accounts.Add(new Account { Id = 3, HouseholdId = 1, Name = "Spending", OpeningBalance = 100, OpeningBalanceDate = Day }); await c.SaveChangesAsync();
+        var outgoing = Request(new TransactionImportRow { RowId = 2, Date = Day.AddDays(1), Amount = 250, CategoryType = CategoryType.Transfer, Direction = TransferDirection.Out, Description = "Transfer to Spending" });
+        var incoming = new TransactionImportRequest { AccountId = 3, SubmissionId = Guid.NewGuid(), Filename = "spending.csv", Rows = [new() {
+            RowId = 2, Date = Day.AddDays(2), Amount = 250, CategoryType = CategoryType.Transfer, Direction = TransferDirection.In, Description = "Transfer from Bills" }] };
+        var billsImport = await Service(db.Context()).ImportAsync(outgoing); var spendingImport = await Service(db.Context()).ImportAsync(incoming);
+        using var ledger = db.Context(); var rows = await ledger.Transactions.AsNoTracking().OrderBy(t => t.Id).ToListAsync();
+        var snapshots = await ledger.AccountBalanceSnapshots.AsNoTracking().OrderBy(s => s.Id).Select(s => new { s.AccountId, s.SnapshotDate, s.Balance }).ToArrayAsync();
+        var transfers = new TransferService(ledger, new User(), new AccountBalanceSnapshotService(ledger,new User()));
+        var matches = await transfers.GetCandidatesAsync(rows[0].Id, 3, 7); Assert.Single(matches); Assert.Equal(rows[1].Id, matches[0].Id);
+        var pair = await transfers.LinkAsync(new() { FirstTransactionId = rows[0].Id, SecondTransactionId = rows[1].Id, ExpectedFirstEditVersion = rows[0].EditVersion, ExpectedSecondEditVersion = rows[1].EditVersion });
+        Assert.Equal(billsImport.BatchId, pair.Outgoing.ImportBatchId); Assert.Equal(spendingImport.BatchId, pair.Incoming.ImportBatchId);
+        Assert.Equal(rows[0].TransactionDate, pair.Outgoing.TransactionDate); Assert.Equal(rows[1].TransactionDate, pair.Incoming.TransactionDate);
+        Assert.Equal(750, await new AccountBalanceService(ledger).GetCurrentBalanceAsync(1)); Assert.Equal(350, await new AccountBalanceService(ledger).GetCurrentBalanceAsync(3));
+        Assert.Equal(snapshots, await ledger.AccountBalanceSnapshots.AsNoTracking().OrderBy(s => s.Id).Select(s => new { s.AccountId, s.SnapshotDate, s.Balance }).ToArrayAsync());
+        Assert.Equal(2, await ledger.Transactions.CountAsync()); Assert.Equal(2, await ledger.TransactionImportBatches.CountAsync());
+        Assert.Equal(billsImport, await Service(db.Context()).ImportAsync(outgoing)); Assert.Equal(spendingImport, await Service(db.Context()).ImportAsync(incoming));
+        Assert.Equal(2, await ledger.Transactions.CountAsync());
+        await transfers.UnlinkAsync(rows[0].Id, pair.Outgoing.EditVersion, pair.Incoming.EditVersion);
+        Assert.Equal(750, await new AccountBalanceService(ledger).GetCurrentBalanceAsync(1)); Assert.Equal(350, await new AccountBalanceService(ledger).GetCurrentBalanceAsync(3));
+        Assert.Equal(2, await ledger.Transactions.CountAsync());
+    }
+
+    [Fact]
     public async Task Bank_comparison_uses_existing_history_and_included_rows_through_its_date_only()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c);

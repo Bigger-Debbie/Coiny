@@ -11,6 +11,12 @@ namespace Coiny.API.Controllers;
 [ApiController, Authorize, TransferApiExceptionFilter, Route("api/transfers")]
 public class TransfersController(ITransferService transfers) : ControllerBase
 {
+    [HttpGet("entries/{transactionId:int:min(1)}/candidates")]
+    public async Task<ActionResult<List<TransactionResponse>>> Candidates(int transactionId, [FromQuery] int accountId, [FromQuery] int days = 7) =>
+        Ok(await transfers.GetCandidatesAsync(transactionId, accountId, days));
+    [HttpPost("entries/{transactionId:int:min(1)}/counterpart")]
+    public async Task<ActionResult<TransferPairResponse>> Counterpart(int transactionId, CreateTransferCounterpartRequest request) =>
+        StatusCode(201, await transfers.CreateCounterpartAsync(transactionId, request));
     [HttpPost]
     public async Task<ActionResult<TransferPairResponse>> Create(CreateTransferRequest request) =>
         StatusCode(201, await transfers.CreateAsync(request));
@@ -20,7 +26,7 @@ public class TransfersController(ITransferService transfers) : ControllerBase
     [HttpPost("links")]
     public async Task<ActionResult<TransferPairResponse>> Link(LinkTransferRequest request) => Ok(await transfers.LinkAsync(request));
     [HttpDelete("links/{transactionId:int:min(1)}")]
-    public async Task<IActionResult> Unlink(int transactionId) { await transfers.UnlinkAsync(transactionId); return NoContent(); }
+    public async Task<IActionResult> Unlink(int transactionId, [FromQuery] int? expectedEditVersion, [FromQuery] int? expectedPairedEditVersion) { await transfers.UnlinkAsync(transactionId, expectedEditVersion, expectedPairedEditVersion); return NoContent(); }
 }
 
 public sealed class TransferApiExceptionFilterAttribute : ExceptionFilterAttribute
