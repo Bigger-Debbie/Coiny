@@ -1,4 +1,7 @@
+import { AccountReconciliation } from './account-reconciliation';
+
 export interface Account {
+    latestReconciliation?: AccountReconciliation | null;
     id: number;
     institutionId: number | null;
     institutionName: string | null;

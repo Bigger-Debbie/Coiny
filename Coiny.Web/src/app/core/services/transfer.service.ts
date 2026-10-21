@@ -8,6 +8,9 @@ import { Transaction } from '../../shared/models/transactions/transaction';
 export class TransferService {
   private readonly http = inject(HttpClient);
   private readonly url = `${environemnt.apiUrl}/transfers`;
+  creationCandidates(request: CreateTransfer) {
+    return this.http.post<Transaction[]>(`${this.url}/candidates`, request);
+  }
   candidates(id: number, accountId: number, days = 7) {
     return this.http.get<Transaction[]>(`${this.url}/entries/${id}/candidates`, { params: { accountId, days } });
   }

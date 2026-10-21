@@ -58,6 +58,17 @@ describe('Accounts', () => {
   function flushPage(totalCount = 0, page = 1) {
     http.expectOne(r => r.url.endsWith('/paged')).flush({ items: [], totalCount, page, pageSize: 10 });
   }
+  it('reviews the full selected statement period without hiding old transactions behind the chart timeframe or filters', () => {
+    const f = render(); flushTrend(); flushPage(); const c = f.componentInstance;
+    c.selectAccount('1'); flushTrend(); flushPage();
+    c.search = 'coffee'; c.applyFilters(); flushPage();
+    c.reconcilingAccount.set(c.selectedAccount()); c.reviewStatement({ date: '2026-09-30', balance: 900 });
+    const request = http.expectOne(r => r.url.endsWith('/paged'));
+    expect(request.request.params.get('startDate')).toBe('2026-01-01'); expect(request.request.params.get('endDate')).toBe('2026-09-30');
+    expect(request.request.params.has('search')).toBe(false); request.flush({ items: [], totalCount: 0, page: 1, pageSize: 10 });
+    expect(c.reconciliationDraft()).toEqual({ date: '2026-09-30', balance: 900 }); expect(c.hasFilters()).toBe(false);
+    c.selectAccount('2'); flushTrend(); flushPage(); expect(c.statementPeriod()).toBeNull(); expect(c.reconciliationDraft()).toBeNull();
+  });
   it('refreshes balances, trends, and category summaries after a transaction change', () => {
     const f = render(); flushTrend(); flushPage(); const c = f.componentInstance;
     const refresh = c.breakdownRefresh(); c.editingId.set(7); c.transactionChanged('deleted');

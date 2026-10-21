@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Coiny.API.Controllers;
 using Coiny.API.Data;
+using Coiny.API.DTOs.Transactions;
 using Coiny.API.Enums;
 using Coiny.API.Interfaces;
 using Coiny.API.Models;
@@ -37,6 +39,7 @@ public class TransferReconciliationApiTests
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync(); using var client = app.GetTestClient();
         const string candidates = "/api/transfers/entries/1/candidates?accountId=2";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(candidates)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/transfers/candidates", new { fromAccountId = 1, toAccountId = 2, amount = 100, date = "2026-10-12" })).StatusCode);
         client.DefaultRequestHeaders.Add("Test-User", "test");
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(candidates)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/transfers/entries/1/candidates?accountId=4")).StatusCode);
@@ -51,6 +54,19 @@ public class TransferReconciliationApiTests
         Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/transfers/entries/1/counterpart", new { accountId = 3, date = "2026-10-10", expectedEditVersion = 2 })).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/transfers/entries/1/counterpart", new { accountId = 3, date = "2026-10-10", expectedEditVersion = 2 })).StatusCode);
         Assert.Equal(3, await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.CountAsync(db.Context().Transactions));
+        var preview = await client.PostAsJsonAsync("/api/transfers/candidates", new { fromAccountId = 3, toAccountId = 2, amount = 100, date = "2026-10-12" });
+        preview.EnsureSuccessStatusCode();
+        var json = new JsonSerializerOptions(JsonSerializerDefaults.Web); json.Converters.Add(new JsonStringEnumConverter());
+        var matches = await preview.Content.ReadFromJsonAsync<List<TransactionResponse>>(json); var existing = Assert.Single(matches!); Assert.Equal(2, existing.Id);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/transfers/candidates", new { fromAccountId = 3, toAccountId = 4, amount = 100, date = "2026-10-12" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/transfers", new { fromAccountId = 3, toAccountId = 2, amount = 100, date = "2026-10-12" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/transfers", new { fromAccountId = 3, toAccountId = 2, amount = 100, date = "2026-10-12", existingTransactionId = 2 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/transfers", new { fromAccountId = 3, toAccountId = 2, amount = 100, date = "2026-10-12", existingTransactionId = 2, expectedExistingEditVersion = 99 })).StatusCode);
+        var createAndLink = new { fromAccountId = 3, toAccountId = 2, amount = 100, date = "2026-10-12", existingTransactionId = 2, expectedExistingEditVersion = existing.EditVersion, description = "Missing side", isCleared = true };
+        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/transfers", createAndLink)).StatusCode);
+        Assert.Equal(4, await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.CountAsync(db.Context().Transactions));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/transfers", createAndLink)).StatusCode);
+        Assert.Equal(4, await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.CountAsync(db.Context().Transactions));
     }
     private sealed class User : ICurrentUserService {
         public string? GetUserId() => "test"; public bool IsAuthenticated() => true;

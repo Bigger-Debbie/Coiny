@@ -22,6 +22,7 @@ public static class ApplicationServceExtensions
         services.AddScoped<ITransferService, TransferService>();
         services.AddScoped<ITransactionImportService, TransactionImportService>();
         services.AddScoped<ImportSessionService>();
+        services.AddScoped<AccountReconciliationService>();
         services.AddScoped<IAccountBalanceService, AccountBalanceService>();
         services.AddScoped<IAccountBalanceSnapshotService, AccountBalanceSnapshotService>();
         services.AddScoped<IAccountTrendService, AccountTrendService>();

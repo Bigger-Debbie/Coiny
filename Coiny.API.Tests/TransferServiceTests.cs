@@ -43,7 +43,8 @@ public class TransferServiceTests
         var wrongAmount = Entry(2, TransferDirection.In); wrongAmount.Amount = 249; await service.CreateEntryAsync(wrongAmount);
         await service.CreateEntryAsync(Entry(3, TransferDirection.In));
         await service.CreateEntryAsync(Entry(2, TransferDirection.In, Day.AddDays(8)));
-        await service.CreateAsync(Pair());
+        var newPair = Pair(); newPair.CreateBothEntries = true;
+        await service.CreateAsync(newPair);
         var rows = await service.GetCandidatesAsync(source.Id, 2, 7);
         Assert.Equal(new[] { sameDay.Id, sameDayAgain.Id, nearby.Id }, rows.Select(r => r.Id));
         Assert.Equal(2, (await service.GetCandidatesAsync(source.Id, 2, 0)).Count);
@@ -258,5 +259,86 @@ public class TransferServiceTests
         var mismatch = await service.CreateEntryAsync(different);
         await Assert.ThrowsAsync<ArgumentException>(() => service.LinkAsync(new() { FirstTransactionId = outgoing.Id, SecondTransactionId = mismatch.Id }));
         Assert.All(await c.Transactions.ToListAsync(), t => Assert.Null(t.PairedTransactionId));
+    }
+
+    [Fact]
+    public async Task Creating_a_payment_links_imported_card_entry_and_changes_only_the_missing_bills_side()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var imported = Entry(3, TransferDirection.In); imported.IsCleared = true; imported.Notes = "Imported note"; imported.Description = "Bank card payment";
+        var existing = await service.CreateEntryAsync(imported);
+        var batch = new TransactionImportBatch { HouseholdId = 1, AccountId = 3, Filename = "card.csv", SubmissionId = Guid.NewGuid(), PayloadHash = new('a', 64), ImportedCount = 1, CreatedByUserId = "test" };
+        c.TransactionImportBatches.Add(batch); await c.SaveChangesAsync();
+        var original = await c.Transactions.SingleAsync(t => t.Id == existing.Id); original.ImportBatchId = batch.Id; original.ImportRowId = 5; original.Merchant = "Apple"; await c.SaveChangesAsync();
+        var cardSnapshots = await c.AccountBalanceSnapshots.AsNoTracking().Where(s => s.AccountId == 3).Select(s => new { s.SnapshotDate, s.Balance }).ToArrayAsync();
+        var request = Pair(3); request.Date = Day.AddDays(2); request.Description = "New Bills entry"; request.Notes = "New note"; request.IsCleared = false;
+        var matches = await service.GetCreationCandidatesAsync(request); Assert.Equal(existing.Id, Assert.Single(matches).Id);
+        await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateAsync(request));
+        Assert.Single(await c.Transactions.ToListAsync());
+        request.ExistingTransactionId = existing.Id; request.ExpectedExistingEditVersion = existing.EditVersion;
+        var pair = await service.CreateAsync(request);
+        Assert.Equal(existing.Id, pair.Incoming.Id); Assert.Equal(existing.TransactionDate, pair.Incoming.TransactionDate); Assert.Equal("Bank card payment", pair.Incoming.Description);
+        Assert.Equal("Imported note", pair.Incoming.Notes); Assert.True(pair.Incoming.IsCleared); Assert.Equal("Apple", pair.Incoming.Merchant);
+        Assert.Equal(batch.Id, pair.Incoming.ImportBatchId); Assert.Equal(5, (await c.Transactions.FindAsync(existing.Id))!.ImportRowId);
+        Assert.Equal(Day.AddDays(2).ToDateTime(TimeOnly.MinValue), pair.Outgoing.TransactionDate); Assert.Equal("New Bills entry", pair.Outgoing.Description); Assert.False(pair.Outgoing.IsCleared);
+        Assert.Equal(2, await c.Transactions.CountAsync()); Assert.Equal(750, await new AccountBalanceService(c).GetCurrentBalanceAsync(1)); Assert.Equal(450, await new AccountBalanceService(c).GetCurrentBalanceAsync(3));
+        Assert.Equal(cardSnapshots, await c.AccountBalanceSnapshots.AsNoTracking().Where(s => s.AccountId == 3).Select(s => new { s.SnapshotDate, s.Balance }).ToArrayAsync());
+        await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateAsync(request)); Assert.Equal(2, await c.Transactions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Creation_matches_both_sides_but_excludes_wrong_directions_amounts_dates_accounts_and_linked_rows()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var outgoing = await service.CreateEntryAsync(Entry(1, TransferDirection.Out, Day.AddDays(2)));
+        var incoming = await service.CreateEntryAsync(Entry(3, TransferDirection.In));
+        await service.CreateEntryAsync(Entry(1, TransferDirection.In)); await service.CreateEntryAsync(Entry(3, TransferDirection.Out));
+        await service.CreateEntryAsync(Entry(2, TransferDirection.In)); await service.CreateEntryAsync(Entry(3, TransferDirection.In, Day.AddDays(8)));
+        var wrong = Entry(3, TransferDirection.In); wrong.Amount = 249; await service.CreateEntryAsync(wrong);
+        var request = Pair(3); request.CreateBothEntries = true; await service.CreateAsync(request);
+        var matches = await service.GetCreationCandidatesAsync(request);
+        Assert.Equal(new[] { incoming.Id, outgoing.Id }, matches.Select(t => t.Id));
+        request.ToAccountId = 4; await Assert.ThrowsAsync<ArgumentException>(() => service.GetCreationCandidatesAsync(request));
+        var foreign = new TransferService(c, new User(2), new AccountBalanceSnapshotService(c, new User(2)));
+        await Assert.ThrowsAsync<ArgumentException>(() => foreign.GetCreationCandidatesAsync(Pair(3)));
+    }
+
+    [Fact]
+    public async Task Creation_can_reuse_outgoing_entry_and_only_checks_opening_date_for_new_incoming_entry()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        (await c.Accounts.FindAsync(1))!.OpeningBalanceDate = Day.AddDays(2); await c.SaveChangesAsync();
+        var outgoing = await service.CreateEntryAsync(Entry(1, TransferDirection.Out, Day.AddDays(2)));
+        var request = Pair(); request.ExistingTransactionId = outgoing.Id; request.ExpectedExistingEditVersion = outgoing.EditVersion;
+        var pair = await service.CreateAsync(request);
+        Assert.Equal(outgoing.Id, pair.Outgoing.Id); Assert.Equal(Day.AddDays(2).ToDateTime(TimeOnly.MinValue), pair.Outgoing.TransactionDate);
+        Assert.Equal(Day.ToDateTime(TimeOnly.MinValue), pair.Incoming.TransactionDate);
+        Assert.Equal(750, await new AccountBalanceService(c).GetCurrentBalanceAsync(1)); Assert.Equal(350, await new AccountBalanceService(c).GetCurrentBalanceAsync(2));
+    }
+
+    [Fact]
+    public async Task Creation_rejects_stale_unreviewed_and_incompatible_existing_entries_without_writes()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var existing = await service.CreateEntryAsync(Entry(3, TransferDirection.In));
+        var request = Pair(3); request.ExistingTransactionId = existing.Id;
+        await Assert.ThrowsAsync<ArgumentException>(() => service.CreateAsync(request));
+        request.ExpectedExistingEditVersion = 1; await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateAsync(request));
+        request.ExpectedExistingEditVersion = 0; request.Amount = 251; await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateAsync(request));
+        request.Amount = 250; request.ToAccountId = 2; await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateAsync(request));
+        request.ToAccountId = 3; request.Date = Day.AddDays(8); await Assert.ThrowsAsync<TransferConflictException>(() => service.CreateAsync(request));
+        Assert.Single(await c.Transactions.ToListAsync()); Assert.Null((await c.Transactions.FindAsync(existing.Id))!.PairedTransactionId);
+    }
+
+    [Fact]
+    public async Task Creation_link_and_missing_entry_roll_back_together_if_snapshot_write_fails()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var c = db.Context(); await Seed(c); var service = Service(c);
+        var existing = await service.CreateEntryAsync(Entry(3, TransferDirection.In));
+        await c.Database.ExecuteSqlRawAsync("CREATE TRIGGER reject_missing_snapshot BEFORE INSERT ON AccountBalanceSnapshots WHEN NEW.AccountId = 1 BEGIN SELECT RAISE(ABORT, 'test failure'); END;");
+        var request = Pair(3); request.ExistingTransactionId = existing.Id; request.ExpectedExistingEditVersion = existing.EditVersion;
+        await Assert.ThrowsAsync<DbUpdateException>(() => service.CreateAsync(request));
+        var verify = db.Context(); var retained = Assert.Single(await verify.Transactions.ToListAsync()); Assert.Null(retained.PairedTransactionId); Assert.Equal(0, retained.EditVersion);
+        Assert.Single(await verify.AccountBalanceSnapshots.ToListAsync()); Assert.Equal(1000, await new AccountBalanceService(verify).GetCurrentBalanceAsync(1));
     }
 }

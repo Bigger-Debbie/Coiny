@@ -9,5 +9,13 @@ form > button + button { margin-left: .75rem; }
 .category-add { margin-top: .75rem; }
 .category-editor { display: grid; gap: 1rem; margin-top: 1rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .category-actions { display: flex; flex-wrap: wrap; gap: 1rem; }
+.transfer-matches { display: grid; gap: 1rem; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); min-width: 0; }
+.transfer-matches h2 { margin: 0; font-size: 1.15rem; font-weight: 400; }
+.match-choices { display: grid; gap: .75rem; }
+.match-choice { display: flex; justify-content: space-between; align-items: center; gap: 1rem; text-align: left; padding: 1rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-primary); font: inherit; }
+.match-choice > span { display: grid; gap: .35rem; min-width: 0; overflow-wrap: anywhere; }
+.match-choice span span { font-size: .85rem; color: var(--color-text-muted); }
+.match-choice > strong { font-size: .85rem; flex-shrink: 0; }
+.match-choices .selected { border-color: var(--color-primary); background: #f6f6fa; outline: 1px solid var(--color-primary); }
 button:disabled { opacity: .5; cursor: wait; }
-@media (max-width: 600px) { :host { padding: 1.25rem; } }
+@media (max-width: 600px) { :host { padding: 1.25rem; } .match-choice { flex-direction: column; align-items: flex-start; } }

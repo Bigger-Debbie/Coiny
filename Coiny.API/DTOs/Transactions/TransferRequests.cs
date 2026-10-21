@@ -5,6 +5,9 @@ namespace Coiny.API.DTOs.Transactions;
 
 public class CreateTransferRequest
 {
+    [Range(1, int.MaxValue)] public int? ExistingTransactionId { get; set; }
+    [Range(0, int.MaxValue)] public int? ExpectedExistingEditVersion { get; set; }
+    public bool CreateBothEntries { get; set; }
     [Range(1, int.MaxValue)] public int FromAccountId { get; set; }
     [Range(1, int.MaxValue)] public int ToAccountId { get; set; }
     [Range(typeof(decimal), "0.01", "9999999999999999.99")] public decimal Amount { get; set; }

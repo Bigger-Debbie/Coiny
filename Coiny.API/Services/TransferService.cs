@@ -13,6 +13,32 @@ public sealed class TransferConflictException(string message) : Exception(messag
 public class TransferService(CoinyContext context, ICurrentUserService currentUser,
     IAccountBalanceSnapshotService snapshots) : ITransferService
 {
+    public async Task<List<TransactionResponse>> GetCreationCandidatesAsync(CreateTransferRequest request)
+    {
+        Validate(request.Amount, request.Date, request.Description, request.Notes);
+        if (request.FromAccountId == request.ToAccountId)
+            throw new ArgumentException("Choose two different accounts.");
+        var household = await currentUser.GetCurrentHouseholdIdAsync();
+        var count = await context.Accounts.CountAsync(a => a.HouseholdId == household && a.IsActive &&
+            (a.Id == request.FromAccountId || a.Id == request.ToAccountId));
+        if (count != 2) throw new ArgumentException("Choose two active accounts in your household.");
+        return await CreationCandidates(household, request);
+    }
+
+    private async Task<List<TransactionResponse>> CreationCandidates(int household, CreateTransferRequest request)
+    {
+        var date = request.Date!.Value;
+        var start = DateOnly.FromDayNumber(Math.Max(DateOnly.MinValue.DayNumber, date.DayNumber - 7)).ToDateTime(TimeOnly.MinValue);
+        var end = DateOnly.FromDayNumber(Math.Min(DateOnly.MaxValue.DayNumber, date.DayNumber + 7)).ToDateTime(TimeOnly.MaxValue);
+        var rows = await context.Transactions.AsNoTracking().Where(t => t.HouseholdId == household &&
+            t.Category.CategoryType == CategoryType.Transfer && t.PairedTransactionId == null && t.Amount == request.Amount &&
+            ((t.AccountId == request.FromAccountId && t.TransferDirection == TransferDirection.Out) ||
+             (t.AccountId == request.ToAccountId && t.TransferDirection == TransferDirection.In)) &&
+            t.TransactionDate >= start && t.TransactionDate <= end).Select(TransactionProjection.Response).ToListAsync();
+        return rows.OrderBy(t => Math.Abs(DateOnly.FromDateTime(t.TransactionDate).DayNumber - date.DayNumber))
+            .ThenBy(t => t.TransactionDate).ThenBy(t => t.Id).ToList();
+    }
+
     public async Task<List<TransactionResponse>> GetCandidatesAsync(int transactionId, int accountId, int days)
     {
         if (days is < 0 or > 365) throw new ArgumentException("Choose a date window between 0 and 365 days.");
@@ -69,6 +95,40 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
             throw new ArgumentException("Choose two different accounts.");
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
         await using var unit = await context.Database.BeginTransactionAsync();
+        if (request.ExistingTransactionId is int existingId)
+        {
+            if (request.CreateBothEntries || request.ExpectedExistingEditVersion is null)
+                throw new ArgumentException("Review the existing entry and its version before linking it.");
+            var existing = await OwnedEntry(existingId, householdId);
+            CheckVersion(existing, request.ExpectedExistingEditVersion);
+            if (existing.PairedTransactionId.HasValue)
+                throw new TransferConflictException("This entry is already linked. Check for existing transfers again.");
+            var existingIsOutgoing = existing.AccountId == request.FromAccountId && existing.TransferDirection == TransferDirection.Out;
+            var existingIsIncoming = existing.AccountId == request.ToAccountId && existing.TransferDirection == TransferDirection.In;
+            if ((!existingIsOutgoing && !existingIsIncoming) || existing.Amount != request.Amount ||
+                Math.Abs(DateOnly.FromDateTime(existing.TransactionDate).DayNumber - request.Date!.Value.DayNumber) > 7)
+                throw new TransferConflictException("The selected entry no longer matches this transfer. Check for existing transfers again.");
+            var missingAccount = await Account(existingIsOutgoing ? request.ToAccountId : request.FromAccountId, householdId, request.Date!.Value);
+            if (!await context.Accounts.AnyAsync(a => a.Id == existing.AccountId && a.HouseholdId == householdId && a.IsActive))
+                throw new ArgumentException("Choose two active accounts in your household.");
+            var transferCategory = await Category(householdId);
+            var missing = Entry(missingAccount, transferCategory, request.Amount, request.Date.Value,
+                existingIsOutgoing ? TransferDirection.In : TransferDirection.Out, TransferCounterparty.Unknown,
+                request.Description?.Trim() ?? "Transfer", request.Notes, request.IsCleared);
+            context.Transactions.Add(missing);
+            await context.SaveChangesAsync();
+            Pair(existing, missing);
+            await context.SaveChangesAsync();
+            await snapshots.RecalculateFromAsync(missingAccount.Id, request.Date.Value);
+            await context.SaveChangesAsync();
+            await unit.CommitAsync();
+            return new(await Response(existingIsOutgoing ? existing.Id : missing.Id, householdId),
+                await Response(existingIsOutgoing ? missing.Id : existing.Id, householdId));
+        }
+        if (request.ExpectedExistingEditVersion.HasValue)
+            throw new ArgumentException("Choose the existing transfer entry to link.");
+        if (!request.CreateBothEntries && (await CreationCandidates(householdId, request)).Count > 0)
+            throw new TransferConflictException("Possible existing transfers were found. Review them or explicitly choose to create both sides.");
         var from = await Account(request.FromAccountId, householdId, request.Date!.Value);
         var to = await Account(request.ToAccountId, householdId, request.Date.Value);
         var category = await Category(householdId);

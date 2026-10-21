@@ -15,7 +15,7 @@ experience remain future work.
 | Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, personal net-worth settings, local logout, token storage and route guard | Password recovery, complete expired-session handling |
 | Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
 | Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic import and history | Transfer matching UI, account/category management, saved bank mappings |
-| History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends | Intraday history and forecasting |
+| History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Budget schema, recurrence, draft/preview/publish API, setup wizard, monthly allocation donut, breakdown, income-period bills, and calendar | Goals, forecasting |
 
@@ -61,6 +61,7 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
 | [CSV transaction import](docs/10-csv-transaction-import.md) | Agreed import workflow, parsing foundation, and delivery sequence |
 | [Product roadmap](docs/11-roadmap.md) | Remaining work, including recurring transactions and subscriptions |
+| [Account reconciliation](docs/12-account-reconciliation.md) | Statement checks, verified checkpoints, and later-change review flags |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones

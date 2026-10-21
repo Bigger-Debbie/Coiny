@@ -90,6 +90,60 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("AccountBalanceSnapshots");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.AccountReconciliation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ConfirmedByName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfirmedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("InvalidatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InvalidationReason")
+                        .HasMaxLength(250)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LedgerFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("StatementBalance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly>("StatementDate")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("AccountId", "StatementDate", "LedgerFingerprint")
+                        .IsUnique()
+                        .HasFilter("\"InvalidatedAt\" IS NULL");
+
+                    b.ToTable("AccountReconciliations");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -853,6 +907,25 @@ namespace Coiny.API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.AccountReconciliation", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Household");
                 });
 
             modelBuilder.Entity("Coiny.API.Models.BillPayment", b =>

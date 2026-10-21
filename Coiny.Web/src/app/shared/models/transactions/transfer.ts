@@ -9,6 +9,9 @@ export interface TransferDetails {
 }
 
 export interface CreateTransfer {
+  existingTransactionId?: number;
+  expectedExistingEditVersion?: number;
+  createBothEntries?: boolean;
   fromAccountId: number;
   toAccountId: number;
   amount: number;

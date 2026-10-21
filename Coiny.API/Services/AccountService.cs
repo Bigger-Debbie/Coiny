@@ -50,7 +50,8 @@ public class AccountService : IAccountService
         account.Name = name; account.InstitutionId = request.InstitutionId;
         account.LoanSubtype = account.AccountType == AccountType.Loan ? request.LoanSubtype ?? LoanSubtype.Other : null;
         account.OpeningBalance = request.OpeningBalance; account.OpeningBalanceDate = date;
-        if (rebuild) {
+        if (rebuild)
+        {
             var earlier = await _context.AccountBalanceSnapshots.Where(s => s.AccountId == id && s.SnapshotDate < date).ToListAsync();
             _context.AccountBalanceSnapshots.RemoveRange(earlier);
         }
@@ -76,9 +77,13 @@ public class AccountService : IAccountService
         {
             response.Add(new AccountResponse
             {
+                LatestReconciliation = (await _context.AccountReconciliations.AsNoTracking().Where(r => r.AccountId == account.Id)
+                    .OrderByDescending(r => r.StatementDate).ThenByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id).FirstOrDefaultAsync()) is { } reconciliation
+                    ? AccountReconciliationService.Response(reconciliation) : null,
                 Id = account.Id,
                 Name = account.Name,
-                AccountType = account.AccountType, LoanSubtype = account.LoanSubtype,
+                AccountType = account.AccountType,
+                LoanSubtype = account.LoanSubtype,
                 OpeningBalance = account.OpeningBalance,
                 OpeningBalanceDate = account.OpeningBalanceDate,
                 CurrentBalance = await _accountBalanceService
@@ -104,7 +109,7 @@ public class AccountService : IAccountService
         if (request.InstitutionId.HasValue)
         {
             var institutionBelongsToHousehold = await _context.Institutions
-                .AnyAsync(i => 
+                .AnyAsync(i =>
                     i.Id == request.InstitutionId.Value &&
                     i.HouseholdId == householdId);
 
@@ -117,7 +122,8 @@ public class AccountService : IAccountService
             HouseholdId = householdId,
             InstitutionId = request.InstitutionId,
             Name = request.Name,
-            AccountType = request.AccountType, LoanSubtype = request.AccountType == AccountType.Loan ? request.LoanSubtype ?? LoanSubtype.Other : null,
+            AccountType = request.AccountType,
+            LoanSubtype = request.AccountType == AccountType.Loan ? request.LoanSubtype ?? LoanSubtype.Other : null,
             OpeningBalance = request.OpeningBalance,
             OpeningBalanceDate = request.OpeningBalanceDate.Value,
             IsActive = true
@@ -144,7 +150,8 @@ public class AccountService : IAccountService
         {
             Id = account.Id,
             Name = account.Name,
-            AccountType = account.AccountType, LoanSubtype = account.LoanSubtype,
+            AccountType = account.AccountType,
+            LoanSubtype = account.LoanSubtype,
             OpeningBalance = account.OpeningBalance,
             OpeningBalanceDate = account.OpeningBalanceDate,
             CurrentBalance = account.OpeningBalance,

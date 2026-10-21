@@ -7,9 +7,11 @@ Detect likely recurring expenses from repeated merchants, similar amounts, and w
 ## Other planned areas
 
 - Planned versus actual spending and month-end forecasting.
-- Statement reconciliation and a last-reconciled marker per account.
 - Safe import undo/correction, accounting for edits, transfer links, and bill links.
 - Easier ongoing budget and pay-schedule maintenance.
 - Password recovery, password changes, session handling, and login protection.
 - Tested backup/restore and data export.
 - Saved merchant/category rules to speed up CSV review.
+
+Statement checkpoints and account reconciliation are implemented; see
+[account reconciliation](12-account-reconciliation.md).

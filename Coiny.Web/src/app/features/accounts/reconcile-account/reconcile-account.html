@@ -1,0 +1,52 @@
+<p class="account-name">{{ account().name }}</p>
+<p class="help">Compare your statement with Coiny, then save a checkpoint once you’ve reviewed the transactions through that date.</p>
+<form #form="ngForm" (ngSubmit)="checkBalance()">
+  <fieldset [disabled]="busy()">
+    <div class="fields">
+      <div><label for="statement-date">Statement ending date</label>
+        <input id="statement-date" name="statementDate" type="date" required [min]="account().openingBalanceDate" [max]="today"
+          [(ngModel)]="statementDate" (ngModelChange)="changed()" /></div>
+      <div><label for="statement-balance">{{ isDebt() ? 'Statement amount owed' : 'Statement ending balance' }}</label>
+        <input id="statement-balance" name="statementBalance" type="number" required step="0.01" [(ngModel)]="statementBalance" (ngModelChange)="changed()" /></div>
+    </div>
+    @if (isDebt()) { <small class="help">Enter debt as a positive amount, or a credit balance as a negative amount.</small> }
+    <button class="button-outline" type="submit" [disabled]="form.invalid || busy()">{{ busy() ? 'Checking…' : 'Check balance' }}</button>
+  </fieldset>
+</form>
+@if (error()) { <p role="alert" class="error">{{ error() }}</p> }
+@if (check(); as result) {
+  <section class="comparison" [class.matches]="result.matches" [class.mismatch]="!result.matches" aria-label="Balance comparison" aria-live="polite">
+    <h3>{{ result.matches ? 'Balances match' : 'Balances don’t match yet' }}</h3>
+    <dl><div><dt>Statement</dt><dd>{{ result.statementBalance | currency }}</dd></div>
+      <div><dt>Coiny through {{ result.statementDate | date:'mediumDate' }}</dt><dd>{{ result.calculatedBalance | currency }}</dd></div>
+      <div><dt>Difference</dt><dd>{{ result.difference | currency }}</dd></div></dl>
+    <p class="help">{{ result.transactionCount }} transactions included through the end of this date. Later transactions are left out.</p>
+    @if (!result.matches) { <p>Check for missing or duplicate transactions and confirm the account’s opening balance. Coiny won’t create an adjustment.</p> }
+    <button type="button" class="button-outline" [disabled]="busy()" (click)="inspect.emit({ date: result.statementDate, balance: result.statementBalance })">Review these transactions</button>
+  </section>
+  @if (result.matches) {
+    <label class="review-confirmation"><input type="checkbox" [disabled]="busy()" [(ngModel)]="reviewed" />
+      <span>I compared the statement transactions and confirm everything through this date is correct.</span></label>
+    <button type="button" class="button-primary" [disabled]="busy() || !reviewed" (click)="confirm()">{{ busy() ? 'Saving…' : 'Save checkpoint' }}</button>
+  }
+}
+<section class="history" aria-label="Reconciliation history">
+  <h3>Reconciliation history</h3>
+  <p class="help">Changes within a verified period mark its checkpoint for review. A checkpoint records your confirmation; it doesn’t restore transactions or change cleared status.</p>
+  @if (historyLoading()) { <p role="status">Loading history…</p> }
+  @else if (historyError()) { <p role="status">History couldn’t load.</p><button class="button-outline" type="button" (click)="loadHistory()">Retry history</button> }
+  @else if (!history().length) { <p class="help">No checkpoints yet.</p> }
+  @else {
+    <p class="help">Showing the latest {{ history().length }} checkpoints (up to 50).</p>
+    <ol>
+      @for (record of history(); track record.id) {
+        <li [class.needs-review]="record.needsReview">
+          <div class="history-heading"><strong>{{ record.statementDate | date:'mediumDate' }}</strong><strong>{{ record.statementBalance | currency }}</strong></div>
+          <span class="status">{{ record.needsReview ? 'Needs review' : '✓ Verified' }}</span>
+          <small>Confirmed by {{ record.confirmedByName }} · {{ record.confirmedAt | date:'medium' }}</small>
+          @if (record.needsReview) { <small>{{ record.invalidationReason }} Check and confirm again to save a new checkpoint.</small> }
+        </li>
+      }
+    </ol>
+  }
+</section>

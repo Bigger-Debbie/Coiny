@@ -1,6 +1,6 @@
 import { ToastService, notificationSignal } from '../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -27,14 +27,36 @@ import { AuthService } from '../../core/services/auth.service';
 import { UserPreferencesService } from '../../core/services/user-preferences.service';
 import { EditTransaction } from '../transactions/edit-transaction/edit-transaction';
 import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown';
+import { ReconcileAccount } from './reconcile-account/reconcile-account';
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel, EditTransaction],
+  imports: [CurrencyPipe, DatePipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel, EditTransaction, ReconcileAccount],
   templateUrl: './accounts.html',
   styleUrl: './accounts.css',
 })
 export class Accounts implements OnInit {
+  readonly reconcilingAccount = signal<Account | null>(null);
+  readonly reconciliationDraft = signal<{ date: string; balance: number } | null>(null);
+  readonly statementPeriod = signal<{ startDate: string; endDate: string } | null>(null);
+  readonly transactionDates = computed(() => this.statementPeriod() ?? this.dates());
+  reconciliationSaved() {
+    this.reconcilingAccount.set(null);
+    this.reconciliationDraft.set(null);
+    this.notice.set('Account reconciled. Checkpoint saved.');
+    this.loadOverview(true);
+  }
+  reviewStatement(statement: { date: string; balance: number }) {
+    const account = this.reconcilingAccount();
+    if (!account) return;
+    this.reconcilingAccount.set(null);
+    this.reconciliationDraft.set(statement);
+    this.statementPeriod.set({ startDate: account.openingBalanceDate, endDate: statement.date });
+    this.search = this.categoryId = this.categoryType = '';
+    this.applyFilters();
+    setTimeout(() => document.getElementById('transactions-heading')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  }
+  clearStatementPeriod() { this.statementPeriod.set(null); this.loadTransactions(1); }
   private readonly toasts = inject(ToastService);
   readonly editingAccount = signal<Account | null>(null);
   accountUpdated() { this.editingAccount.set(null); this.notice.set('Account updated.'); this.loadOverview(true); }
@@ -169,6 +191,8 @@ export class Accounts implements OnInit {
   }
 
   selectAccount(value: string): void {
+    this.statementPeriod.set(null);
+    this.reconciliationDraft.set(null);
     this.selectedId.set(value === 'all' ? null : Number(value));
     this.syncUrl();
     this.loadTrend();
@@ -178,6 +202,8 @@ export class Accounts implements OnInit {
   openModal(kind: 'account' | 'transaction' | 'category'): void { this.notice.set(''); this.modal.set(kind); }
   closeModal(): void { this.modal.set(null); this.syncUrl(); }
   accountCreated(account: Account): void {
+    this.statementPeriod.set(null);
+    this.reconciliationDraft.set(null);
     this.selectedId.set(account.id);
     this.closeModal();
     this.notice.set('Account added.');
@@ -196,6 +222,7 @@ export class Accounts implements OnInit {
   }
 
   selectRange(value: TrendRange): void {
+    if (this.statementPeriod()) this.clearStatementPeriod();
     if (this.range() === value) return;
     this.range.set(value);
     this.syncUrl();
@@ -243,7 +270,7 @@ export class Accounts implements OnInit {
     this.transactionError.set(false);
     const filters = this.appliedFilters;
     this.transactionRequest = this.transactionService.getPage({
-      ...this.dates(), accountId: this.selectedId() ?? undefined,
+      ...this.transactionDates(), accountId: this.selectedId() ?? undefined,
       categoryId: filters.categoryId ? Number(filters.categoryId) : undefined,
       categoryType: filters.categoryType || undefined, search: filters.search || undefined,
       page, pageSize: 10,

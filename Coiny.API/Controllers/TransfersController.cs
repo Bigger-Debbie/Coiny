@@ -11,6 +11,9 @@ namespace Coiny.API.Controllers;
 [ApiController, Authorize, TransferApiExceptionFilter, Route("api/transfers")]
 public class TransfersController(ITransferService transfers) : ControllerBase
 {
+    [HttpPost("candidates")]
+    public async Task<ActionResult<List<TransactionResponse>>> CreationCandidates(CreateTransferRequest request) =>
+        Ok(await transfers.GetCreationCandidatesAsync(request));
     [HttpGet("entries/{transactionId:int:min(1)}/candidates")]
     public async Task<ActionResult<List<TransactionResponse>>> Candidates(int transactionId, [FromQuery] int accountId, [FromQuery] int days = 7) =>
         Ok(await transfers.GetCandidatesAsync(transactionId, accountId, days));

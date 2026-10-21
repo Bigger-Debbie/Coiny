@@ -1,9 +1,10 @@
 import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { AccountService } from '../../../core/services/account.service';
 import { CategoryService } from '../../../core/services/category.service';
 import { TransactionService } from '../../../core/services/transaction.service';
@@ -12,12 +13,14 @@ import { Observable } from 'rxjs';
 import { Account } from '../../../shared/models/account/account';
 import { Category } from '../../../shared/models/category/category';
 import { CreateTransactionRequest } from '../../../shared/models/transactions/create-transaction-request';
+import { Transaction } from '../../../shared/models/transactions/transaction';
+import { CreateTransfer } from '../../../shared/models/transactions/transfer';
 import { getTrendDates } from '../../dashboard/trend-range';
 import { SelectMenu, SelectOption } from '../../../shared/components/select-menu/select-menu';
 
 @Component({
   selector: 'app-create-transaction',
-  imports: [FormsModule, SelectMenu],
+  imports: [FormsModule, SelectMenu, CurrencyPipe, DatePipe],
   host: { '[class.embedded]': 'embedded' },
   templateUrl: './create-transaction.html',
   styleUrl: './create-transaction.css',
@@ -28,6 +31,56 @@ export class CreateTransaction implements OnInit {
   @Input() accountId: number | null = null;
   readonly saved = output<void>();
   readonly cancelled = output<void>();
+  readonly transferMatches = signal<Transaction[]>([]);
+  readonly matchLoading = signal(false);
+  readonly matchError = signal(false);
+  transferChoice: number | 'both' | null = null;
+  private checkedTransferKey = '';
+  private matchRequest?: Subscription;
+  private matchTimer?: ReturnType<typeof setTimeout>;
+  get internalTransfer() { return this.kind === 'Transfer' && this.transferMode === 'Internal'; }
+  private get transferKey() { return JSON.stringify([this.request.accountId, this.toAccountId, this.request.amount, this.request.transactionDate]); }
+  get transferChecked() { return this.checkedTransferKey === this.transferKey && !this.matchLoading() && !this.matchError(); }
+  get selectedTransferMatch() { return this.transferMatches().find(t => t.id === this.transferChoice); }
+  get matchesInBothAccounts() { return new Set(this.transferMatches().map(t => t.accountId)).size > 1; }
+  get missingAccountName() {
+    const match = this.selectedTransferMatch;
+    return this.accounts.find(a => a.id === (match?.accountId === this.request.accountId ? this.toAccountId : this.request.accountId))?.name;
+  }
+  constructor() { this.destroyRef.onDestroy(() => clearTimeout(this.matchTimer)); }
+  transferInputsChanged() {
+    clearTimeout(this.matchTimer); this.matchRequest?.unsubscribe();
+    this.checkedTransferKey = ''; this.transferChoice = null; this.transferMatches.set([]);
+    this.matchError.set(false); this.matchLoading.set(false);
+    if (this.internalTransfer && this.canCheckTransfer())
+      this.matchTimer = setTimeout(() => this.checkTransferMatches(), 300);
+  }
+  private canCheckTransfer() {
+    return this.request.accountId > 0 && this.toAccountId > 0 && this.request.accountId !== this.toAccountId &&
+      Number.isFinite(this.request.amount) && this.request.amount > 0 &&
+      Math.abs(this.request.amount * 100 - Math.round(this.request.amount * 100)) < .000001 && !!this.request.transactionDate;
+  }
+  private transferRequest(): CreateTransfer {
+    return { fromAccountId: this.request.accountId, toAccountId: this.toAccountId,
+      amount: this.request.amount, date: this.request.transactionDate,
+      description: this.request.description.trim() || null, notes: this.request.notes, isCleared: this.request.isCleared };
+  }
+  checkTransferMatches() {
+    clearTimeout(this.matchTimer); this.matchRequest?.unsubscribe();
+    this.transferChoice = null; this.checkedTransferKey = ''; this.transferMatches.set([]);
+    if (!this.internalTransfer || !this.canCheckTransfer()) return;
+    const key = this.transferKey;
+    this.matchLoading.set(true); this.matchError.set(false);
+    this.matchRequest = this.transferService.creationCandidates(this.transferRequest()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: rows => {
+        this.matchLoading.set(false);
+        if (key !== this.transferKey) return;
+        this.transferMatches.set(rows); this.checkedTransferKey = key;
+        if (!rows.length) this.transferChoice = 'both';
+      },
+      error: () => { this.matchLoading.set(false); this.matchError.set(true); },
+    });
+  }
   get accountOptions(): SelectOption[] {
     return [{ value: 0, label: 'Select account' }, ...this.accounts.map(a => ({ value: a.id, label: a.name, detail: a.institutionName ?? 'No institution' }))];
   }
@@ -52,6 +105,7 @@ export class CreateTransaction implements OnInit {
     this.closeCategory();
     if (kind !== 'Transfer') this.categoryType = kind;
     this.error.set('');
+    this.transferInputsChanged();
   }
   private readonly accountService = inject(AccountService);
   private readonly categoryService = inject(CategoryService);
@@ -82,6 +136,8 @@ export class CreateTransaction implements OnInit {
     description: '', merchant: null, notes: null, isCleared: false,
   };
   get openingDate(): string | null {
+    const match = this.internalTransfer ? this.selectedTransferMatch : null;
+    if (match) return this.accounts.find(a => a.id === (match.accountId === this.request.accountId ? this.toAccountId : this.request.accountId))?.openingBalanceDate ?? null;
     const dates = this.accounts.filter(a => a.id === this.request.accountId ||
       (this.kind === 'Transfer' && this.transferMode === 'Internal' && a.id === this.toAccountId))
       .map(a => a.openingBalanceDate).sort();
@@ -118,14 +174,21 @@ export class CreateTransaction implements OnInit {
     }
     this.saving.set(true);
     this.error.set('');
+    if (this.internalTransfer && (!this.transferChecked || this.transferChoice === null)) {
+      this.saving.set(false);
+      this.error.set('Check for existing transfers and choose how to record this transfer before saving.');
+      if (!this.transferChecked && !this.matchLoading()) this.checkTransferMatches();
+      return;
+    }
     const description = this.request.description.trim();
     let operation: Observable<unknown>;
     if (!transfer) operation = this.transactionService.CreateTransaction({ ...this.request, description });
-    else if (this.transferMode === 'Internal') operation = this.transferService.create({
-      fromAccountId: this.request.accountId, toAccountId: this.toAccountId,
-      amount: this.request.amount, date: this.request.transactionDate,
-      description: description || null, notes: this.request.notes, isCleared: this.request.isCleared,
-    });
+    else if (this.transferMode === 'Internal') {
+      const match = this.selectedTransferMatch;
+      operation = this.transferService.create({ ...this.transferRequest(),
+        ...(match ? { existingTransactionId: match.id, expectedExistingEditVersion: match.editVersion }
+          : { createBothEntries: this.transferMatches().length > 0 }) });
+    }
     else operation = this.transferService.createEntry({
       accountId: this.request.accountId, direction: this.direction, counterparty: this.transferMode,
       amount: this.request.amount, date: this.request.transactionDate,
@@ -140,6 +203,9 @@ export class CreateTransaction implements OnInit {
         },
         error: response => {
           this.saving.set(false);
+          if (this.internalTransfer) {
+            this.checkedTransferKey = ''; this.transferChoice = null; this.transferMatches.set([]);
+          }
           this.error.set(typeof response.error === 'string' ? response.error : response.error?.detail || 'Your transaction couldn’t be saved. Check the details and try again.');
         },
       });

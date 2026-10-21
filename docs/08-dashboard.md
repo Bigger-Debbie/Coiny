@@ -159,12 +159,24 @@ Account edit/delete remains future work.
 ### Transfers
 
 Selecting Transfer replaces the category and merchant fields with transfer choices.
-Between Coiny accounts uses From/To account selectors and creates both entries
-atomically. The selected account defaults to From. Destinations exclude that account;
+Between Coiny accounts uses From/To account selectors. The selected account defaults to From. Destinations exclude that account;
 the server also rejects self-transfers. A payment to a credit card or loan reduces
-the amount owed. The date must be on/after both opening dates. Description is optional;
-amount must be positive with at most two decimal places. The cleared checkbox applies
-to both entries for a paired transfer.
+the amount owed. Description is optional; amount must be positive with at most two decimal places.
+
+After accounts, amount, and date are entered, the form checks both accounts for
+unlinked transfers of the same amount and correct direction within seven days.
+Possible matches show account, posting date, description, and amount. Nothing is
+selected automatically when matches exist: choose **Link this entry** or explicitly
+**Create both sides**. Choosing an existing entry creates only its missing side,
+preserving the existing date, details, cleared status, and import information.
+The date and cleared checkbox then apply only to the new entry. Its posting date
+must be on/after that account's opening date. When creating two new entries, the
+date must satisfy both accounts and the cleared checkbox applies to both.
+
+Changes to accounts, amount, or date clear the previous decision and check again.
+Failed checks keep saving disabled; stale matches require a fresh review. New-entry
+creation, linking, and snapshot updates are atomic. If entries already exist on
+both sides, use transaction details to link them without creating another entry.
 
 External and unknown-counterparty modes offer Money in/out and create only the selected
 account's entry. Unknown entries can be linked later; no second entry is inferred.

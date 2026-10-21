@@ -4,6 +4,7 @@ namespace Coiny.API.Interfaces;
 
 public interface ITransferService
 {
+    Task<List<TransactionResponse>> GetCreationCandidatesAsync(CreateTransferRequest request);
     Task<List<TransactionResponse>> GetCandidatesAsync(int transactionId, int accountId, int days);
     Task<TransferPairResponse> CreateCounterpartAsync(int transactionId, CreateTransferCounterpartRequest request);
     Task<TransferPairResponse> CreateAsync(CreateTransferRequest request);

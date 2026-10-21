@@ -4,6 +4,7 @@ namespace Coiny.API.DTOs.Accounts;
 
 public class AccountResponse
 {
+    public AccountReconciliationResponse? LatestReconciliation { get; set; }
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public LoanSubtype? LoanSubtype { get; set; }

@@ -2,7 +2,10 @@
   <div class="page-heading">
     <h1 class="page-title">Accounts</h1>
     <div class="account-actions">
-      @if (selectedAccount(); as account) { <button class="button-outline" type="button" (click)="editingAccount.set(account)">Edit Account</button> }
+      @if (selectedAccount(); as account) {
+        <button class="button-outline" type="button" (click)="reconcilingAccount.set(account)">Reconcile Account</button>
+        <button class="button-outline" type="button" (click)="editingAccount.set(account)">Edit Account</button>
+      }
       <button class="button-primary" type="button" (click)="openModal('account')">＋ Add Account</button>
     </div>
   </div>
@@ -38,6 +41,10 @@
           <small>Change over selected period</small>
           @if (selectedAccount(); as account) {
             <div class="account-meta">
+              @if (account.latestReconciliation; as checkpoint) {
+                <span [class.positive]="!checkpoint.needsReview">{{ checkpoint.needsReview ? 'Needs review' : '✓ Reconciled through' }} {{ checkpoint.statementDate | date:'mediumDate' }}</span>
+                <small>Statement: {{ checkpoint.statementBalance | currency }}</small>
+              }
               <span>Account Type: {{ account.accountType === 'CreditCard' ? 'Credit card' : account.accountType }}</span>
               @if (account.accountType === 'Loan') { <span>Loan Type: {{ account.loanSubtype || 'Other' }} <button type="button" class="button-ghost" (click)="openLoan(account)">Change</button></span> }
               @if (website(); as url) {
@@ -83,7 +90,13 @@
           <button class="button-primary" type="button" (click)="openModal('transaction')">＋ Add Transaction</button>
         </div>
       </div>
-      <p class="period-label">{{ dates().startDate }} – {{ dates().endDate }} · {{ selectedAccount()?.name || 'All accounts' }}</p>
+      <p class="period-label">{{ transactionDates().startDate }} – {{ transactionDates().endDate }} · {{ selectedAccount()?.name || 'All accounts' }}</p>
+      @if (statementPeriod()) {
+        <p class="filter-summary">Reviewing transactions through the statement date.
+          <button class="button-ghost" type="button" (click)="clearStatementPeriod()">Return to selected timeframe</button>
+          <button class="button-outline" type="button" (click)="reconcilingAccount.set(selectedAccount())">Return to reconciliation</button>
+        </p>
+      }
       @if (filterOpen()) {
         <form id="transaction-filters" class="filters" (ngSubmit)="applyFilters()">
           <div><label for="search">Search</label><input id="search" name="search" type="search" maxlength="100" [(ngModel)]="search" placeholder="Description, merchant, category…" /></div>
@@ -115,7 +128,7 @@
         </nav>
       </div>
     </section>
-    <app-category-breakdown [accountId]="selectedId()" [startDate]="dates().startDate" [endDate]="dates().endDate" [refreshKey]="breakdownRefresh()" />
+    <app-category-breakdown [accountId]="selectedId()" [startDate]="transactionDates().startDate" [endDate]="transactionDates().endDate" [refreshKey]="breakdownRefresh()" />
     </div>
   }
   @if (modal() === 'account') {
@@ -155,4 +168,12 @@
   <app-modal title="Edit Account" [busy]="editor.busy()" (dismiss)="editingAccount.set(null)">
     <app-create-account #editor [embedded]="true" [account]="account" (saved)="accountUpdated()" (cancelled)="editingAccount.set(null)" />
   </app-modal>
+}
+
+@defer (when reconcilingAccount() !== null) {
+  @if (reconcilingAccount(); as account) {
+    <app-modal title="Reconcile Account" [busy]="reconciler.busy()" (dismiss)="reconcilingAccount.set(null)">
+      <app-reconcile-account #reconciler [account]="account" [initialStatement]="reconciliationDraft()" (saved)="reconciliationSaved()" (inspect)="reviewStatement($event)" />
+    </app-modal>
+  }
 }

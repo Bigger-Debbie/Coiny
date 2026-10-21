@@ -42,6 +42,9 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/accounts` | 200 | Accounts, opening dates, and current balances |
 | POST | `/api/accounts` | 201 | Create account and opening-day snapshot |
 | GET | `/api/accounts/{accountId}/trend` | 200 | Daily balance trend for one owned account |
+| GET | `/api/accounts/{accountId}/reconciliations` | 200 | Latest 50 household account statement checkpoints |
+| POST | `/api/accounts/{accountId}/reconciliations/check` | 200 | Compare statement and ledger through a date without writing |
+| POST | `/api/accounts/{accountId}/reconciliations` | 200 | Confirm reviewed matching statement checkpoint |
 | GET | `/api/categories` | 200 | Household categories |
 | POST | `/api/categories` | 201 | Create category |
 | PUT | `/api/accounts/{id}/loan-subtype` | 204 | Classify an existing household loan |
@@ -57,7 +60,8 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/transaction-imports/validate` | 200 | Check included rows, categories, duplicates, and projected balance without writing |
 | POST | `/api/transaction-imports` | 200 | Import a reviewed batch atomically or replay its result |
 | GET | `/api/transaction-imports` | 200 | Last 50 household/account import batches |
-| POST | `/api/transfers` | 201 | Create both sides of a manual transfer atomically |
+| POST | `/api/transfers` | 201 | Create a transfer pair or its missing side linked to an existing entry atomically |
+| POST | `/api/transfers/candidates` | 200 | Find existing unlinked entries before creating a transfer |
 | POST | `/api/transfers/entries` | 201 | Record one unlinked or external transfer entry |
 | POST | `/api/transfers/links` | 200 | Link two existing transfer entries without changing balances |
 | DELETE | `/api/transfers/links/{transactionId}` | 204 | Unlink both sides, preserving entries and balances |
@@ -234,6 +238,71 @@ Create/list responses include `id`, `name`, `accountType`, `openingBalance`,
 `institutionName`. Institution fields can be null. These endpoints do **not**
 include monthly trends; use `/dashboard` for the account pane's data.
 
+Account responses also contain nullable `latestReconciliation`, with the checkpoint
+shape below. Account listing returns the latest statement checkpoint and its current
+review flag; newly created accounts return null.
+
+## Account reconciliation
+
+Apply `20261021123659_AddAccountReconciliations`. These routes require authentication
+and current household membership; missing/foreign accounts return 404.
+
+`POST /api/accounts/{{accountId}}/reconciliations/check`:
+
+```json
+{ "statementDate": "2026-10-16", "statementBalance": 2450.00 }
+```
+
+Both fields are required. The date must be on/after the opening date and no later
+than the API server's current local date. Amounts permit signed values with at most
+two decimals (18,2 range); positive liabilities represent amounts owed.
+
+Returns `statementDate`, `statementBalance`, `calculatedBalance`, `difference`
+(statement minus Coiny), `matches`, `ledgerFingerprint`, and `transactionCount`.
+Calculation includes all transactions through that date, regardless of cleared
+status, excludes later entries, and uses the account's normal balance rules.
+The check writes nothing.
+
+`POST /api/accounts/{{accountId}}/reconciliations`:
+
+```json
+{
+  "statementDate": "2026-10-16",
+  "statementBalance": 2450.00,
+  "reviewedFingerprint": "<64-character fingerprint from the check response>",
+  "transactionsReviewed": true
+}
+```
+
+Confirmation requires explicit review, matching balances, and an unchanged
+fingerprint, rechecked inside the save transaction. It returns the checkpoint:
+
+```json
+{
+  "id": 1,
+  "statementDate": "2026-10-16",
+  "statementBalance": 2450.00,
+  "confirmedAt": "2026-10-17T12:00:00Z",
+  "confirmedByName": "Alex",
+  "needsReview": false,
+  "invalidatedAt": null,
+  "invalidationReason": null
+}
+```
+
+`GET /api/accounts/{{accountId}}/reconciliations` returns an array of the latest
+50 checkpoints, newest statement date first, then confirmation time/ID. Repeating
+a confirmation for an identical still-valid ledger returns the existing record.
+Later edits/imports in the verified period or opening-balance/date corrections flag
+it for review without removing history. A fresh verification saves a new record.
+Transfer linking/unlinking alone preserves verification. No transactions are
+created, cleared, reverted, or adjusted by reconciliation.
+
+Errors: 400 missing/invalid values, unreviewed transactions, or mismatched balances;
+401 unauthenticated; 403 no household; 404 missing/foreign account; 409 changed
+ledger since the check. Error details use `ProblemDetails.detail`.
+See [reconciliation rules](12-account-reconciliation.md).
+
 ## Category payload
 
 `POST /api/categories`:
@@ -328,8 +397,8 @@ places. Dates cannot precede the affected accounts' opening dates. As with ordin
 transactions, future dates are currently accepted. Accounts must be active and owned
 by the current household. A household Transfer category is reused or created automatically.
 
-`POST /api/transfers` creates two linked entries and their snapshots in one database
-transaction. Both entries initially use the same date and cleared status:
+`POST /api/transfers` creates a linked transfer in one database transaction.
+Without an existing entry, both new entries initially use the same date and cleared status:
 
 ```json
 {
@@ -346,6 +415,45 @@ transaction. Both entries initially use the same date and cleared status:
 Description is optional (defaults to Transfer), maximum 250 characters; notes are
 optional, maximum 1000. From and To must differ. Returns `outgoing` and `incoming`,
 each using the transaction response shape.
+
+Before saving, `POST /api/transfers/candidates` accepts the same From/To, amount,
+and date fields and returns an array of transaction responses. It searches both
+selected accounts for unlinked Transfer entries: Out in From, or In in To, with
+the same amount and a posting date within ±7 days. Results prioritize nearest
+dates, then date/ID. Both accounts must be active and in the current household.
+This check creates nothing; equal amounts/dates are suggestions, not proof of a match.
+
+To reuse one reviewed entry, include these fields in `POST /api/transfers`:
+
+```json
+{
+  "fromAccountId": 1,
+  "toAccountId": 2,
+  "amount": 500.00,
+  "date": "2026-10-17",
+  "existingTransactionId": 102,
+  "expectedExistingEditVersion": 0,
+  "description": "New entry from Bills",
+  "notes": null,
+  "isCleared": true
+}
+```
+
+The chosen entry must still be unlinked and match the selected accounts,
+direction, amount, date window, and required edit version. Only the missing entry
+is created. `date`, description, notes, and cleared status apply to that new entry;
+the existing entry keeps its original posting date, details, cleared flag, and
+import provenance. Only the new account's snapshots are recalculated. Entry
+creation, pairing, and snapshots commit or roll back together. Retrying after
+success returns 409 without adding another entry.
+
+If candidates exist and neither is selected, creation returns 409 unless the user
+explicitly chooses to create two new entries by supplying `createBothEntries: true`.
+That flag cannot be combined with an existing-entry selection. With no matches,
+omit it or send false so a newly appearing candidate at save time requires review.
+Missing reviewed version is 400; stale/incompatible/already-linked selections are
+409; a missing/foreign selected transfer is 404. If both sides already exist,
+use `/transfers/links` to join them without creating anything.
 
 `POST /api/transfers/entries` records only one account's bank entry, for future CSV
 imports or external movements. It does not create an entry in any other account:
@@ -1074,7 +1182,7 @@ Returns existing unlinked Transfer entries from the specified other account in t
 { "accountId": 2, "date": "2026-10-20", "expectedEditVersion": 0 }
 ```
 
-Explicitly creates **one** missing counterpart, using the source amount and opposite direction, and links it to the existing source. Target account must be active, different, and in the current household; the date must be on/after its opening balance date. The source must still be unlinked and match the required expected edit version. The source posting date, amount, description, notes, cleared status, and import provenance remain intact. The new entry copies the description, starts uncleared, has no imported provenance, and uses the supplied posting date. Only the new entry’s account snapshots are recalculated. Changes commit atomically. Returns 201 with outgoing/incoming; stale/already-linked sources return 409. Retrying after success cannot add another counterpart. This operation does not infer whether another bank row exists; choose it only after checking existing entries. Existing pair creation with `POST /api/transfers` remains for brand-new movements, not reconciling movements already recorded.
+Explicitly creates **one** missing counterpart, using the source amount and opposite direction, and links it to the existing source. Target account must be active, different, and in the current household; the date must be on/after its opening balance date. The source must still be unlinked and match the required expected edit version. The source posting date, amount, description, notes, cleared status, and import provenance remain intact. The new entry copies the description, starts uncleared, has no imported provenance, and uses the supplied posting date. Only the new entry’s account snapshots are recalculated. Changes commit atomically. Returns 201 with outgoing/incoming; stale/already-linked sources return 409. Retrying after success cannot add another counterpart. This operation does not infer whether another bank row exists; choose it only after checking existing entries. The Add Transaction flow can also select an existing entry using `POST /api/transfers` as described above.
 
 ### Multi-account CSV import sessions
 

@@ -10,7 +10,7 @@
     <app-select-menu inputId="transaction-kind" label="Transaction type" name="kind" [options]="kinds" [ngModel]="kind" (ngModelChange)="changeKind($event)" />
   </div>
   @if (kind === 'Transfer') {
-    <div><label for="transfer-mode">Transfer between</label><app-select-menu inputId="transfer-mode" label="Transfer between" name="transferMode" [options]="transferModes" [(ngModel)]="transferMode" /></div>
+    <div><label for="transfer-mode">Transfer between</label><app-select-menu inputId="transfer-mode" label="Transfer between" name="transferMode" [options]="transferModes" [(ngModel)]="transferMode" (ngModelChange)="transferInputsChanged()" /></div>
     <p class="transfer-hint">Transfers move money without counting as income or spending.</p>
     @if (transferMode !== 'Internal') {
       <div><label for="transfer-direction">Direction</label><app-select-menu inputId="transfer-direction" label="Transfer direction" name="direction" [options]="directions" [(ngModel)]="direction" /></div>
@@ -18,12 +18,12 @@
   }
   <div>
     <label for="accountId">{{ kind === 'Transfer' && transferMode === 'Internal' ? 'From account' : 'Account' }}</label>
-    <app-select-menu inputId="accountId" label="Account" name="accountId" [options]="accountOptions" [(ngModel)]="request.accountId" />
+    <app-select-menu inputId="accountId" label="Account" name="accountId" [options]="accountOptions" [(ngModel)]="request.accountId" (ngModelChange)="transferInputsChanged()" />
   </div>
   @if (kind === 'Transfer') {
     @if (transferMode === 'Internal') {
-      <div><label for="to-account">To account</label><app-select-menu inputId="to-account" label="To account" name="toAccountId" [options]="destinationOptions" [(ngModel)]="toAccountId" /></div>
-      <p class="transfer-hint">Creates an entry in both accounts. For a credit card or loan payment, choose the debt account as To account. If both bank entries are already recorded, they should be linked instead of adding another transfer.</p>
+      <div><label for="to-account">To account</label><app-select-menu inputId="to-account" label="To account" name="toAccountId" [options]="destinationOptions" [(ngModel)]="toAccountId" (ngModelChange)="transferInputsChanged()" /></div>
+      <p class="transfer-hint">For a credit card or loan payment, choose the debt account as To account. Coiny checks for an existing entry before creating this transfer.</p>
     } @else {
       <p class="transfer-hint">Records only this account’s entry. {{ transferMode === 'Unknown' ? 'The other side can be linked later.' : 'The other account is not tracked in Coiny.' }}</p>
     }
@@ -58,21 +58,48 @@
       min="0.01"
       step="0.01"
       [(ngModel)]="request.amount"
+      (ngModelChange)="transferInputsChanged()"
       required
     />
   </div>
 
   <div>
-    <label for="transactionDate">Date</label>
+    <label for="transactionDate">{{ selectedTransferMatch && internalTransfer ? 'Posting date for the new entry' : 'Date' }}</label>
     <input
       id="transactionDate"
       name="transactionDate"
       type="date"
       [min]="openingDate"
       [(ngModel)]="request.transactionDate"
+      (ngModelChange)="transferInputsChanged()"
       required
     />
   </div>
+
+  @if (internalTransfer) {
+    <section class="transfer-matches" aria-label="Existing transfer check" [attr.aria-busy]="matchLoading()">
+      <h2>Check existing transfers</h2>
+      @if (matchLoading()) { <p role="status" class="transfer-hint">Checking both accounts…</p> }
+      @else if (matchError()) { <p role="status" class="error">Existing transfers couldn’t load. Try again before saving.</p> }
+      @else if (!transferChecked) { <p class="transfer-hint">Choose two accounts, an amount, and a date to check for existing entries.</p> }
+      @else if (!transferMatches().length) { <p role="status" class="transfer-hint">No matching unlinked transfers within 7 days. Saving creates an entry in each account.</p> }
+      @else {
+        <p class="transfer-hint">Possible matches within 7 days. Choose an existing entry to create only its missing side, or confirm that both sides are new.</p>
+        @if (matchesInBothAccounts) { <p class="transfer-hint">Entries exist in both accounts. If both sides of this transfer are already recorded, cancel and link them from transaction details.</p> }
+        <div role="group" aria-label="How to record this transfer" class="match-choices">
+          @for (match of transferMatches(); track match.id) {
+            <button type="button" class="match-choice" [class.selected]="transferChoice === match.id" [attr.aria-pressed]="transferChoice === match.id" (click)="transferChoice = match.id">
+              <span><strong>{{ match.accountName }}</strong><span>{{ match.transactionDate | date:'mediumDate' }} · {{ match.transferDirection === 'In' ? 'Money in' : 'Money out' }} · {{ match.amount | currency }}</span><span>{{ match.description }}</span></span>
+              <strong>{{ transferChoice === match.id ? '✓ Selected' : 'Link this entry' }}</strong>
+            </button>
+          }
+          <button type="button" class="button-outline" [class.selected]="transferChoice === 'both'" [attr.aria-pressed]="transferChoice === 'both'" (click)="transferChoice = 'both'">{{ transferChoice === 'both' ? '✓ ' : '' }}Create both sides — neither entry is recorded</button>
+        </div>
+        @if (selectedTransferMatch) { <p class="transfer-hint">Only a new entry in {{ missingAccountName }} will be created. The existing entry’s date, details, and cleared status stay unchanged.</p> }
+      }
+      <button type="button" class="button-ghost" [disabled]="matchLoading()" (click)="checkTransferMatches()">Check again</button>
+    </section>
+  }
 
   <div>
     <label for="description">{{ kind === 'Transfer' ? 'Description (optional)' : 'Description' }}</label>
@@ -116,7 +143,7 @@
         name="isCleared"
         [(ngModel)]="request.isCleared"
       />
-      {{ kind === 'Transfer' && transferMode === 'Internal' ? 'Cleared in both accounts' : 'Cleared' }}
+      {{ internalTransfer ? (selectedTransferMatch ? 'New entry is cleared' : 'Cleared in both accounts') : 'Cleared' }}
     </label>
   </div>
 
@@ -125,7 +152,7 @@
     <p class="error" role="alert">Choose an account and category, and enter a description.</p>
   }
   @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-  <button class="button-primary" type="submit" [disabled]="busy() || addingCategory()">{{ saving() ? 'Saving…' : kind === 'Transfer' ? 'Save Transfer' : 'Save Transaction' }}</button>
+  <button class="button-primary" type="submit" [disabled]="busy() || addingCategory() || (internalTransfer && (!transferChecked || transferChoice === null))">{{ saving() ? 'Saving…' : internalTransfer && selectedTransferMatch ? 'Create missing entry and link' : kind === 'Transfer' ? 'Save Transfer' : 'Save Transaction' }}</button>
   <button type="button" [disabled]="busy()" (click)="cancel()">Cancel</button>
 </form>
 }
