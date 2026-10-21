@@ -158,6 +158,64 @@ public class BudgetApiTests
         Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync(path + "/transactions")).StatusCode);
     }
 
+    [Fact]
+    public async Task ContributionPaymentHttpAcceptsTransferAndProjectsStatusIntoMonthAndPeriod()
+    {
+        await using var host = await Api.Create(); var draft = await host.Database.Service().StartDraftAsync();
+        var saved = await host.Database.Service().SaveDraftAsync(draft.Id, new()
+        {
+            ExpectedEditVersion = draft.EditVersion, EffectiveFromMonth = new(2026, 10, 1), SetupStep = Coiny.API.Enums.BudgetSetupStep.Review,
+            IncomeSources = [new() { Name = "Salary", Amount = 1000, Schedule = new() { Frequency = Coiny.API.Enums.BudgetFrequency.Monthly, StartDate = new(2026, 10, 1), DayOfMonth = 1 } }],
+            Allocations = [new() { Name = "IRA", Amount = 100, AllocationType = Coiny.API.Enums.BudgetAllocationType.Investments, Schedule = new() { Frequency = Coiny.API.Enums.BudgetFrequency.Monthly, StartDate = new(2026, 10, 1), DayOfMonth = 17 } }]
+        });
+        await host.Database.Service().PublishDraftAsync(saved.Id, saved.EditVersion);
+        var c = host.Database.Context();
+        c.Accounts.Add(new() { Id = 1, HouseholdId = 1, Name = "Checking", OpeningBalanceDate = new(2026, 10, 1) });
+        c.Categories.Add(new() { Id = 1, HouseholdId = 1, Name = "Transfer", CategoryType = Coiny.API.Enums.CategoryType.Transfer, IsActive = true, IsSystem = true });
+        c.Transactions.Add(new() { Id = 42, HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 100, Description = "IRA transfer", TransactionDate = new(2026, 10, 15), TransferDirection = Coiny.API.Enums.TransferDirection.Out, TransferCounterparty = Coiny.API.Enums.TransferCounterparty.External });
+        await c.SaveChangesAsync();
+        var path = $"/api/budgets/bills/{saved.Allocations[0].SourceKey}/2026-10-17";
+        var candidates = await host.Client.GetFromJsonAsync<BillTransactionCandidate[]>(path + "/transactions", Json);
+        Assert.Equal(Coiny.API.Enums.CategoryType.Transfer, Assert.Single(candidates!).CategoryType);
+        var result = await host.Client.PutAsync(path + "/payment", Body("{\"isPaid\":true,\"transactionId\":42}")); result.EnsureSuccessStatusCode();
+        Assert.Equal(42, (await result.Content.ReadFromJsonAsync<BillPaymentResponse>(Json))!.TransactionId);
+        var month = await host.Client.GetFromJsonAsync<BudgetMonthResponse>("/api/budgets/month?month=2026-10-01", Json);
+        Assert.True(Assert.Single(month!.Events, e => !e.IsIncome).Payment!.IsPaid);
+        var period = await host.Client.GetFromJsonAsync<BudgetIncomePeriodResponse>("/api/budgets/income-period", Json);
+        Assert.Equal(0, period!.UnpaidContributionsTotal); Assert.Equal(100, period.ContributionsTotal);
+        Assert.Single(await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(host.Database.Context().Transactions));
+        host.Client.DefaultRequestHeaders.Remove("Test-Household"); host.Client.DefaultRequestHeaders.Add("Test-Household", "2");
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PutAsync(path + "/payment", Body("{\"isPaid\":true,\"transactionId\":42}"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task ActualsHttpRequiresMembershipBindingAndReviewedVersions()
+    {
+        await using var host = await Api.Create();
+        var draft = await host.Database.Service().StartDraftAsync();
+        var saved = await host.Database.Service().SaveDraftAsync(draft.Id, new()
+        {
+            ExpectedEditVersion = draft.EditVersion, EffectiveFromMonth = new(2026, 10, 1), SetupStep = Coiny.API.Enums.BudgetSetupStep.Review,
+            IncomeSources = [new() { Name = "Salary", Amount = 1000, Schedule = new() { Frequency = Coiny.API.Enums.BudgetFrequency.Monthly, StartDate = new(2026, 10, 1), DayOfMonth = 1 } }],
+            Allocations = [new() { Name = "Groceries", Amount = 300, AllocationType = Coiny.API.Enums.BudgetAllocationType.Spending }]
+        });
+        await host.Database.Service().PublishDraftAsync(saved.Id, saved.EditVersion);
+        var c = host.Database.Context(); c.Accounts.Add(new() { Id = 1, HouseholdId = 1, Name = "Checking", OpeningBalanceDate = new(2026, 10, 1) });
+        c.Categories.Add(new() { Id = 1, HouseholdId = 1, Name = "Food", CategoryType = Coiny.API.Enums.CategoryType.Expense, IsActive = true });
+        c.Transactions.Add(new() { Id = 1, HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 40, Description = "Market", TransactionDate = new(2026, 10, 15) }); await c.SaveChangesAsync();
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync("/api/budgets/actuals")).StatusCode);
+        var report = await host.Client.GetFromJsonAsync<BudgetActualsResponse>("/api/budgets/actuals?month=2026-10-01", Json); Assert.Equal(40, report!.UnassignedExpenses);
+        var category = $"{{\"month\":\"2026-10-01\",\"allocationKey\":\"{saved.Allocations[0].SourceKey}\",\"expectedEditVersion\":0}}";
+        Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PutAsync("/api/budgets/actuals/categories/1", Body(category))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await host.Client.PutAsync("/api/budgets/actuals/categories/1", Body(category))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PutAsync("/api/budgets/actuals/transactions/1", Body("{\"month\":\"2026-10-01\",\"useCategoryDefault\":false}"))).StatusCode);
+        var assignment = "{\"month\":\"2026-10-01\",\"useCategoryDefault\":false,\"allocationKey\":null,\"expectedEditVersion\":0}";
+        Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PutAsync("/api/budgets/actuals/transactions/1", Body(assignment))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await host.Client.PutAsync("/api/budgets/actuals/transactions/1", Body(assignment))).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household"); Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/budgets/actuals?month=2026-10-01")).StatusCode);
+        host.Client.DefaultRequestHeaders.Add("Test-Household", "none"); Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/api/budgets/actuals?month=2026-10-01")).StatusCode);
+    }
+
     private sealed class Api(BudgetTestDatabase database, WebApplication app) : IAsyncDisposable
     {
         public BudgetTestDatabase Database => database;
@@ -180,6 +238,11 @@ public class BudgetApiTests
                     : db.Service(int.Parse(household));
             });
             builder.Services.AddScoped<BillPaymentService>(services => {
+                var household = services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
+                ICurrentUserService user = household == "none" ? new MissingHousehold() : new HouseholdUser(int.Parse(household));
+                return new(db.Context(), user, services.GetRequiredService<IBudgetService>(), db.Clock);
+            });
+            builder.Services.AddScoped<BudgetActualsService>(services => {
                 var household = services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
                 ICurrentUserService user = household == "none" ? new MissingHousehold() : new HouseholdUser(int.Parse(household));
                 return new(db.Context(), user, services.GetRequiredService<IBudgetService>(), db.Clock);

@@ -21,7 +21,7 @@
       }
       <div class="budget-layout" [class.setup-layout]="wizard()">
         @if (wizard()) {
-          <form class="panel editor" [formGroup]="form" (ngSubmit)="save(step() < 4 ? step() + 1 : 4)" novalidate>
+          <form class="panel editor" [formGroup]="form" (ngSubmit)="save(step() < 5 ? step() + 1 : 5)" novalidate>
             <fieldset [disabled]="busy() || conflict()">
               <h2 #stepHeading tabindex="-1">{{ steps[step()].label }}</h2><p>{{ steps[step()].description }}</p>
               @if (step() === 0) {
@@ -44,29 +44,29 @@
                   </article>
                 } @empty { <p class="empty">No income sources yet. You can save an empty step and return later.</p> }
                 <button type="button" class="button-outline" (click)="addIncome()">+ Add income source</button>
-              } @else if (step() < 4) {
+              } @else if (step() < 5) {
                 @for (allocation of allocations.controls; track allocation; let i = $index) {
                   @if (visibleAllocation(allocation)) {
                     <article class="entry" [formGroup]="group(allocation)">
                       <header><h3>{{ allocation.value.name || 'New allocation' }}</h3><button type="button" class="button-ghost" (click)="allocations.removeAt(i)" [attr.aria-label]="'Remove allocation ' + (allocation.value.name || (i + 1))">Remove</button></header>
-                      <div class="fields"><div><label [for]="'allocation-name-' + i">Name</label><input [id]="'allocation-name-' + i" formControlName="name" maxlength="100" [placeholder]="step() === 1 ? 'e.g. Mortgage or Electric' : step() === 2 ? 'e.g. Groceries or Dining out' : 'e.g. Emergency fund or Retirement'" /></div>
+                      <div class="fields"><div><label [for]="'allocation-name-' + i">Name</label><input [id]="'allocation-name-' + i" formControlName="name" maxlength="100" [placeholder]="step() === 1 ? 'e.g. Mortgage or Electric' : step() === 2 ? 'e.g. Netflix or Gym membership' : step() === 3 ? 'e.g. Groceries or Dining out' : 'e.g. Emergency fund or Retirement'" /></div>
                         <div><label [for]="'allocation-amount-' + i">{{ allocation.value.schedule ? 'Amount per payment' : 'Monthly amount' }}</label><input [id]="'allocation-amount-' + i" type="number" min="0" step="0.01" formControlName="amount" /></div>
-                        @if (step() !== 2) { <div><label [for]="'allocation-type-' + i">Allocation type</label><app-select-menu [inputId]="'allocation-type-' + i" label="Allocation type" formControlName="allocationType" [options]="step() === 1 ? billTypes : savingsTypes" /></div> }
+                        <div><label [for]="'allocation-type-' + i">Budget section</label><app-select-menu [inputId]="'allocation-type-' + i" label="Budget section" formControlName="allocationType" [options]="allocationTypes" /><small>Change section to move this item without recreating it. Existing payment links are kept when compatible.</small></div>
                       </div>
-                      @if (step() === 3) { <label class="checkbox"><input type="checkbox" [checked]="!!allocation.value.schedule" (change)="toggleSchedule(allocation, $event)" />Schedule individual contributions</label> }
+                      @if (step() >= 3) { <label class="checkbox"><input type="checkbox" [checked]="!!allocation.value.schedule" (change)="toggleSchedule(allocation, $event)" />{{ step() === 3 ? 'Schedule individual payments' : 'Schedule individual contributions' }}</label> }
                       @if (allocation.value.schedule) { <app-budget-schedule [group]="schedule(allocation)" [id]="'allocation-' + i" /> }
                       @if (allocation.invalid && (allocation.touched || attempted())) { <p class="error">Enter a name, a nonnegative amount with up to two decimals, and a valid schedule if selected.</p> }
                     </article>
                   }
                 }
-                <button type="button" class="button-outline" (click)="addAllocation()">+ {{ step() === 1 ? 'Add housing or bill' : step() === 2 ? 'Add spending allocation' : 'Add savings or investment' }}</button>
+                <button type="button" class="button-outline" (click)="addAllocation()">+ {{ step() === 1 ? 'Add housing or bill' : step() === 2 ? 'Add subscription' : step() === 3 ? 'Add spending allocation' : 'Add savings or investment' }}</button>
               } @else {
-                <p class="hint">Save any final changes to refresh the review. Publication requires at least one positive income source and schedules for housing and bills.</p>
+                <p class="hint">Save any final changes to refresh the review. Publication requires at least one positive income source and schedules for housing, bills, and subscriptions. Publishing also releases transaction links for removed payment occurrences; transactions and balances are preserved.</p>
                 @if (projection(); as month) {
                   <h3>Income</h3>
                   @for (item of month.incomeSources; track item.id) { <div class="review-row"><span>{{ item.name }}<small>{{ item.occurrenceCount }} planned paydays</small>
                     @if (item.healthInsurance || item.retirementContributions) { <small>Already deducted this month: health insurance {{ (item.healthInsurance || 0) | currency }} · retirement {{ (item.retirementContributions || 0) | currency }}</small> }</span><strong>{{ item.plannedAmount | currency }}</strong></div> } @empty { <p>No income sources. Go back to add one before publishing.</p> }
-                  <h3>Allocations</h3>
+                  <h3 class="allocations-heading">Allocations</h3>
                   @for (item of month.allocations; track item.id) { <div class="review-row"><span>{{ item.name }}<small>{{ item.allocationType }} · {{ item.occurrenceCount ? item.occurrenceCount + ' scheduled payments' : 'Monthly allocation' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> } @empty { <p>No allocations. Your income will remain unassigned.</p> }
                 }
               }
@@ -74,8 +74,8 @@
             <div class="wizard-actions">
               @if (step() > 0) { <button type="button" class="button-ghost" [disabled]="busy() || conflict()" (click)="save(step() - 1)">Back</button> }
               <button type="button" class="button-outline" [disabled]="busy() || conflict()" (click)="save(step(), true)">Save & exit</button>
-              <button type="submit" class="button-primary" [disabled]="busy() || conflict()">{{ busy() ? 'Saving…' : step() < 4 ? 'Save & continue' : 'Save review' }}</button>
-              @if (step() === 4) { <button type="button" class="button-accent" [disabled]="busy() || dirty || conflict() || !publishableMonth || !projection()" (click)="publish()">Publish budget</button> }
+              <button type="submit" class="button-primary" [disabled]="busy() || conflict()">{{ busy() ? 'Saving…' : step() < 5 ? 'Save & continue' : 'Save review' }}</button>
+              @if (step() === 5) { <button type="button" class="button-accent" [disabled]="busy() || dirty || conflict() || !publishableMonth || !projection()" (click)="publish()">Publish budget</button> }
             </div>
           </form>
         }

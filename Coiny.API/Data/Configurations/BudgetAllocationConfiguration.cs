@@ -18,7 +18,7 @@ public class BudgetAllocationConfiguration : IEntityTypeConfiguration<BudgetAllo
         {
             table.HasCheckConstraint("CK_BudgetAllocations_Name", "length(trim(\"Name\")) BETWEEN 1 AND 100");
             table.HasCheckConstraint("CK_BudgetAllocations_Amount", "CAST(\"Amount\" AS REAL) >= 0");
-            table.HasCheckConstraint("CK_BudgetAllocations_Type", "\"AllocationType\" BETWEEN 0 AND 4");
+            table.HasCheckConstraint("CK_BudgetAllocations_Type", "\"AllocationType\" BETWEEN 0 AND 5");
             table.HasCheckConstraint("CK_BudgetAllocations_Schedule", BudgetScheduleMapping.Constraint(true));
         });
     }

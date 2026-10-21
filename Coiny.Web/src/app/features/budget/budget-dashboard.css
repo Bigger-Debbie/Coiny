@@ -27,19 +27,25 @@ p { line-height:1.6; }
 .item span { overflow-wrap:anywhere; }
 .item strong { white-space:nowrap; color:var(--color-primary); font-size:.9rem; }
 small { display:block; font-size:.8rem; line-height:1.5; margin-top:.4rem; }
-.paycheck-details { margin-top:1.5rem; }
+.paycheck-details { margin:1rem 0 .25rem; padding:1rem; border:1px solid var(--color-border); border-radius:.5rem; background:#f7f7fa; }
+.paycheck-details h4 { margin-bottom:.5rem; font-weight:500; }
+.paycheck-details > small { margin-top:.75rem; }
+.paycheck-details .item:last-of-type { border-bottom:0; }
 button:disabled { opacity:.5; cursor:default; transform:none; }
 @media(max-width:800px) { .outlook-grid { grid-template-columns:1fr; } .dashboard-heading { flex-direction:column; align-items:stretch; } .month-picker { justify-content:center; } }
 @media(max-width:500px) { .totals { grid-template-columns:1fr; gap:.75rem; } .panel { padding:1rem; } }
 
-.budget-group { border-top:1px solid var(--color-border); }
-.budget-group summary { display:flex; align-items:center; gap:.75rem; cursor:pointer; padding:1rem 0; color:var(--color-primary); }
+.budget-group { margin-bottom:.75rem; border:1px solid var(--color-border); border-radius:.5rem; overflow:hidden; }
+.budget-group summary { display:flex; align-items:center; gap:.75rem; cursor:pointer; padding:.85rem 1rem; color:var(--color-primary); background:#f0f0f7; }
 .budget-group summary::before { content:'›'; font-size:1.4rem; width:.75rem; flex-shrink:0; }
 .budget-group[open] summary::before { content:'⌄'; }
-.budget-group summary > span { flex:1; font-weight:700; }
+.budget-group summary > span { flex:1; font-weight:600; }
+.budget-group summary small { font-weight:400; }
+.budget-group[open] > summary { border-bottom:1px solid var(--color-border); }
+.group-content { padding:.25rem 1rem .75rem 1.75rem; }
 .budget-group summary strong { white-space:nowrap; font-size:.95rem; }
-.budget-group summary:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
-.budget-group > .item:last-child { border-bottom:0; }
+.budget-group summary:focus-visible { outline:2px solid var(--color-accent); outline-offset:-3px; }
+.group-content > .item:last-child { border-bottom:0; }
 
 .allocation-chart { display:flex; flex-direction:column; align-self:stretch; }
 .allocation-chart > .hint, .allocation-chart > .warning { margin:auto 0 0; padding-top:1.5rem; }

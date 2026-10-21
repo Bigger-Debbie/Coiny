@@ -1,5 +1,5 @@
-export type BudgetStep = 'Income' | 'Bills' | 'Spending' | 'SavingsAndInvestments' | 'Review';
-export type AllocationType = 'Housing' | 'Bills' | 'Spending' | 'Savings' | 'Investments';
+export type BudgetStep = 'Income' | 'Bills' | 'Subscriptions' | 'Spending' | 'SavingsAndInvestments' | 'Review';
+export type AllocationType = 'Housing' | 'Bills' | 'Subscriptions' | 'Spending' | 'Savings' | 'Investments';
 export type BudgetFrequency = 'Weekly' | 'EveryTwoWeeks' | 'TwiceMonthly' | 'Monthly' | 'EverySixMonths' | 'Yearly';
 export interface BudgetSchedule {
   frequency: BudgetFrequency; startDate: string; endDate: string | null;
@@ -30,8 +30,10 @@ export interface BudgetPreview { draftId: number; editVersion: number; month: Bu
 export interface BudgetIncomePeriod {
   asOf: string; sourceKey: string | null; sources: { sourceKey: string; name: string }[];
   startDate: string | null; endDate: string | null; nextPayday: string | null;
-  unpaidBillsTotal?: number; billsTotal: number; contributionsTotal: number; bills: BudgetEvent[]; contributions: BudgetEvent[];
+  unpaidBillsTotal?: number; unpaidContributionsTotal?: number; billsTotal: number; contributionsTotal: number; bills: BudgetEvent[]; contributions: BudgetEvent[];
+  awaitingTransactionCount?: number; awaitingTransactionTotal?: number;
 }
 
-export interface BillPaymentState { linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
-export interface BillTransactionCandidate { id: number; date: string; amount: number; description: string; accountName: string; categoryName: string; exactAmount: boolean; }
+export type BudgetPaymentStatus = 'Unpaid' | 'AwaitingTransaction' | 'Linked';
+export interface BillPaymentState { status?: BudgetPaymentStatus; linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
+export interface BillTransactionCandidate { id: number; date: string; amount: number; description: string; accountName: string; categoryName: string; exactAmount: boolean; categoryType?: 'Income' | 'Expense' | 'Transfer'; transferDirection?: 'In' | 'Out' | null; }

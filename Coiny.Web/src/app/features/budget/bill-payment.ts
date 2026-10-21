@@ -13,8 +13,11 @@ import { getTrendDates } from '../dashboard/trend-range';
   templateUrl: './bill-payment.html', styleUrl: './bill-payment.css',
 })
 export class BillPayment implements OnInit {
+  get contribution() { return ['Savings', 'Investments'].includes(this.bill.allocationType ?? ''); }
+  get itemLabel() { return this.contribution ? 'contribution' : 'bill'; }
   private readonly toasts = inject(ToastService);
   @Input({ required: true }) bill!: BudgetEvent;
+  @Input() startLinking = false;
   readonly dismiss = output<void>();
   readonly saved = output<BillPaymentState>();
   private readonly api = inject(BudgetService);
@@ -34,6 +37,7 @@ export class BillPayment implements OnInit {
     this.note = this.bill.payment?.note ?? '';
     this.transactionId = this.bill.payment?.transactionId ?? null;
     this.linkedTransaction = this.bill.payment?.linkedTransaction ?? null;
+    if (this.startLinking && this.transactionId === null) this.find();
   }
   find() {
     this.linking = true; this.loading.set(true); this.error.set('');
@@ -50,7 +54,7 @@ export class BillPayment implements OnInit {
     this.busy.set(true); this.error.set('');
     this.api.saveBillPayment(this.bill, { isPaid: this.isPaid, paidOn: this.isPaid ? this.paidOn : null, note: this.note || null, transactionId: this.transactionId })
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
-        next: result => { this.toasts.success('Bill payment updated.'); this.busy.set(false); this.saved.emit(result); },
+        next: result => { this.toasts.success(this.contribution ? 'Contribution payment updated.' : 'Bill payment updated.'); this.busy.set(false); this.saved.emit(result); },
         error: error => { this.busy.set(false); this.error.set(error.error?.detail ?? 'Payment couldn’t save. Please try again.'); },
       });
   }

@@ -1,0 +1,26 @@
+:host { display:block; margin:1.5rem 0; }
+.chart-heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+h3 { font-size:1.15rem; font-weight:400; margin:0; }
+.scopes { display:flex; flex-wrap:wrap; gap:.25rem; background:#f6f6fa; padding:.25rem; border-radius:var(--radius-sm); }
+.scopes button { color:var(--color-text-muted); background:transparent; font-size:.8rem; font-weight:400; padding:.6rem .75rem; }
+.scopes .selected { background:var(--color-primary); color:white; }
+.legend { display:flex; flex-wrap:wrap; gap:1rem; font-size:.8rem; color:var(--color-text-muted); margin:1rem 0; }
+.planned-key::before,.actual-key::before { content:''; display:inline-block; width:1.5rem; margin-right:.4rem; vertical-align:middle; border-top:2px dashed var(--color-accent); }
+.actual-key::before { border-top:2px solid var(--color-primary); }
+.chart-area { position:relative; }
+.y-labels { position:absolute; inset:0 auto 0 0; width:3rem; font-size:.75rem; color:var(--color-text-muted); }
+.y-labels span { position:absolute; right:0; transform:translateY(-50%); }
+.plot { position:relative; margin-left:3.5rem; height:18rem; touch-action:pan-y; border-radius:var(--radius-sm); }
+.plot:focus-visible { outline:2px solid var(--color-accent); outline-offset:4px; }
+svg { width:100%; height:100%; overflow:visible; }
+path,line { vector-effect:non-scaling-stroke; fill:none; }
+.grid { stroke:var(--color-border); stroke-width:1; opacity:.6; }
+.planned-line { stroke:var(--color-accent); stroke-width:2.5; stroke-dasharray:6 4; }
+.actual-line { stroke:var(--color-primary); stroke-width:2.5; }
+.guide { stroke:var(--color-border); stroke-width:1; }
+.planned-dot { fill:var(--color-accent); } .actual-dot { fill:var(--color-primary); }
+.tooltip { position:absolute; top:0; transform:translateX(-50%); pointer-events:none; background:var(--color-primary); color:white; border-radius:var(--radius-sm); padding:.75rem; font-size:.8rem; line-height:1.6; box-shadow:var(--shadow-card); white-space:nowrap; }
+.tooltip span,.tooltip strong { display:block; }
+.dates { display:flex; justify-content:space-between; margin-left:3.5rem; color:var(--color-text-muted); font-size:.75rem; }
+.hint { font-size:.8rem; line-height:1.6; color:var(--color-text-muted); }
+@media(max-width:600px) { .plot { height:15rem; } .scopes button { padding:.55rem; } }

@@ -52,7 +52,7 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 153 passing tests. Build output and TestResults are ignored
+The current suite has 171 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the
@@ -76,3 +76,17 @@ history, atomic rollback, transfer linking versus amount changes, and HTTP contr
 Transfer creation tests also cover pre-save candidate lookup, explicit new-pair
 decisions, reusing imported incoming/outgoing entries, preserved original balances
 and metadata, stale/repeated saves, and rollback of the missing entry and link.
+
+Scheduled contribution tests cover manual payment status, expense/transfer links,
+one-occurrence-per-transfer-pair protection, conflicting assignments before linking,
+editable linked transfers, deletion retaining paid status, month/income-period
+projections and remaining totals, household isolation, and HTTP contracts.
+
+Payment tests distinguish unpaid, paid-awaiting-transaction, and paid-linked
+states, verify awaiting counts/planned totals stay separate from unpaid totals,
+and cover transitions when links or linked ledger entries are removed.
+
+Budget actuals tests cover posting-month attribution, effective category rules,
+individual override/reset, payment priority, pending estimates, future months,
+single-count transfer contributions, invalid/foreign assignments, version conflicts,
+and HTTP access/binding contracts.

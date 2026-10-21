@@ -18,17 +18,29 @@ export class BudgetCalendar implements OnInit, OnChanges {
   @Input() source: string | null = null;
   readonly sourceChange = output<string | null>();
   readonly selectMonth = output<string>();
+  readonly paymentChanged = output<void>();
   private readonly api = inject(BudgetService);
   private readonly destroy = inject(DestroyRef);
   private request?: Subscription;
   readonly paymentBill = signal<BudgetEvent | null>(null);
-  isBill(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills'].includes(event.allocationType ?? ''); }
-  status(event: BudgetEvent) { return event.payment?.isPaid ? 'Paid' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
+  canTrackPayment(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills', 'Subscriptions', 'Savings', 'Investments'].includes(event.allocationType ?? ''); }
+  awaitingTransaction(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId == null; }
+  linkedPayment(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId != null; }
+  paymentMarker(event: BudgetEvent) { return this.linkedPayment(event) ? '✓' : this.awaitingTransaction(event) ? '◷' : '●'; }
+  paymentAction(event: BudgetEvent) { return this.awaitingTransaction(event) ? 'Link transaction' : this.linkedPayment(event) ? 'View payment' : 'Mark paid'; }
+  status(event: BudgetEvent) { return this.awaitingTransaction(event) ? 'Paid · Awaiting transaction' : this.linkedPayment(event) ? 'Paid · Linked' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
+  get awaitingPayments() { return [...(this.period()?.bills ?? []), ...(this.period()?.contributions ?? [])].filter(e => this.awaitingTransaction(e)); }
+  get awaitingTotal() { return this.awaitingPayments.reduce((sum, item) => sum + item.amount, 0); }
+  readonly showCompleted = signal(true);
+  visiblePayments(events: BudgetEvent[]) { return this.showCompleted() ? events : events.filter(event => !this.linkedPayment(event)); }
+  readonly linkOnOpen = signal(false);
+  openPayment(event: BudgetEvent) { this.linkOnOpen.set(this.awaitingTransaction(event)); this.paymentBill.set(event); }
   paymentSaved(payment: BillPaymentState) {
     const bill = this.paymentBill();
     if (!bill) return;
-    this.month = { ...this.month, events: this.month.events.map(e => e.sourceKey === bill.sourceKey && e.date === bill.date && this.isBill(e) ? { ...e, payment } : e) };
+    this.month = { ...this.month, events: this.month.events.map(e => e.sourceKey === bill.sourceKey && e.date === bill.date && this.canTrackPayment(e) ? { ...e, payment } : e) };
     this.paymentBill.set(null); this.loadPeriod();
+    this.paymentChanged.emit();
   }
   readonly period = signal<BudgetIncomePeriod | null>(null);
   readonly loading = signal(false);
@@ -69,8 +81,8 @@ export class BudgetCalendar implements OnInit, OnChanges {
     const period = this.period();
     return !this.loading() && !this.error() && !!period?.startDate && !!period.endDate && date >= period.startDate && date <= period.endDate;
   }
-  kind(event: BudgetEvent) { return event.isIncome ? 'Income' : ['Housing', 'Bills'].includes(event.allocationType ?? '') ? 'Bill' : ['Savings', 'Investments'].includes(event.allocationType ?? '') ? 'Contribution' : 'Spending'; }
+  kind(event: BudgetEvent) { return event.isIncome ? 'Income' : ['Housing', 'Bills', 'Subscriptions'].includes(event.allocationType ?? '') ? 'Bill' : ['Savings', 'Investments'].includes(event.allocationType ?? '') ? 'Contribution' : 'Spending'; }
   dayLabel(date: string, events: BudgetEvent[]) {
-    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', current income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}${this.isBill(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
+    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', current income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}${this.canTrackPayment(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
   }
 }

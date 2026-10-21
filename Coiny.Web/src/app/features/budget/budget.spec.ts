@@ -1,6 +1,7 @@
 import { BudgetDashboard } from './budget-dashboard';
 import { BudgetCalendar } from './budget-calendar';
-import { BudgetCalendarStub } from './budget-calendar.stub';
+import { BudgetCalendarStub, BudgetActualsStub } from './budget-calendar.stub';
+import { BudgetActualsPanel } from './budget-actuals';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -19,7 +20,7 @@ describe('Budget setup', () => {
   let http: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [Budget], providers: [provideHttpClient(), provideHttpClientTesting()] });
-    TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar] }, add: { imports: [BudgetCalendarStub] } });
+    TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub] } });
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => { http.verify(); vi.restoreAllMocks(); });
@@ -65,7 +66,7 @@ describe('Budget setup', () => {
     const bill = c.allocations.at(1);
     bill.patchValue({ name: ' Car insurance ', amount: 1200, allocationType: 'Bills', schedule: { frequency: 'EverySixMonths', startDate: '2026-11-15' } });
     expect(c.dirty).toBe(true);
-    const saving = c.save(2);
+    const saving = c.save(3);
     const req = http.expectOne(r => r.method === 'PUT');
     expect(req.request.body.expectedEditVersion).toBe(2);
     expect(req.request.body.setupStep).toBe('Spending');
@@ -86,7 +87,27 @@ describe('Budget setup', () => {
     expect(preview.request.params.get('month')).toBe('2026-11-01');
     preview.flush({ draftId: 7, editVersion: 3, month });
     await saving;
-    expect(c.step()).toBe(2); expect(c.dirty).toBe(false);
+    expect(c.step()).toBe(3); expect(c.dirty).toBe(false);
+  });
+  it('adds scheduled subscriptions in their own wizard step', async () => {
+    const f = await open(); const c = f.componentInstance;
+    c.step.set(2); c.addAllocation(); f.detectChanges();
+    const item = c.allocations.at(c.allocations.length - 1);
+    expect(item.value.allocationType).toBe('Subscriptions');
+    expect(item.get('schedule')).not.toBeNull();
+    expect(c.visibleAllocation(item)).toBe(true);
+    expect(f.nativeElement.querySelector('.editor h2').textContent).toContain('Subscriptions');
+    c.step.set(1); expect(c.visibleAllocation(item)).toBe(false);
+  });
+  it('moves items between sections without replacing their identity or schedule', async () => {
+    const f = await open(); const c = f.componentInstance;
+    c.step.set(3); const item = c.allocations.at(0);
+    item.patchValue({ sourceKey: 'stable-key', allocationType: 'Spending' });
+    item.get('allocationType')!.setValue('Subscriptions');
+    expect(item.value.sourceKey).toBe('stable-key');
+    expect(item.value.schedule).not.toBeNull();
+    expect(c.visibleAllocation(item)).toBe(false);
+    c.step.set(2); expect(c.visibleAllocation(item)).toBe(true);
   });
   it('rejects blank names, fractional cents, and invalid twice-monthly dates before saving', async () => {
     const f = await open(); const c = f.componentInstance;

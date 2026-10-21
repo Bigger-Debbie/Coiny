@@ -299,8 +299,43 @@ namespace Coiny.API.Data.Migrations
 
                             t.HasCheckConstraint("CK_BudgetAllocations_Schedule", "(\"ScheduleFrequency\" IS NULL AND \"ScheduleStartDate\" IS NULL AND \"ScheduleEndDate\" IS NULL\nAND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL) OR COALESCE((\"ScheduleFrequency\" IS NOT NULL AND \"ScheduleStartDate\" IS NOT NULL\nAND (\"ScheduleEndDate\" IS NULL OR \"ScheduleEndDate\" >= \"ScheduleStartDate\")\nAND (\n    (\"ScheduleFrequency\" IN (0, 1, 4, 5) AND \"ScheduleDayOfMonth\" IS NULL AND \"ScheduleSecondDayOfMonth\" IS NULL)\n    OR (\"ScheduleFrequency\" = 2 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31\n        AND \"ScheduleSecondDayOfMonth\" > \"ScheduleDayOfMonth\" AND \"ScheduleSecondDayOfMonth\" <= 31)\n    OR (\"ScheduleFrequency\" = 3 AND \"ScheduleDayOfMonth\" BETWEEN 1 AND 31 AND \"ScheduleSecondDayOfMonth\" IS NULL)\n)), 0)");
 
-                            t.HasCheckConstraint("CK_BudgetAllocations_Type", "\"AllocationType\" BETWEEN 0 AND 4");
+                            t.HasCheckConstraint("CK_BudgetAllocations_Type", "\"AllocationType\" BETWEEN 0 AND 5");
                         });
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.BudgetCategoryRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("AllocationKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EditVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly>("EffectiveFromMonth")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("HouseholdId", "CategoryId", "EffectiveFromMonth")
+                        .IsUnique();
+
+                    b.ToTable("BudgetCategoryRules");
                 });
 
             modelBuilder.Entity("Coiny.API.Models.BudgetIncomeSource", b =>
@@ -405,7 +440,7 @@ namespace Coiny.API.Data.Migrations
 
                             t.HasCheckConstraint("CK_BudgetRevisions_RevisionNumber", "\"RevisionNumber\" > 0");
 
-                            t.HasCheckConstraint("CK_BudgetRevisions_SetupStep", "\"SetupStep\" BETWEEN 0 AND 4");
+                            t.HasCheckConstraint("CK_BudgetRevisions_SetupStep", "\"SetupStep\" BETWEEN 0 AND 5");
 
                             t.HasCheckConstraint("CK_BudgetRevisions_State", "(\"State\" = 0 AND \"PublishedAt\" IS NULL) OR (\"State\" = 1 AND \"PublishedAt\" IS NOT NULL)");
                         });
@@ -669,6 +704,34 @@ namespace Coiny.API.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_Transaction_TransferMetadata", "(TransferDirection IS NULL AND TransferCounterparty IS NULL AND PairedTransactionId IS NULL) OR (TransferDirection IS NOT NULL AND TransferCounterparty IS NOT NULL AND TransferDirection IN (0,1) AND TransferCounterparty IN (0,1) AND PairedTransactionId IS NULL) OR (TransferDirection IS NOT NULL AND TransferCounterparty IS NOT NULL AND TransferDirection IN (0,1) AND TransferCounterparty = 2 AND PairedTransactionId IS NOT NULL AND PairedTransactionId <> Id)");
                         });
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.TransactionBudgetAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("AllocationKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TransactionId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique();
+
+                    b.ToTable("TransactionBudgetAssignments");
                 });
 
             modelBuilder.Entity("Coiny.API.Models.TransactionImportBatch", b =>
@@ -992,6 +1055,25 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("Schedule");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.BudgetCategoryRule", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Household");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.BudgetIncomeSource", b =>
                 {
                     b.HasOne("Coiny.API.Models.BudgetRevision", "BudgetRevision")
@@ -1158,6 +1240,25 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("ImportBatch");
 
                     b.Navigation("PairedTransaction");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.TransactionBudgetAssignment", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Transaction", "Transaction")
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+
+                    b.Navigation("Transaction");
                 });
 
             modelBuilder.Entity("Coiny.API.Models.TransactionImportBatch", b =>

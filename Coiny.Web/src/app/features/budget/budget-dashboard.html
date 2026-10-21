@@ -32,24 +32,29 @@
             <div class="breakdown-scroll" tabindex="0" role="region" aria-label="Budget breakdown items">
             <details class="budget-group" open>
               <summary><span>Income<small>{{ plan.incomeSources.length }} {{ plan.incomeSources.length === 1 ? 'source' : 'sources' }}</small></span><strong>{{ plan.expectedIncome | currency }}</strong></summary>
+            <div class="group-content">
             @for (item of plan.incomeSources; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.occurrenceCount }} planned {{ item.occurrenceCount === 1 ? 'payday' : 'paydays' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
             @empty { <p>No paydays scheduled this month.</p> }
             @if (plan.healthInsurance || plan.retirementContributions) {
               <div class="paycheck-details"><h4>Already deducted from paychecks</h4><div class="item"><span>Health insurance</span><strong>{{ plan.healthInsurance | currency }}</strong></div><div class="item"><span>Retirement contributions</span><strong>{{ plan.retirementContributions | currency }}</strong></div><small>For visibility only. Already excluded from take-home income and separate from the donut.</small></div>
             }
+            </div>
             </details>
             @for (group of allocationSections; track group.key) {
               <details class="budget-group">
                 <summary><span>{{ group.label }}<small>{{ group.items.length }} {{ group.items.length === 1 ? 'item' : 'items' }}</small></span><strong>{{ group.total | currency }}</strong></summary>
+                <div class="group-content">
                 @for (item of group.items; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.allocationType === 'Investments' ? 'Investing' : item.allocationType }} · {{ item.occurrenceCount ? item.occurrenceCount + ' scheduled payments' : item.plannedAmount ? 'Monthly allocation' : 'Not scheduled this month' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
                 @empty { <p class="hint">No items defined in this section.</p> }
+                </div>
               </details>
             }
             </div>
           </article>
         </div>
       </div>
-      <app-budget-calendar [month]="plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" />
+      <app-budget-actuals [month]="plan.month" [refreshKey]="actualsRefresh()" />
+      <app-budget-calendar [month]="plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" (paymentChanged)="refreshActuals()" />
     }
   }
 </section>

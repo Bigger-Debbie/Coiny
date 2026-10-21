@@ -13,13 +13,13 @@ public class BillPaymentTests
         public Task<int> GetCurrentHouseholdIdAsync() => Task.FromResult(id);
     }
     private static BillPaymentService Service(BudgetTestDatabase db, int household = 1) => new(db.Context(), new User(household), db.Service(household), db.Clock);
-    private static async Task<Guid> Plan(BudgetTestDatabase db)
+    private static async Task<Guid> Plan(BudgetTestDatabase db, BudgetAllocationType type = BudgetAllocationType.Bills)
     {
         var service = db.Service(); var draft = await service.StartDraftAsync();
         var saved = await service.SaveDraftAsync(draft.Id, new() {
             ExpectedEditVersion = draft.EditVersion, EffectiveFromMonth = new(2026,10,1), SetupStep = BudgetSetupStep.Review,
             IncomeSources = [new() { Name = "Salary", Amount = 2000, Schedule = new() { Frequency = BudgetFrequency.EveryTwoWeeks, StartDate = new(2026,10,16) } }],
-            Allocations = [new() { Name = "Electric", Amount = 100, AllocationType = BudgetAllocationType.Bills,
+            Allocations = [new() { Name = "Electric", Amount = 100, AllocationType = type,
                 Schedule = new() { Frequency = BudgetFrequency.Monthly, StartDate = new(2026,10,1), DayOfMonth = 17 } }],
         });
         await service.PublishDraftAsync(saved.Id, saved.EditVersion);
@@ -35,17 +35,58 @@ public class BillPaymentTests
             new Transaction { Id = 3, HouseholdId = 2, AccountId = 2, CategoryId = 3, Amount = 100, TransactionDate = new(2026,10,15), Description = "Other" });
         await c.SaveChangesAsync();
     }
-    [Fact] public async Task Manual_payment_is_occurrence_specific_and_reduces_only_unpaid_total()
+    [Theory]
+    [InlineData(false, false, false)] // Removal in the current month releases the link.
+    [InlineData(false, true, true)] // A future plan preserves historical payment links.
+    [InlineData(true, false, true)] // Moving the same item preserves its identity and link.
+    public async Task Publication_releases_removed_payment_links_but_preserves_moves_and_history(bool move, bool future, bool keep)
     {
-        await using var db = await BudgetTestDatabase.CreateAsync(); var key = await Plan(db);
+        await using var db = await BudgetTestDatabase.CreateAsync();
+        var key = await Plan(db); await Ledger(db);
+        await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionId = 1 });
+        var budget = db.Service(); var draft = await budget.StartDraftAsync(future ? new(2026,11,1) : new(2026,10,1));
+        var allocations = draft.Allocations.ToList();
+        if (move) allocations[0].AllocationType = BudgetAllocationType.Subscriptions;
+        else allocations.Clear();
+        var saved = await budget.SaveDraftAsync(draft.Id, new() {
+            ExpectedEditVersion = draft.EditVersion, EffectiveFromMonth = draft.EffectiveFromMonth,
+            SetupStep = BudgetSetupStep.Review, IncomeSources = draft.IncomeSources.ToList(), Allocations = allocations,
+        });
+        Assert.Equal(1, (await db.Context().BillPayments.SingleAsync()).TransactionId); // Drafts do not detach.
+        await budget.PublishDraftAsync(saved.Id, saved.EditVersion);
+        var payment = await db.Context().BillPayments.SingleAsync();
+        Assert.Equal(keep ? (int?)1 : null, payment.TransactionId);
+        Assert.True(payment.IsPaid);
+        Assert.Equal(3, await db.Context().Transactions.CountAsync());
+        if (!keep) {
+            var next = await budget.StartDraftAsync();
+            var replacement = new BudgetAllocationInput { Name = "Replacement", Amount = 100, AllocationType = BudgetAllocationType.Subscriptions,
+                Schedule = new() { Frequency = BudgetFrequency.Monthly, StartDate = new(2026,10,1), DayOfMonth = 17 } };
+            next = await budget.SaveDraftAsync(next.Id, new() { ExpectedEditVersion = next.EditVersion, EffectiveFromMonth = next.EffectiveFromMonth,
+                SetupStep = BudgetSetupStep.Review, IncomeSources = next.IncomeSources.ToList(), Allocations = [replacement] });
+            await budget.PublishDraftAsync(next.Id, next.EditVersion);
+            Assert.Contains(await Service(db).CandidatesAsync(next.Allocations[0].SourceKey!.Value, Due, null), t => t.Id == 1);
+        }
+    }
+
+    [Theory]
+    [InlineData(BudgetAllocationType.Bills)]
+    [InlineData(BudgetAllocationType.Subscriptions)]
+    public async Task Manual_payment_is_occurrence_specific_and_reduces_only_unpaid_total(BudgetAllocationType type)
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var key = await Plan(db, type);
         await Service(db).SaveAsync(key, Due, new() { IsPaid = true, PaidOn = new(2026,10,16), Note = " Paid online " });
         var bill = Assert.Single((await db.Service().GetMonthAsync(new(2026,10,1))).Events, e => !e.IsIncome);
         Assert.True(bill.Payment!.IsPaid); Assert.Equal("Paid online", bill.Payment.Note);
+        Assert.Equal("AwaitingTransaction", bill.Payment.Status);
         Assert.Null(Assert.Single((await db.Service().GetMonthAsync(new(2026,11,1))).Events, e => !e.IsIncome).Payment);
         var period = await db.Service().GetIncomePeriodAsync(); Assert.Equal(100, period.BillsTotal); Assert.Equal(0, period.UnpaidBillsTotal);
+        Assert.Equal(1, period.AwaitingTransactionCount); Assert.Equal(100, period.AwaitingTransactionTotal);
         Assert.Empty(await db.Context().Transactions.ToListAsync()); Assert.Empty(await db.Context().AccountBalanceSnapshots.ToListAsync());
         await Service(db).SaveAsync(key, Due, new() { IsPaid = false });
-        Assert.Equal(100, (await db.Service().GetIncomePeriodAsync()).UnpaidBillsTotal);
+        var unpaid = await db.Service().GetIncomePeriodAsync();
+        Assert.Equal(100, unpaid.UnpaidBillsTotal); Assert.Equal(0, unpaid.AwaitingTransactionCount);
+        Assert.Equal("Unpaid", Assert.Single(unpaid.Bills).Payment!.Status);
     }
     [Fact] public async Task Link_then_unlink_keeps_paid_status_and_never_changes_ledger()
     {
@@ -53,9 +94,11 @@ public class BillPaymentTests
         var linked = await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionId = 1 });
         Assert.Equal(new DateOnly(2026,10,15), linked.PaidOn);
         Assert.Equal("Electric payment", linked.LinkedTransaction!.Description);
+        Assert.Equal("Linked", linked.Status); Assert.Equal(0, (await db.Service().GetIncomePeriodAsync()).AwaitingTransactionCount);
         Assert.NotNull(Assert.Single((await db.Service().GetMonthAsync(new(2026,10,1))).Events, e => !e.IsIncome).Payment!.LinkedTransaction);
         var unlinked = await Service(db).SaveAsync(key, Due, new() { IsPaid = true, PaidOn = linked.PaidOn });
         Assert.True(unlinked.IsPaid); Assert.Null(unlinked.TransactionId); Assert.Null(unlinked.LinkedTransaction);
+        Assert.Equal("AwaitingTransaction", unlinked.Status); Assert.Equal(1, (await db.Service().GetIncomePeriodAsync()).AwaitingTransactionCount);
         Assert.Equal(3, await db.Context().Transactions.CountAsync()); Assert.Empty(await db.Context().AccountBalanceSnapshots.ToListAsync());
         Assert.Equal(1, Assert.Single(await Service(db).CandidatesAsync(key, Due, null)).Id);
     }

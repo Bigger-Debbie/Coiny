@@ -1,8 +1,13 @@
 <app-modal [title]="bill.name" [busy]="busy()" (dismiss)="dismiss.emit()">
   <p class="bill-summary">{{ bill.amount | currency }} · Due {{ bill.date | date:'MMM d, yyyy':'UTC' }}</p>
+  @if (isPaid && !transactionId) {
+    <p class="payment-state awaiting-state"><span aria-hidden="true">◷</span> Paid · Awaiting transaction<small>Marked paid. Link the transaction when it appears to include the recorded amount in your actuals.</small></p>
+  } @else if (isPaid && transactionId) {
+    <p class="payment-state linked-state"><span aria-hidden="true">✓</span> Paid · Linked</p>
+  }
   <form (ngSubmit)="save()">
     <fieldset [disabled]="busy()">
-      <label class="check"><input type="checkbox" name="paid" [ngModel]="isPaid" (ngModelChange)="$event ? isPaid = true : unpaid()" /> Mark this bill paid</label>
+      <label class="check"><input type="checkbox" name="paid" [ngModel]="isPaid" (ngModelChange)="$event ? isPaid = true : unpaid()" /> Mark this {{ itemLabel }} paid</label>
       @if (!isPaid && bill.payment?.transactionId) { <p class="hint">Saving as unpaid will also detach its transaction.</p> }
       @if (isPaid) { <label for="bill-paid-on">Payment date</label><input id="bill-paid-on" name="paidOn" type="date" required [max]="today" [(ngModel)]="paidOn" /> }
       <label for="bill-note">Note (optional)</label><textarea id="bill-note" name="note" maxlength="500" [(ngModel)]="note" rows="2"></textarea>
@@ -12,18 +17,19 @@
           @if (linkedTransaction; as entry) { <p>{{ entry.description }} · {{ entry.amount | currency }}<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }}</small></p> }
           @else { <p>Transaction #{{ transactionId }} linked.</p> }
           <button type="button" class="button-outline" (click)="transactionId = null">Unlink transaction</button>
-          <p class="hint">Unlinking keeps this bill paid unless you uncheck “Mark this bill paid”.</p>
-        } @else { <p class="hint">You can mark a bill paid now and link its transaction later.</p> }
+          <p class="hint">Unlinking keeps this {{ itemLabel }} paid unless you uncheck “Mark this {{ itemLabel }} paid”.</p>
+        } @else { <p class="hint">You can mark this {{ itemLabel }} paid now and link its transaction later.</p> }
         <button type="button" class="button-outline" (click)="find()">{{ transactionId ? 'Choose another transaction' : 'Link a transaction' }}</button>
         @if (linking) {
           <label for="bill-transaction-search">Search description, account, or category</label>
           <div class="search"><input id="bill-transaction-search" name="search" [(ngModel)]="search" (keydown.enter)="$event.preventDefault(); find()" /><button type="button" class="button-outline" (click)="find()">Search</button></div>
-          <p class="hint">Showing up to 50 expense transactions. Suggestions start near the due date, with matching amounts first. Search checks all dates.</p>
+          <p class="hint">Showing up to 50 {{ contribution ? 'expense or transfer' : 'expense' }} transactions. Suggestions start near the due date, with matching amounts first. Search checks all dates.</p>
+          @if (contribution) { <p class="hint">Choose either side of a transfer. Both sides count as one movement and can only be assigned to one scheduled item.</p> }
           @if (loading()) { <p role="status">Finding transactions…</p> }
-          @else { <div class="candidates" role="group" aria-label="Available expense transactions">
+          @else { <div class="candidates" role="group" [attr.aria-label]="contribution ? 'Available expense or transfer transactions' : 'Available expense transactions'">
             @for (entry of candidates(); track entry.id) {
-              <button type="button" class="candidate" (click)="choose(entry)"><span>{{ entry.description }}<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }} · {{ entry.accountName }} · {{ entry.categoryName }}</small></span><span>{{ entry.amount | currency }}@if (entry.exactAmount) { <small>Matching amount</small> }</span></button>
-            } @empty { <p>No matching transactions. Try a different search or mark the bill paid without linking.</p> }
+              <button type="button" class="candidate" (click)="choose(entry)"><span>{{ entry.description }}<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }} · {{ entry.accountName }} · {{ entry.categoryName }}@if (entry.categoryType === 'Transfer') { · {{ entry.transferDirection === 'In' ? 'Money in' : 'Money out' }} }</small></span><span>{{ entry.amount | currency }}@if (entry.exactAmount) { <small>Matching amount</small> }</span></button>
+            } @empty { <p>No matching transactions. Try a different search or mark the {{ itemLabel }} paid without linking.</p> }
           </div> }
         }
       </div>

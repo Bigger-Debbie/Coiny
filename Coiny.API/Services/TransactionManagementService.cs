@@ -18,7 +18,7 @@ public class TransactionManagementService(CoinyContext context, ICurrentUserServ
             .Select(TransactionProjection.Response).SingleOrDefaultAsync() ?? throw new TransactionNotFoundException();
         var pairVersion = entry.PairedTransactionId is int pairId
             ? await context.Transactions.Where(t => t.Id == pairId && t.HouseholdId == household).Select(t => (int?)t.EditVersion).SingleOrDefaultAsync() : null;
-        var bill = await context.BillPayments.AsNoTracking().Where(p => p.TransactionId == id && p.HouseholdId == household)
+        var bill = await context.BillPayments.AsNoTracking().Where(p => (p.TransactionId == id || entry.PairedTransactionId.HasValue && p.TransactionId == entry.PairedTransactionId) && p.HouseholdId == household)
             .Select(p => new TransactionBillLink(p.AllocationKey, p.DueDate, p.IsPaid)).SingleOrDefaultAsync();
         return new(entry, pairVersion, bill);
     }
@@ -39,8 +39,8 @@ public class TransactionManagementService(CoinyContext context, ICurrentUserServ
         if (request.Date < account.OpeningBalanceDate) throw new ArgumentException("The date cannot be before the account's opening balance date.");
         if (pair is not null && (request.CategoryType != CategoryType.Transfer || request.Direction != entry.TransferDirection || request.AccountId == pair.AccountId))
             throw new ArgumentException("A linked transfer must keep its direction and use two different accounts. Unlink it before changing its type.");
-        if (request.CategoryType != CategoryType.Expense && await context.BillPayments.AnyAsync(p => p.TransactionId == id))
-            throw new TransactionConflictException("Unlink this transaction from its bill before changing it from an expense.");
+        if (request.CategoryType != entry.Category.CategoryType && await context.BillPayments.AnyAsync(p => p.TransactionId == id))
+            throw new TransactionConflictException("Unlink this transaction from its scheduled bill or contribution before changing its type.");
         Category category;
         if (request.CategoryType == CategoryType.Transfer)
         {
@@ -102,7 +102,7 @@ public class TransactionManagementService(CoinyContext context, ICurrentUserServ
         } catch (DbUpdateConcurrencyException) { throw Conflict(); }
     }
     private async Task<Transaction> Owned(int id, int household) =>
-        await context.Transactions.SingleOrDefaultAsync(t => t.Id == id && t.HouseholdId == household) ?? throw new TransactionNotFoundException();
+        await context.Transactions.Include(t => t.Category).SingleOrDefaultAsync(t => t.Id == id && t.HouseholdId == household) ?? throw new TransactionNotFoundException();
     private async Task<Transaction?> Pair(Transaction entry, int household)
     {
         if (entry.PairedTransactionId is not int id) return null;

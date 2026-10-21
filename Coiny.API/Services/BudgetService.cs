@@ -148,7 +148,7 @@ public class BudgetService(
             throw new ArgumentException("Review the household budget before publishing.");
         if (draft.IncomeSources.Count == 0 || draft.IncomeSources.Any(i => i.Amount <= 0))
             throw new ArgumentException("At least one income source is required; each must have a positive take-home amount.");
-        if (draft.Allocations.Any(a => a.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills && a.Schedule is null))
+        if (draft.Allocations.Any(a => a.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions && a.Schedule is null))
             throw new ArgumentException("Housing and bill allocations need a schedule before publishing.");
 
         var publishedAt = clock.GetUtcNow().UtcDateTime;
@@ -159,11 +159,35 @@ public class BudgetService(
             .ExecuteUpdateAsync(set => set.SetProperty(r => r.State, BudgetRevisionState.Published)
                 .SetProperty(r => r.PublishedAt, publishedAt).SetProperty(r => r.EditVersion, r => r.EditVersion + 1));
         if (updated != 1) throw Conflict();
+        // Only the published plan determines whether a payment occurrence still exists.
+        // Draft edits must never detach a live payment link.
+        await ReleaseObsoletePaymentLinks(householdId);
+        await context.SaveChangesAsync();
         await transaction.CommitAsync();
         draft.EditVersion++;
         draft.State = BudgetRevisionState.Published;
         draft.PublishedAt = publishedAt;
         return Response(draft);
+    }
+
+    private async Task ReleaseObsoletePaymentLinks(int householdId)
+    {
+        var payments = await context.BillPayments.Include(p => p.Transaction).ThenInclude(t => t!.Category)
+            .Where(p => p.HouseholdId == householdId && p.TransactionId != null).ToListAsync();
+        foreach (var monthGroup in payments.GroupBy(p => new DateOnly(p.DueDate.Year, p.DueDate.Month, 1)))
+        {
+            var revision = await ApplicableRevision(householdId, monthGroup.Key);
+            var events = revision is null ? [] : ProjectMonth(revision, monthGroup.Key).Events;
+            foreach (var payment in monthGroup)
+            {
+                var occurrence = events.FirstOrDefault(e => !e.IsIncome && e.SourceKey == payment.AllocationKey && e.Date == payment.DueDate &&
+                    e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions or BudgetAllocationType.Savings or BudgetAllocationType.Investments);
+                var contribution = occurrence?.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
+                if (occurrence is null || payment.Transaction!.Category.CategoryType != CategoryType.Expense &&
+                    !(contribution && payment.Transaction.Category.CategoryType == CategoryType.Transfer))
+                    payment.TransactionId = null;
+            }
+        }
     }
 
     public async Task<BudgetMonthResponse> GetMonthAsync(DateOnly month)
@@ -194,7 +218,7 @@ public class BudgetService(
         foreach (var allocation in revision.Allocations.OrderBy(a => a.Id))
         {
             var dates = allocation.Schedule is null ? Array.Empty<DateOnly>() : schedules.GetOccurrences(allocation.Schedule, month);
-            allocations.Add(new() { Id = allocation.Id, Name = allocation.Name, AllocationType = allocation.AllocationType,
+            allocations.Add(new() { SourceKey = allocation.SourceKey, Id = allocation.Id, Name = allocation.Name, AllocationType = allocation.AllocationType,
                 OccurrenceCount = dates.Count, PlannedAmount = allocation.Amount * (allocation.Schedule is null ? 1 : dates.Count) });
             foreach (var date in dates)
                 events.Add(new() { SourceKey = allocation.SourceKey, Date = date, ItemId = allocation.Id, Name = allocation.Name,
@@ -244,19 +268,24 @@ public class BudgetService(
         var periodEvents = start.HasValue && end.HasValue
             ? events.Where(e => !e.IsIncome && e.Date >= start && e.Date <= end)
                 .OrderBy(e => e.Date).ThenBy(e => e.Name).ThenBy(e => e.ItemId).ToList() : [];
-        var bills = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills).ToList();
-        await ApplyPayments(householdId, bills);
+        var bills = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions).ToList();
         var contributions = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
+        await ApplyPayments(householdId, periodEvents);
+        var awaitingTransactions = bills.Concat(contributions)
+            .Where(e => e.Payment is { IsPaid: true, TransactionId: null }).ToList();
         return new() {
             AsOf = date, SourceKey = sourceKey, Sources = sources, StartDate = start, EndDate = end, NextPayday = next,
             Bills = bills, BillsTotal = bills.Sum(e => e.Amount), UnpaidBillsTotal = bills.Where(e => e.Payment?.IsPaid != true).Sum(e => e.Amount), Contributions = contributions,
             ContributionsTotal = contributions.Sum(e => e.Amount),
+            UnpaidContributionsTotal = contributions.Where(e => e.Payment?.IsPaid != true).Sum(e => e.Amount),
+            AwaitingTransactionCount = awaitingTransactions.Count,
+            AwaitingTransactionTotal = awaitingTransactions.Sum(e => e.Amount),
         };
     }
 
     private async Task ApplyPayments(int householdId, IReadOnlyList<BudgetScheduledEvent> events)
     {
-        var bills = events.Where(e => !e.IsIncome && e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills).ToList();
+        var bills = events.Where(e => !e.IsIncome && e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions or BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
         if (bills.Count == 0) return;
         var min = bills.Min(e => e.Date); var max = bills.Max(e => e.Date);
         var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();

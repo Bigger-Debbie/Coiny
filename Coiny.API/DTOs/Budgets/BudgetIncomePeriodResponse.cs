@@ -11,6 +11,9 @@ public class BudgetIncomePeriodResponse
     public decimal UnpaidBillsTotal { get; init; }
     public decimal BillsTotal { get; init; }
     public decimal ContributionsTotal { get; init; }
+    public decimal UnpaidContributionsTotal { get; init; }
+    public int AwaitingTransactionCount { get; init; }
+    public decimal AwaitingTransactionTotal { get; init; }
     public IReadOnlyList<BudgetScheduledEvent> Bills { get; init; } = [];
     public IReadOnlyList<BudgetScheduledEvent> Contributions { get; init; } = [];
 }

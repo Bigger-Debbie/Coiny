@@ -51,11 +51,11 @@ published versions. Revision numbers are unique within a household plan;
 multiple published revisions may share an effective month so edits can take
 effect within the current month without overwriting the earlier version.
 
-The saved wizard step is Income, Bills, Spending, SavingsAndInvestments, or
+The saved wizard step is Income, Bills, Subscriptions, Spending, SavingsAndInvestments, or
 Review. Publication is represented by Published state and a timestamp, rather
 than a separate completed wizard step.
 
-Allocation types are Housing, Bills, Spending, Savings, and Investments. These
+Allocation types are Housing, Bills, Subscriptions, Spending, Savings, and Investments. These
 describe planned uses of income. They do not replace transaction categories or
 automatically link allocations to accounts/categories.
 
@@ -125,7 +125,7 @@ A failed child write rolls back the version change and all replaced rows.
 Drafts may have empty income/allocation lists. Stored individual entries still
 need valid names, amounts, and schedule fields. Publication requires Review step,
 at least one positive income source (all income source amounts must be positive),
-and schedules for Housing/Bills allocations. Other allocations may be unscheduled.
+and schedules for Housing/Bills/Subscriptions allocations. Other allocations may be unscheduled.
 Over-budget plans and unassigned income are allowed.
 
 New drafts default to the current month in America/New_York. New draft creation
@@ -322,7 +322,7 @@ Published revisions are resolved by effective month throughout the lookup, so a
 period can cross months and account for future published schedule changes.
 Drafts never influence this view.
 
-**Remaining unpaid bills** sums Housing/Bills events in that range that are not marked paid. The total scheduled amount stays visible;
+**Remaining unpaid bills** sums Housing/Bills/Subscriptions events in that range that are not marked paid. The total scheduled amount stays visible;
 scheduled Savings/Investments appear separately as contributions. These are all
 household bills even when following one income source: no paycheck-to-bill
 assignment is implied. Unscheduled monthly spending is excluded from the dated
@@ -350,22 +350,51 @@ revisions preserve identity explicitly; legacy copies are not retroactively link
 No ledger schema or transaction data is changed by this migration.
 
 
-## Bill payments and transaction links
+## Bill and contribution payments and transaction links
 
-Select **Mark paid** or **View payment** beside a bill in the current income period
+Select **Mark paid**, **Link transaction**, or **View payment** beside a bill or scheduled savings/investment contribution in the current income period
 or the calendar's selected-day list. A modal records a payment date and optional
 note. An optional transaction picker suggests household expense entries near the
 due date, prioritizing matching amounts; search includes description, merchant,
 account, and category across all dates. Selecting an entry marks the occurrence
-paid by default. Linking an already-paid bill preserves its payment date.
+paid by default. Contributions can also link to transfers, selecting either the
+outgoing or incoming entry. Transfer candidates show account and direction.
+Linking an already-paid item preserves its payment date.
 
 Payment status and ledger linkage are independent. Unlinking keeps the paid
 status. Unchecking paid detaches the transaction on save. Neither operation creates
-ledger entries or changes account balances. Paid events remain visible, with a
-checkmark in the calendar. A transaction may be linked to one bill occurrence.
+ledger entries or changes account balances. Events use three derived states:
+
+- **Unpaid:** normal appearance and upcoming/due/overdue labels.
+- **Paid · Awaiting transaction:** a yellow rounded border and clock marker;
+  **Link transaction** opens the picker directly while preserving the payment date.
+- **Paid · Linked:** a green rounded border and checkmark, with **View payment**.
+
+These indicators appear in the current income-period list, selected-day details,
+calendar markers/tooltips, and payment modal. Removing a link or deleting its
+transaction returns a still-paid item to awaiting status. Previously marked-paid
+items without a link derive the same yellow state without rewriting stored data.
+The income-period summary counts awaiting items and totals their planned amounts;
+they remain excluded from unpaid bills/contributions. This distinction prepares
+future actuals to use linked transaction amounts, with paid-unlinked planned
+amounts available as labeled forecast estimates; reporting is not implemented yet.
+
+A transaction may be
+linked to one scheduled occurrence. The two sides of a linked transfer count as
+one movement and cannot be assigned to separate occurrences. Linking two
+previously unlinked entries requires resolving any conflicting payment assignments
+first. Contribution-linked transfers remain editable; deleting the ledger entry
+detaches it while preserving the independent paid status.
 This initial version marks the entire occurrence paid; partial payments, multiple
 transactions per bill, automatic matching, and transfer-based bill settlement are
 future work.
+
+Income-period contributions retain their separate scheduled total and expose a
+remaining unpaid contribution total. They do not inflate the bills total. Only
+scheduled Housing, Bills, Subscriptions, Savings, and Investments occurrences are payable;
+unscheduled monthly allocations and payroll deduction visibility fields do not
+have payment occurrences. Existing payment storage/routes are reused, with no
+new schema migration or financial-data rewrite.
 
 Occurrences use household + allocation `sourceKey` + scheduled date. Allocation
 keys survive wizard saves, renames, and new revisions. New definitions omit the
@@ -375,3 +404,28 @@ similarly named rows across old revisions are the same bill. Changing a schedule
 date creates a different occurrence; payment history is not moved automatically.
 Removing a bill from the plan does not delete its payment record. Deleting a linked
 transaction detaches it while retaining payment status.
+
+## Subscriptions
+
+Subscriptions have their own wizard step after Housing & bills and their own
+breakdown and donut group. They use recurring bill schedules (including yearly
+renewals), payment tracking, transaction links, and posting-date actuals. Existing
+bills remain unchanged; use the allocation-type selector when editing a draft to
+move a subscription into the new group. Publish the draft to apply the change.
+`20261021214401_AddBudgetSubscriptions` extends the database enum constraints;
+existing enum values and records are preserved.
+
+### Moving and removing budget items
+
+Use **Budget section** in an item's wizard editor to move it among housing, bills,
+subscriptions, everyday spending, savings, or investing. This preserves its stable
+allocation key and schedule; scheduled bill types receive a schedule if missing.
+The item appears in its destination wizard step. Save and publish to apply it.
+
+Publication releases transaction links for payment occurrences that no longer exist
+in the applicable published plan (including removal or a changed due date), or whose
+transaction type no longer fits. Changing an item's section preserves compatible
+links when its identity and occurrence remain intact. Draft edits never release
+live links. Earlier-month links remain when the plan for that month still contains
+the occurrence. Released payments retain their paid date and notes; no ledger entry
+or balance is changed. Their transactions become available for linking again.

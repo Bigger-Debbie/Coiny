@@ -6,5 +6,6 @@ public enum BudgetSetupStep
     Bills,
     Spending,
     SavingsAndInvestments,
-    Review
+    Review,
+    Subscriptions
 }

@@ -4,15 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { BudgetMonth, AllocationType } from '../../shared/models/budget/budget';
 import { CategoryBreakdownItem } from '../../shared/models/transactions/category-breakdown';
 import { BudgetCalendar } from './budget-calendar';
+import { BudgetActualsPanel } from './budget-actuals';
 import { DonutChart } from '../../shared/components/donut-chart/donut-chart';
 
 const groups: { type: AllocationType; label: string }[] = [
-  { type: 'Housing', label: 'Housing' }, { type: 'Bills', label: 'Bills' },
+  { type: 'Housing', label: 'Housing' }, { type: 'Bills', label: 'Bills' }, { type: 'Subscriptions', label: 'Subscriptions' },
   { type: 'Spending', label: 'Everyday spending' }, { type: 'Savings', label: 'Savings' },
   { type: 'Investments', label: 'Investing' },
 ];
 @Component({
-  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar],
+  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel],
   templateUrl: './budget-dashboard.html', styleUrl: './budget-dashboard.css',
 })
 export class BudgetDashboard {
@@ -21,12 +22,15 @@ export class BudgetDashboard {
   @Input() loading = false;
   @Input() error = false;
   readonly periodSource = signal<string | null>(null);
+  readonly actualsRefresh = signal(0);
+  refreshActuals() { this.actualsRefresh.update(value => value + 1); }
   readonly selectMonth = output<string>();
   private chartData: CategoryBreakdownItem[] = [];
   private chartMonth: BudgetMonth | null = null;
   get allocationSections() {
     return [
       { key: 'bills', label: 'Housing & bills', types: ['Housing', 'Bills'] },
+      { key: 'subscriptions', label: 'Subscriptions', types: ['Subscriptions'] },
       { key: 'spending', label: 'Everyday spending', types: ['Spending'] },
       { key: 'savings', label: 'Savings & investing', types: ['Savings', 'Investments'] },
     ].map(section => {
@@ -43,7 +47,7 @@ export class BudgetDashboard {
       categoryId: index + 1, categoryName: group.label,
       amount: month.allocations.filter(a => a.allocationType === group.type).reduce((sum, a) => sum + a.plannedAmount, 0),
       transactionCount: 0, percentage: 0,
-    })).concat([{ categoryId: 6, categoryName: 'Unassigned', amount: month.unassigned, transactionCount: 0, percentage: 0 }])
+    })).concat([{ categoryId: 7, categoryName: 'Unassigned', amount: month.unassigned, transactionCount: 0, percentage: 0 }])
       .filter(item => item.amount > 0).map(item => ({ ...item, percentage: this.total ? item.amount / this.total * 100 : 0 })) : [];
     return this.chartData;
   }

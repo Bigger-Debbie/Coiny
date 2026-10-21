@@ -74,9 +74,12 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/draft/{draftId}/preview` | 200 | Preview draft for a month and edit version |
 | POST | `/api/budgets/draft/{draftId}/publish` | 200 | Publish the reviewed draft |
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
+| GET | `/api/budgets/actuals` | 200 | Monthly allocation comparison and paginated activity assignments |
+| PUT | `/api/budgets/actuals/categories/{categoryId}` | 204 | Save an expense category default effective from a month |
+| PUT | `/api/budgets/actuals/transactions/{transactionId}` | 204 | Set/reset an individual movement's budget assignment |
 | GET | `/api/budgets/income-period` | 200 | Current household or individual income period and scheduled bills |
-| PUT | `/api/budgets/bills/{key}/{date}/payment` | 200 | Record or correct one bill occurrence payment and optional transaction link |
-| GET | `/api/budgets/bills/{key}/{date}/transactions` | 200 | Suggested/searchable household expense transactions for a bill |
+| PUT | `/api/budgets/bills/{key}/{date}/payment` | 200 | Record or correct a scheduled bill/contribution payment and optional transaction link |
+| GET | `/api/budgets/bills/{key}/{date}/transactions` | 200 | Suggested household expense entries for bills; expense/transfer entries for contributions |
 
 Collection list responses remain JSON arrays. Paged transaction and category
 breakdown endpoints return structured objects. Financial records have no public
@@ -302,6 +305,73 @@ Errors: 400 missing/invalid values, unreviewed transactions, or mismatched balan
 401 unauthenticated; 403 no household; 404 missing/foreign account; 409 changed
 ledger since the check. Error details use `ProblemDetails.detail`.
 See [reconciliation rules](12-account-reconciliation.md).
+
+## Budget actuals
+
+Apply `20261021170126_AddBudgetActualAssignments` first. All routes require
+authentication, household membership, and a published plan for the selected month.
+
+`GET /api/budgets/actuals?month=2026-10-01&view=unassigned&type=Expense&page=1`
+requires a first-of-month `month`. `view` is `unassigned` (default) or `all`;
+optional `type` is `Expense` or `Transfer`. Pages contain 10 movements. Optional `allocationKey=<guid>` selects transactions
+assigned to that item in the selected household/month, overriding the unassigned
+view. Invalid or foreign item keys return 400. Type filtering still applies; omit
+`type` to include expense and contribution-transfer entries together. Totals and
+graph points remain for the full month. The response
+contains `month`, nullable `throughDate`, `planned`, `assignedActual`,
+`unassignedExpenses`, `awaitingTransaction`, `points`, `items`, `categoryDefaults`,
+`transactions`, `page`, `pageSize`, and `totalCount`.
+
+Items include stable `allocationKey`, `name`, `allocationType`, `planned`, `actual`,
+`remaining`, `awaitingTransaction`, and `transactionCount`. Defaults include
+`categoryId`, `categoryName`, `isActive`, nullable `allocationKey`, nullable
+`effectiveFromMonth`, and `editVersion` (zero when no rule exists in this exact
+month). Movements include `id`, `editVersion`, nullable `pairedEditVersion`, `date`,
+`description`, nullable `merchant`, `amount`, `accountName`, `categoryName`, `categoryType`, nullable
+`allocationKey`/`allocationName`, and `assignmentSource`
+(`Payment`, `Override`, `Category`, or `Unassigned`).
+
+`PUT /api/budgets/actuals/categories/1`:
+
+```json
+{ "month": "2026-10-01", "allocationKey": "<stable allocation GUID>", "expectedEditVersion": 0 }
+```
+
+The category must be an owned Expense category. The item must exist in that month's
+published plan. Null allocationKey clears the default from this month forward;
+older rules remain intact. Version is required and checked against the rule for
+this exact effective month, not an inherited prior-month rule.
+
+`PUT /api/budgets/actuals/transactions/1`:
+
+```json
+{
+  "month": "2026-10-01",
+  "allocationKey": "<stable allocation GUID>",
+  "useCategoryDefault": false,
+  "expectedEditVersion": 0,
+  "expectedPairedEditVersion": null
+}
+```
+
+Set null allocationKey with false to explicitly leave unassigned. Set
+`useCategoryDefault: true` with null allocationKey to remove the override.
+The boolean and transaction version are required; linked transfers require their
+paired version too. Only Expense/Transfer entries are eligible; transfers can
+target Savings/Investments only. Payment links take priority and must be detached
+before adding overrides. Existing individual assignments must be reset before
+attaching a scheduled payment link. Requests advance movement edit versions but
+do not change categories, balances, dates, snapshots, or payment status.
+
+Actuals use posting month, capped at today for the current month. Paired transfers
+count once on the incoming entry's date. Bill links may identify an allocation
+across months; their due date does not move recorded actuals. Unassigned transfers
+are excluded from spending. Awaiting amounts remain planned values separate from
+actuals. See [rules and UI](13-budget-actuals.md).
+
+Errors: 400 invalid month/view/type/page, no plan, invalid/foreign category/item/
+transaction, or ineligible target; 401 unauthenticated; 403 no household;
+409 stale rule/movement or conflict with a payment assignment.
 
 ## Category payload
 
@@ -945,12 +1015,14 @@ old shared code. If revocation fails, membership deletion rolls back. There is
 no new schema migration for these endpoints.
 
 
-### Bill occurrence payment tracking
+### Bill and contribution occurrence payment tracking
 
-Use the allocation `sourceKey` from a published bill event and its ISO scheduled
+Use the allocation `sourceKey` from a published bill or contribution event and its ISO scheduled
 `date`, for example `PUT /api/budgets/bills/{{billKey}}/2026-10-17/payment`.
 Both routes require authentication and household membership. Only scheduled
-Housing/Bills events from the applicable published plan can be managed.
+Housing/Bills/Subscriptions/Savings/Investments events from the applicable published plan can be managed.
+Existing `/bills/` routes and payment storage are reused for compatibility; no new
+migration is required. Unscheduled allocations, income, and Spending events are ineligible.
 
 ```json
 {
@@ -964,23 +1036,41 @@ Housing/Bills events from the applicable published plan can be managed.
 `isPaid` is required. `paidOn` defaults to the linked transaction date, or today
 in America/New_York for a manual payment; it cannot be a future date. Notes allow
 500 characters. The optional `transactionId` must be a household Expense entry
-and cannot already pay another occurrence. Send `isPaid: true` when linking.
+for a bill; scheduled Savings/Investments can use Expense or Transfer entries.
+Income is ineligible. An entry and its paired transfer entry cannot already pay
+another occurrence. Either side of a transfer can be selected, but it counts once.
+Send `isPaid: true` when linking.
 To unlink while keeping paid status, retain `isPaid`/`paidOn` and send
 `transactionId: null`. To mark unpaid, send `isPaid: false` and
 `transactionId: null`; the stored payment date is cleared. PUT replaces the
-occurrence's payment fields and returns those four fields plus nullable `linkedTransaction` (`id`, `date`, `amount`, `description`). No transaction
+occurrence's payment fields and returns those four fields, derived `status`, and nullable `linkedTransaction` (`id`, `date`, `amount`, `description`). No transaction
 or balance is created or changed.
+
+`status` is `Unpaid` when `isPaid` is false, `AwaitingTransaction` when paid with
+no transaction link, or `Linked` when paid with a link. It is derived from the
+existing fields, not independently stored or accepted as a state to write.
+Unlinking a paid item (or deleting its linked entry) returns it to
+`AwaitingTransaction`; its payment date/status remain independent.
 
 `GET /api/budgets/bills/{{billKey}}/2026-10-17/transactions?search=electric`
 returns up to 50 available entries with `id`, `date`, `amount`, `description`,
-`accountName`, `categoryName`, and `exactAmount`. Without a search, candidates are
+`accountName`, `categoryName`, `exactAmount`, `categoryType`, and nullable
+`transferDirection`. Contribution suggestions include transfers; bill suggestions
+remain expenses only. Without a search, candidates are
 within 45 days either side of the due date; search covers all dates. Matching
 amounts are prioritized, then nearby dates. Already-linked entries are excluded
-unless linked to this occurrence.
+unless linked to this occurrence; this exclusion also applies to the other side
+of an assigned transfer. Linking two existing transfers returns 409 if both have
+separate scheduled-payment assignments, requiring one assignment to be detached first.
 
-Published month/income-period bill events include nullable `payment` with the four
+Published month/income-period bill and contribution events include nullable `payment` with the
 fields above. Income-period responses add `unpaidBillsTotal`; `billsTotal` remains
-the complete scheduled total. Draft allocation inputs/responses now carry optional
+the complete scheduled total. `unpaidContributionsTotal` sums only unpaid scheduled
+contributions; `contributionsTotal` remains their full planned total.
+`awaitingTransactionCount` and `awaitingTransactionTotal` combine paid-unlinked
+bills and contributions in that period; the amount is the sum of their planned
+occurrence amounts. Those items are excluded from unpaid totals. Neither
+payment action changes ledger entries or account snapshots. Draft allocation inputs/responses now carry optional
 `sourceKey`, which must be retained on updates to preserve bill identity.
 
 Errors: 400 invalid occurrence, payment date, or foreign/ineligible transaction;
@@ -1216,3 +1306,18 @@ Each file uses the single-file request shape (including optional bank-balance ac
 Validation returns `{ canImport, files: [{ accountId, validation }], suggestions, moreSuggestions }`. Every per-file validation retains its usual categories, duplicates, projected balance, and bank-comparison information. Suggestions contain `first`/`second` entries with `reference`, `accountName`, `date`, `amount`, `direction`, and `description`. New rows are compared against each other and existing unlinked household transfers within ±7 days. Up to 200 suggestions are returned; ambiguous candidates remain choices rather than automatic matches. No writes occur during validation.
 
 Import returns `{ submissionId, files: [singleFileImportResult], linkedPairs }`. All files and accepted pairings save atomically. The endpoint revalidates every file and accepted relationship inside the write transaction. Matching preserves existing entry balances/dates/provenance and adds no extra ledger movements. Every new included row is created once. Successful same-payload retries return the stored session result. Reusing that session ID with different files or links, or reusing a previously imported per-file submission, returns 409. Invalid row checks return 422 with a session validation response; stale matches return 409; malformed/invalid sessions return 400. Uncertain requests must be retried with the original immutable payload, not a new submission ID.
+
+### Budget comparison daily series
+
+The actuals response `points` contains one entry per calendar day: `date`,
+`plannedSpending`, nullable `actualSpending`, `plannedContributions`, and nullable
+`actualContributions`. Values are cumulative. Scheduled allocations enter on their
+due dates; unscheduled monthly allowances accumulate evenly across the month.
+Actual spending includes unassigned expenses and excludes contribution assignments.
+Actual contributions include explicitly assigned or payment-linked contributions,
+counting paired transfers once. Actual values are null after `throughDate` (all
+null for future months). Activity filters and pagination do not filter this series.
+
+Budget allocation types and setup steps now also accept `Subscriptions`. It is a
+scheduled bill type for publication validation, income-period bill totals, and
+payment linking, while appearing as a separate group in the budgeting UI.

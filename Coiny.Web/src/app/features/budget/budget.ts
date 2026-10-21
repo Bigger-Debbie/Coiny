@@ -52,13 +52,14 @@ export class Budget implements OnInit {
   readonly step = signal(0);
   readonly steps: { key: BudgetStep; label: string; description: string }[] = [
     { key: 'Income', label: 'Income', description: 'What money does your household bring home? Enter each paycheck after taxes and deductions. If the amount varies, start with a typical amount you can reasonably count on.' },
-    { key: 'Bills', label: 'Housing & bills', description: 'Add payments you regularly need to cover, like rent, mortgage, electricity, insurance, and subscriptions. Use a recent bill to estimate amounts that change.' },
+    { key: 'Bills', label: 'Housing & bills', description: 'Add payments you regularly need to cover, like rent, mortgage, electricity, and insurance. Use a recent bill to estimate amounts that change.' },
+    { key: 'Subscriptions', label: 'Subscriptions', description: 'List recurring memberships and services, such as streaming, music, apps, and gym memberships. Enter the amount per renewal and when it is charged, including yearly subscriptions.' },
     { key: 'Spending', label: 'Everyday spending', description: 'How much would you like to set aside each month for groceries, transportation, dining, and other day-to-day spending? Start with recent spending—you can adjust these amounts later.' },
     { key: 'SavingsAndInvestments', label: 'Savings & investing', description: 'Plan contributions toward an emergency fund, future purchases, or investments. Only include money coming from the take-home income above, so payroll deductions aren’t counted twice.' },
     { key: 'Review', label: 'Review', description: 'Does this plan feel workable? Check what’s left unassigned or whether you’ve planned more than your expected income. You can go back and adjust before publishing.' },
   ];
-  readonly billTypes: SelectOption[] = [{ value: 'Housing', label: 'Housing' }, { value: 'Bills', label: 'Bill' }];
-  readonly savingsTypes: SelectOption[] = [{ value: 'Savings', label: 'Savings' }, { value: 'Investments', label: 'Investing' }];
+  readonly billTypes: SelectOption[] = [{ value: 'Housing', label: 'Housing' }, { value: 'Bills', label: 'Bill' }, { value: 'Subscriptions', label: 'Subscription' }];
+  readonly allocationTypes: SelectOption[] = [...this.billTypes, { value: 'Spending', label: 'Everyday spending' }, { value: 'Savings', label: 'Savings' }, { value: 'Investments', label: 'Investing' }];
   readonly form = this.fb.group({ effectiveMonth: ['', Validators.required], incomeSources: this.fb.array([]), allocations: this.fb.array([]) });
   @ViewChild('stepHeading') private stepHeading?: ElementRef<HTMLElement>;
   private focusStep() { requestAnimationFrame(() => this.stepHeading?.nativeElement.focus()); }
@@ -72,7 +73,7 @@ export class Budget implements OnInit {
   schedule(control: AbstractControl) { return control.get('schedule') as FormGroup; }
   visibleAllocation(control: AbstractControl) {
     const type: AllocationType = control.value.allocationType;
-    return this.step() === 1 ? ['Housing', 'Bills'].includes(type) : this.step() === 2 ? type === 'Spending' : ['Savings', 'Investments'].includes(type);
+    return this.step() === 1 ? ['Housing', 'Bills'].includes(type) : this.step() === 2 ? type === 'Subscriptions' : this.step() === 3 ? type === 'Spending' : ['Savings', 'Investments'].includes(type);
   }
   ngOnInit() { void this.load(); }
   private request<T>(observable: import('rxjs').Observable<T>) { return firstValueFrom(observable.pipe(takeUntilDestroyed(this.destroyRef))); }
@@ -127,13 +128,17 @@ export class Budget implements OnInit {
   }
   private allocationGroup(a: BudgetAllocation) {
     const group = this.fb.group({ sourceKey: a.sourceKey ?? null, name: [a.name, name], amount: [a.amount, money], allocationType: a.allocationType, schedule: a.schedule ? this.scheduleGroup(a.schedule) : this.fb.control(null) });
+    group.get('allocationType')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(type => {
+      if (['Housing', 'Bills', 'Subscriptions'].includes(type) && !group.value.schedule)
+        group.setControl('schedule', this.scheduleGroup());
+    });
     return group;
   }
   addIncome() { this.income.push(this.incomeGroup()); }
   addAllocation() {
-    const type = this.step() === 1 ? 'Bills' : this.step() === 2 ? 'Spending' : 'Savings';
+    const type = this.step() === 1 ? 'Bills' : this.step() === 2 ? 'Subscriptions' : this.step() === 3 ? 'Spending' : 'Savings';
     const group = this.allocationGroup({ name: '', amount: null as unknown as number, allocationType: type, schedule: null });
-    if (type === 'Bills') group.setControl('schedule', this.scheduleGroup());
+    if (type === 'Bills' || type === 'Subscriptions') group.setControl('schedule', this.scheduleGroup());
     this.allocations.push(group);
   }
   toggleSchedule(control: AbstractControl, event: Event) {

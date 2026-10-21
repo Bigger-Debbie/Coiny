@@ -9,7 +9,8 @@ p { line-height:1.6; } small { display:block; color:var(--color-text-muted); fon
 .period-total span { font-size:.85rem; } .period-total strong { font-size:1.7rem; font-weight:400; }
 .event-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; border-bottom:1px solid var(--color-border); padding:.85rem 0; }
 .event-row span { overflow-wrap:anywhere; } .event-row strong { font-size:.9rem; color:var(--color-primary); white-space:nowrap; }
-.event-row.paid-bill { border:1px solid var(--color-success); border-radius:var(--radius-sm); padding:.85rem; margin:.5rem 0; }
+.event-row.paid-bill,.event-row.awaiting-payment { border:1px solid var(--color-success); border-radius:var(--radius-sm); padding:.85rem; margin:.5rem 0; }
+.event-row.awaiting-payment { border-color:#d5a126; }
 .period-panel > small:last-child { margin-top:1rem; }
 .calendar-panel header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:1rem; }
 .calendar-panel header h2 { margin:0; }
@@ -36,3 +37,20 @@ p { line-height:1.6; } small { display:block; color:var(--color-text-muted); fon
 .bill-actions button { font-size:.75rem; padding:.35rem .65rem; white-space:nowrap; }
 
 .paid-check { color:var(--color-success); margin-right:.4rem; }
+.payment-icon { margin-right:.4rem; }
+.awaiting-icon { color:#8a6400; }
+.markers .linked-marker { color:var(--color-success); }
+.awaiting-summary { border-left:3px solid #d5a126; padding:.5rem .75rem; font-size:.85rem; margin-top:1.25rem; }
+
+.period-shell { position:relative; min-width:0; min-height:65rem; }
+.period-panel { position:absolute; inset:0; display:flex; flex-direction:column; }
+.period-panel > :not(.period-events) { flex-shrink:0; }
+.period-events { flex:1; min-height:26rem; overflow-y:auto; scrollbar-gutter:stable; padding:0 .4rem; margin:0 -.4rem; }
+.period-events:focus-visible { outline:2px solid var(--color-accent); outline-offset:-2px; }
+.completed-toggle { display:flex; align-items:center; gap:.65rem; margin:.5rem 0 .75rem; cursor:pointer; }
+.completed-toggle input { appearance:none; width:2.75rem; height:1.5rem; padding:2px; border:0; border-radius:2rem; background:var(--color-border); flex-shrink:0; cursor:pointer; margin:0; }
+.completed-toggle input::before { content:''; display:block; width:1.25rem; height:1.25rem; border-radius:50%; background:white; }
+.completed-toggle input:checked { background:var(--color-primary); }
+.completed-toggle input:checked::before { transform:translateX(1.25rem); }
+.completed-toggle input:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
+@media(max-width:950px) { .period-shell { min-height:0; } .period-panel { position:static; } .period-events { flex:auto; max-height:26rem; } }

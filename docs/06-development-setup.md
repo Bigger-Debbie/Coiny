@@ -144,7 +144,7 @@ npm test -- --watch=false \
   --include='src/app/shared/components/select-menu/**/*.spec.ts'
 ```
 
-Current verification baseline after account reconciliation and transfer creation matching:
+Current verification baseline after budget actuals and assignment tracking:
 
 - Backend and frontend production builds pass.
 - The dashboard, accounts, budgeting wizard, creation-form, and shared-component tests pass.
@@ -152,15 +152,15 @@ Current verification baseline after account reconciliation and transfer creation
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The latest frontend run passed 261 tests, excluding the known starter test; that existing failure
+- The latest frontend run passed 280 tests, excluding the known starter test; that existing failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
-- Dashboard, accounts, and import-review CSS exceed their 4 kB warning budgets (about 4.73 kB,
-  4.39 kB, and 4.58 kB respectively). The initial bundle is about 570.72 kB against a
+- Dashboard, accounts, import-review, and budget-calendar CSS exceed their 4 kB warning budgets
+  (about 4.73 kB, 4.39 kB, 4.58 kB, and 5.11 kB respectively). The initial bundle is about 570.72 kB against a
   500 kB warning budget; the production build still passes. CSV import, the transaction editor, and reconciliation modal load lazily.
-- The backend suite has 153 passing xUnit tests for account reconciliation, transaction management, bill payments, batch imports, transfers, recurrence, household-scoped
+- The backend suite has 171 passing xUnit tests for budget actuals, account reconciliation, transaction management, bill/contribution payments, batch imports, transfers, recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).
@@ -194,3 +194,7 @@ Statement checkpoints require `20261021123659_AddAccountReconciliations`. It add
 checkpoint storage without rewriting ledger data. Back up your local database,
 apply pending migrations to the API's connection string, and restart the API.
 See [account reconciliation](12-account-reconciliation.md) for the workflow.
+
+Budget category defaults and transaction assignments require
+`20261021170126_AddBudgetActualAssignments`. It adds two assignment tables without
+rewriting financial records. See [budget actuals](13-budget-actuals.md).

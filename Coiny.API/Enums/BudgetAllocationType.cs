@@ -6,5 +6,6 @@ public enum BudgetAllocationType
     Bills,
     Spending,
     Savings,
-    Investments
+    Investments,
+    Subscriptions
 }

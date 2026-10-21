@@ -21,7 +21,7 @@
           }
           <div class="notes-detail"><dt>Notes</dt><dd>{{ details.transaction.notes || 'No notes' }}</dd></div>
           @if (details.transaction.importBatchId) { <div><dt>Source</dt><dd>Imported transaction · Batch #{{ details.transaction.importBatchId }}</dd></div> }
-          @if (details.bill) { <div><dt>Linked bill</dt><dd>Due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }} · {{ details.bill.isPaid ? 'Paid' : 'Unpaid' }}</dd></div> }
+          @if (details.bill) { <div><dt>Linked budget payment</dt><dd>Due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }} · {{ details.bill.isPaid ? 'Paid' : 'Unpaid' }}</dd></div> }
         </dl>
         @if (details.transaction.categoryType === 'Transfer') {
           <div class="actions">
@@ -37,12 +37,12 @@
         <p>{{ details.transaction.description }} · {{ details.transaction.amount | currency }}<br />{{ details.transaction.accountName }} · {{ details.transaction.transactionDate | date:'MMM d, yyyy':'UTC' }}</p>
         @if (linked) { <p>Both entries will be removed, including the entry in {{ details.transaction.counterpartyAccountName }}. Both account balances and trends will be recalculated.</p> }
         @else { <p>This removes the transaction and recalculates its account balance and trends. This action cannot be undone.</p> }
-        @if (details.bill) { <p>The bill due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }} will be unlinked. Its {{ details.bill.isPaid ? 'paid' : 'unpaid' }} status will stay as it is.</p> }
+        @if (details.bill) { <p>The budget item due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }} will be unlinked. Its {{ details.bill.isPaid ? 'paid' : 'unpaid' }} status will stay as it is.</p> }
         <div class="actions"><button class="button-outline" type="button" [disabled]="busy()" (click)="deleting.set(false)">Keep transaction</button><button class="delete-button" type="button" [disabled]="busy() || stale()" (click)="remove()">{{ busy() ? 'Deleting…' : linked ? 'Delete both entries' : 'Delete transaction' }}</button></div>
       </section>
     } @else {
       @if (details.transaction.importBatchId) { <p class="hint">Imported transaction. Changes update your ledger; the original import history is retained.</p> }
-      @if (details.bill) { <p class="hint">Linked to a bill due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }}. Editing keeps its payment status and link. Unlink it from the bill before changing its type.</p> }
+      @if (details.bill) { <p class="hint">Linked to a scheduled bill or contribution due {{ details.bill.dueDate | date:'MMM d, yyyy':'UTC' }}. Editing keeps its payment status and link. Unlink it from the budget item before changing its type.</p> }
       @if (linked) { <p class="hint">Linked to {{ details.transaction.counterpartyAccountName }}. Amount changes update both sides. The date, account, description, merchant, notes, and cleared status apply to this entry only.</p> }
       <form #form="ngForm" (ngSubmit)="save(form)">
         <fieldset [disabled]="busy() || stale()">

@@ -1,5 +1,6 @@
 import { BudgetCalendar } from './budget-calendar';
-import { BudgetCalendarStub } from './budget-calendar.stub';
+import { BudgetCalendarStub, BudgetActualsStub } from './budget-calendar.stub';
+import { BudgetActualsPanel } from './budget-actuals';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { BudgetDashboard } from './budget-dashboard';
@@ -17,7 +18,7 @@ const plan: BudgetMonth = {
   ],
 };
 describe('BudgetDashboard', () => {
-  beforeEach(() => TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar] }, add: { imports: [BudgetCalendarStub] } }));
+  beforeEach(() => TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub] } }));
   function render(month: BudgetMonth | null = plan) {
     const f = TestBed.createComponent(BudgetDashboard);
     f.componentRef.setInput('month', month); f.componentRef.setInput('selectedMonth', '2026-10-01');

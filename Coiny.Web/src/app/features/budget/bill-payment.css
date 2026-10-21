@@ -16,3 +16,7 @@ h3 { font-size:1rem; font-weight:400; text-transform:none; letter-spacing:normal
 .error { color:var(--color-danger,#a50025); }
 
 .link-section p > small { display:block; }
+.payment-state { border:1px solid; border-radius:var(--radius-sm); padding:.8rem; font-size:.9rem; }
+.payment-state small { display:block; margin-top:.4rem; }
+.awaiting-state { border-color:#d5a126; color:#8a6400; }
+.linked-state { border-color:var(--color-success); color:var(--color-success); }

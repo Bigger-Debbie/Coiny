@@ -46,3 +46,5 @@ button:disabled { opacity:.55; cursor:default; transform:none; }
 
 .paycheck-details { margin:1rem 0; }
 .paycheck-details summary { cursor:pointer; font-weight:700; color:var(--color-primary); }
+
+.allocations-heading { margin-top:1.5rem; }

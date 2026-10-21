@@ -37,4 +37,28 @@ describe('BillPayment', () => {
     request.flush({ detail: 'Please reload this bill.' }, { status: 409, statusText: 'Conflict' }); f.detectChanges();
     expect(c.busy()).toBe(false); expect(f.nativeElement.querySelector('[role="alert"]').textContent).toContain('Please reload');
   });
+  it('offers transfer linking for a contribution and marks it paid without creating a transaction', () => {
+    const f = TestBed.createComponent(BillPayment); f.componentRef.setInput('bill', { ...bill, allocationType: 'Investments', name: 'IRA', payment: { isPaid: false, paidOn: null, note: null, transactionId: null } }); f.detectChanges();
+    const c = f.componentInstance;
+    f.nativeElement.querySelector('.link-section button').click(); f.detectChanges();
+    const entry = { id: 12, date: '2026-10-15', amount: 100, description: 'Contribution', accountName: 'IRA', categoryName: 'Transfer', categoryType: 'Transfer' as const, transferDirection: 'In' as const, exactAmount: true };
+    http.expectOne(r => r.url.endsWith('/transactions')).flush([entry]); f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Mark this contribution paid'); expect(f.nativeElement.textContent).toContain('expense or transfer'); expect(f.nativeElement.textContent).toContain('Money in');
+    f.nativeElement.querySelector('.candidate').click(); expect(c.isPaid).toBe(true); expect(c.paidOn).toBe(entry.date);
+    c.save(); const request = http.expectOne(r => r.url.endsWith('/payment')); expect(request.request.body).toMatchObject({ isPaid: true, transactionId: 12 }); request.flush(request.request.body);
+    http.expectNone(r => r.method === 'POST');
+  });
+  it('opens the picker directly for awaiting payments and keeps the original payment date when linking', () => {
+    const f = TestBed.createComponent(BillPayment);
+    f.componentRef.setInput('bill', { ...bill, payment: { isPaid: true, paidOn: '2026-10-14', note: null, transactionId: null } });
+    f.componentRef.setInput('startLinking', true); f.detectChanges();
+    const entry = { id: 9, date: '2026-10-15', amount: 105, description: 'Electric', accountName: 'Bills', categoryName: 'Utilities', exactAmount: false };
+    http.expectOne(r => r.url.endsWith('/transactions')).flush([entry]); f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Paid · Awaiting transaction');
+    f.nativeElement.querySelector('.candidate').click(); f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Paid · Linked'); expect(f.componentInstance.paidOn).toBe('2026-10-14');
+    const unlink = [...f.nativeElement.querySelectorAll('button')].find((b: any) => b.textContent.includes('Unlink transaction')) as HTMLButtonElement;
+    unlink.click(); f.detectChanges(); expect(f.nativeElement.textContent).toContain('Paid · Awaiting transaction');
+    expect(f.componentInstance.isPaid).toBe(true);
+  });
 });

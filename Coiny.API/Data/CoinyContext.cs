@@ -23,6 +23,8 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
     public DbSet<BudgetRevision> BudgetRevisions => Set<BudgetRevision>();
     public DbSet<BudgetIncomeSource> BudgetIncomeSources => Set<BudgetIncomeSource>();
     public DbSet<BillPayment> BillPayments => Set<BillPayment>();
+    public DbSet<BudgetCategoryRule> BudgetCategoryRules => Set<BudgetCategoryRule>();
+    public DbSet<TransactionBudgetAssignment> TransactionBudgetAssignments => Set<TransactionBudgetAssignment>();
     public DbSet<BudgetAllocation> BudgetAllocations => Set<BudgetAllocation>();
 
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)

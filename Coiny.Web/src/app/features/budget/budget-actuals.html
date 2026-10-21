@@ -1,0 +1,65 @@
+<section class="panel" aria-label="Planned versus actual allocations" [attr.aria-busy]="loading()">
+  <header><h2>Planned vs. actual</h2><button type="button" class="button-ghost" [disabled]="loading() || saving()" (click)="load()">Refresh</button></header>
+  @if (loading() && !report()) { <p role="status">Comparing your plan with recorded activity…</p> }
+  @else if (error()) { <p role="alert">{{ error() }}</p><button type="button" class="button-outline" (click)="load()">Try again</button> }
+  @else if (report(); as data) {
+    @if (loading()) { <p class="hint" role="status">Updating comparison…</p> }
+    <p class="hint">@if (data.throughDate) { Recorded through {{ data.throughDate | date:'MMM d, yyyy':'UTC' }}. } @else { This future month shows your plan; actuals will appear as transactions are recorded. } Actuals use posting dates. Linked payments take priority over category defaults and individual assignments.</p>
+    <app-budget-comparison-chart [points]="data.points ?? []" />
+    <div class="totals"><div><span>Planned allocations</span><strong>{{ data.planned | currency }}</strong></div><div><span>Recorded against budget</span><strong>{{ data.assignedActual | currency }}</strong></div><div><span>Expenses not assigned</span><strong>{{ data.unassignedExpenses | currency }}</strong></div></div>
+    @if (data.awaitingTransaction) { <p class="awaiting">◷ {{ data.awaitingTransaction | currency }} planned in paid items still awaiting transactions. These amounts are separate from actuals.</p> }
+    <details class="budget-items" open>
+      <summary>Budget items <small>{{ data.items.length }} items · Planned, actual, and remaining</small></summary>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Budget allocation comparison">
+      <table><thead><tr><th>Budget item</th><th>Planned</th><th>Actual</th><th>Remaining</th></tr></thead><tbody>
+        @for (item of data.items; track item.allocationKey) {
+          <tr class="budget-item-row" (click)="showItem(item)"><td><button type="button" class="item-name" [attr.aria-label]="'View transactions for ' + item.name">{{ item.name }}</button><small>{{ item.allocationType === 'Investments' ? 'Investing' : item.allocationType }} · {{ item.transactionCount }} transactions@if (item.awaitingTransaction) { · {{ item.awaitingTransaction | currency }} awaiting transaction }</small></td><td>{{ item.planned | currency }}</td><td>{{ item.actual | currency }}</td><td [class.over]="item.remaining < 0 && !contribution(item)" [class.above-target]="item.remaining < 0 && contribution(item)">{{ item.remaining | currency }}@if (item.remaining < 0) { <small>{{ contribution(item) ? 'Above target' : 'Over plan' }}</small> }</td></tr>
+        }
+      </tbody></table>
+    </div>
+    </details>
+    <details class="defaults"><summary>Category defaults</summary>
+      <p class="hint">Choose where each expense category belongs. Defaults apply from {{ month | date:'MMMM yyyy':'UTC' }} forward, until replaced by a later default. Earlier months keep their previous rules. Transfers require an explicit contribution assignment.</p>
+      <p class="hint">Multiple categories can share one budget item—for example, Movies and Events can both count toward Entertainment. Each category has one default item to avoid double counting.</p>
+      @for (rule of activeCategoryDefaults; track rule.categoryId) {
+        <div class="rule"><label [for]="'budget-category-' + rule.categoryId">{{ rule.categoryName }}</label><app-select-menu [inputId]="'budget-category-' + rule.categoryId" [label]="rule.categoryName + ' budget item'" [disabled]="saving()" [options]="targets" [ngModel]="categoryChoices.get(rule.categoryId) ?? rule.allocationKey ?? ''" (ngModelChange)="categoryChoices.set(rule.categoryId, $event)" /><button type="button" class="button-outline" [disabled]="saving() || !categoryChoices.has(rule.categoryId)" (click)="saveCategory(rule)">Save</button></div>
+      } @empty { <p class="hint">No active expense categories. Add categories from your profile menu or transaction form.</p> }
+    </details>
+    <details class="assignments"><summary>Transaction assignments</summary>
+    <div class="filters"><app-select-menu inputId="budget-actuals-view" label="Assignment view" [options]="views" [(ngModel)]="view" (ngModelChange)="load(1)" /><app-select-menu inputId="budget-actuals-type" label="Activity type" [options]="types" [(ngModel)]="type" (ngModelChange)="load(1)" /></div>
+    @if (type === 'Expense') {
+      <p class="hint">Assign expenses that aren’t covered by a category default. This chooses a budget item without changing the transaction’s category.</p>
+    } @else {
+      <p class="hint">Link scheduled contributions through their calendar item. Use individual transfer assignments for other savings or investment contributions. Linked transfers count once, on the receiving entry’s posting date.</p>
+    }
+    @for (entry of data.transactions; track entry.id) {
+      <div class="transaction"><span>{{ entry.merchant || entry.description }}@if (entry.merchant) { <small>{{ entry.description }}</small> }<small>{{ entry.date | date:'MMM d':'UTC' }} · {{ entry.accountName }} · {{ entry.categoryName }}</small><small>{{ entry.allocationName || 'Not assigned to budget' }}@if (entry.assignmentSource === 'Payment') { · From linked payment } @else if (entry.assignmentSource === 'Override') { · Individual assignment }</small></span><strong>{{ entry.amount | currency }}</strong>@if (entry.assignmentSource !== 'Payment') { <button type="button" class="button-outline" [disabled]="saving()" (click)="edit(entry)">Assign</button> } @else { <small>Manage link in calendar</small> }</div>
+    } @empty { <p class="hint">No recorded transactions match this view.</p> }
+    <nav class="pagination" aria-label="Budget transaction pages"><button class="button-ghost" type="button" [disabled]="page <= 1" (click)="load(page - 1)">Previous</button><span>Page {{ page }} of {{ totalPages }} · {{ data.totalCount }} results</span><button class="button-ghost" type="button" [disabled]="page >= totalPages" (click)="load(page + 1)">Next</button></nav>
+    </details>
+  }
+</section>
+@if (editing(); as entry) {
+  <app-modal title="Assign to budget" [busy]="saving()" (dismiss)="editing.set(null)">
+    <p>{{ entry.description }} · {{ entry.amount | currency }}</p><p class="hint">This changes the budget assignment only. Transaction categories, balances, and payment status stay as they are.</p><label for="transaction-budget-item">Budget item</label><app-select-menu inputId="transaction-budget-item" label="Budget item" [disabled]="saving()" [options]="assignmentTargets" [(ngModel)]="assignment" />
+    @if (editError()) { <p role="alert">{{ editError() }}</p> }
+    <div class="actions"><button type="button" class="button-outline" [disabled]="saving()" (click)="editing.set(null)">Cancel</button><button type="button" class="button-primary" [disabled]="saving()" (click)="saveAssignment()">{{ saving() ? 'Saving…' : 'Save assignment' }}</button></div>
+  </app-modal>
+}
+
+@if (selectedItem(); as item) {
+  <app-modal [title]="item.name + ' transactions'" (dismiss)="closeItem()">
+    <p class="hint">{{ month | date:'MMMM yyyy':'UTC' }} · Transactions use posting dates. Linked transfers count once.</p>
+    @if (itemLoading()) { <p role="status">Loading transactions…</p> }
+    @else if (itemError()) { <p role="alert">{{ itemError() }}</p><button type="button" class="button-outline" (click)="showItem(item)">Try again</button> }
+    @else if (itemReport(); as detail) {
+      <div class="totals"><div><span>Planned</span><strong>{{ item.planned | currency }}</strong></div><div><span>Actual</span><strong>{{ item.actual | currency }}</strong></div><div><span>Remaining</span><strong>{{ item.remaining | currency }}</strong></div></div>
+      <p class="hint">{{ detail.totalCount }} {{ detail.totalCount === 1 ? 'transaction' : 'transactions' }} make up this actual total.</p>
+      @for (entry of detail.transactions; track entry.id) {
+        <div class="item-transaction"><span>{{ entry.merchant || entry.description }}@if (entry.merchant) { <small>{{ entry.description }}</small> }<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }} · {{ entry.accountName }}</small><small>{{ entry.categoryName }} · {{ entry.assignmentSource === 'Payment' ? 'Linked payment' : entry.assignmentSource === 'Override' ? 'Individual assignment' : 'Category default' }}</small></span><strong>{{ entry.amount | currency }}</strong></div>
+      } @empty { <p class="hint">No recorded transactions are assigned to this item for this month.</p> }
+      @if (item.awaitingTransaction) { <p class="awaiting">{{ item.awaitingTransaction | currency }} planned in paid items awaiting transactions. This is separate from the actual total.</p> }
+      @if (itemPages > 1) { <nav class="pagination" aria-label="Budget item transaction pages"><button type="button" class="button-ghost" [disabled]="detail.page <= 1" (click)="showItem(item, detail.page - 1)">Previous</button><span>Page {{ detail.page }} of {{ itemPages }}</span><button type="button" class="button-ghost" [disabled]="detail.page >= itemPages" (click)="showItem(item, detail.page + 1)">Next</button></nav> }
+    }
+  </app-modal>
+}
