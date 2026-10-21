@@ -118,4 +118,32 @@ describe('AppHeader profile menu', () => {
     expect(fixture.nativeElement.querySelector('dialog')).toBeNull(); expect(document.activeElement).toBe(avatar());
   });
 
+  it('opens the compact navigation, includes every destination, and restores focus on Escape', () => {
+    loadProfile();const toggle=fixture.nativeElement.querySelector('.mobile-toggle') as HTMLButtonElement;
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');toggle.click();fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');expect(fixture.componentInstance.menuOpen()).toBe(false);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.navigation-link'));
+    const mobile=fixture.nativeElement.querySelector('.mobile-profile');
+    for(const text of ['Alex','alex@example.test','Household','Categories','Settings','Log out'])expect(mobile.textContent).toContain(text);
+    document.activeElement!.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));fixture.detectChanges();
+    expect(fixture.componentInstance.mobileOpen()).toBe(false);expect(document.activeElement).toBe(toggle);
+  });
+  it('closes mobile navigation on outside click, focus leaving, and route selection', () => {
+    loadProfile();const c=fixture.componentInstance;c.openMobile();document.body.click();fixture.detectChanges();expect(c.mobileOpen()).toBe(false);
+    c.openMobile();const outside=document.createElement('button');document.body.append(outside);outside.focus();fixture.detectChanges();expect(c.mobileOpen()).toBe(false);outside.remove();
+    vi.spyOn(TestBed.inject(Router),'navigateByUrl').mockResolvedValue(true);
+    c.openMobile();fixture.nativeElement.querySelector('.navigation-link').click();fixture.detectChanges();expect(c.mobileOpen()).toBe(false);
+  });
+  it('opens Settings from mobile navigation and returns focus to its toggle on dismissal', async () => {
+    loadProfile();const c=fixture.componentInstance;c.openMobile();fixture.detectChanges();
+    const settings=Array.from(fixture.nativeElement.querySelectorAll('.mobile-profile button') as NodeListOf<HTMLButtonElement>).find(b=>b.textContent?.trim()==='Settings')!;
+    settings.click();fixture.detectChanges();await fixture.whenStable();
+    expect(c.mobileOpen()).toBe(false);http.expectOne(r=>r.url.endsWith('/users/me/preferences')).flush({includeMortgageInNetWorth:true});fixture.detectChanges();await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Settings');
+    fixture.nativeElement.querySelector('[aria-label="Close dialog"]').click();fixture.detectChanges();expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.mobile-toggle'));
+  });
+  it('clears mobile state when resizing to desktop', () => {
+    loadProfile();const c=fixture.componentInstance;c.openMobile();vi.stubGlobal('innerWidth',1024);c.onResize();expect(c.mobileOpen()).toBe(false);
+  });
+
 });

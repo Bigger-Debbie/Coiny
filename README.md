@@ -60,6 +60,7 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
 | [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
 | [CSV transaction import](docs/10-csv-transaction-import.md) | Agreed import workflow, parsing foundation, and delivery sequence |
+| [Product roadmap](docs/11-roadmap.md) | Remaining work, including recurring transactions and subscriptions |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones

@@ -158,3 +158,7 @@ state and refreshes any active dashboard/accounts aggregate view.
 ### Category management
 
 The avatar menu’s **Categories** item opens a household category modal with Expenses and Income tabs. Users can add categories, rename them, archive them, and restore archived categories through the “Show archived categories” option. System categories are protected, and category type stays fixed. Archiving preserves transaction history. Existing Add Transaction buttons and category creation options remain available. Changes use the shared toast notifications.
+
+### Compact navigation
+
+At widths of 760px and below, the header keeps the Coiny brand and replaces the navigation icons/avatar with a hamburger button. Its panel includes Home, Accounts, Budget, user identity, Household, Categories, Settings, and Log out. Links retain active-page highlighting. Escape closes the panel and restores focus to the toggle; outside clicks, focus leaving, and navigation close it as well. Profile modals opened from the panel return focus to the toggle. Wider screens retain the existing desktop navigation.

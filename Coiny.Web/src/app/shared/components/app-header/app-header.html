@@ -4,32 +4,35 @@
             <img src="/assets/icons/favicon.svg" alt="Coiny Logo" class="brand-logo">
             <span class="brand-name">COINY</span>
         </a>
-        <nav class="navigation" aria-label="Main navigation">
+        <button #mobileToggle class="mobile-toggle" type="button" [attr.aria-label]="mobileOpen() ? 'Close navigation' : 'Open navigation'" [attr.aria-expanded]="mobileOpen()" aria-controls="main-navigation" (click)="toggleMobile()" (focusout)="onNavigationFocusOut($event)" (keydown.arrowdown)="openMobile($event)">
+            <svg viewBox="0 0 24 24" aria-hidden="true">@if (mobileOpen()) { <path d="M5 5l14 14M19 5L5 19" /> } @else { <path d="M3 5h18M3 12h18M3 19h18" /> }</svg>
+        </button>
+        <nav #navigationRoot id="main-navigation" class="navigation" [class.mobile-open]="mobileOpen()" aria-label="Main navigation" (focusout)="onNavigationFocusOut($event)">
             <a class="navigation-link" routerLink="/dashboard" routerLinkActive="active"
-                ariaCurrentWhenActive="page" aria-label="Home dashboard" title="Home dashboard">
-                <app-icon class="navigation-icon" name="home"></app-icon>
+                ariaCurrentWhenActive="page" aria-label="Home dashboard" title="Home dashboard" (click)="closeMobile()">
+                <app-icon class="navigation-icon" name="home"></app-icon><span class="navigation-label">Home</span>
             </a>
             <a
                 class="navigation-link"
                 routerLink="/accounts"
                 routerLinkActive="active"
-                aria-label="Accounts">
+                ariaCurrentWhenActive="page" aria-label="Accounts" (click)="closeMobile()">
 
                 <app-icon
                     class="navigation-icon"
                     name="accounts">
-                </app-icon>
+                </app-icon><span class="navigation-label">Accounts</span>
             </a>
             <a 
                 class="navigation-link"
                 routerLink="/budget"
                 routerLinkActive="active"
-                aria-label="Budget">
+                ariaCurrentWhenActive="page" aria-label="Budget" (click)="closeMobile()">
 
                 <app-icon
                     class="navigation-icon"
                     name="budget">
-                </app-icon>
+                </app-icon><span class="navigation-label">Budget</span>
             </a>
             <div class="user" #profileRoot (focusout)="onFocusOut($event)">
                 <button #avatarButton class="avatar-button" type="button" aria-label="Profile menu"
@@ -54,6 +57,16 @@
                         <button #logoutButton type="button" role="menuitem" class="logout-button" (click)="logout()">Log out</button>
                     </div>
                 }
+            </div>
+            <div class="mobile-profile">
+                <div class="profile-details">
+                    <strong>{{ auth.currentUser()?.firstName?.trim() || 'Your account' }}</strong>
+                    <span>{{ auth.currentUser()?.email || (auth.profileLoading() ? 'Loading profile…' : 'Profile unavailable') }}</span>
+                </div>
+                <button class="logout-button" type="button" (click)="openHousehold()">Household</button>
+                <button class="logout-button" type="button" (click)="openCategories()">Categories</button>
+                <button class="logout-button" type="button" (click)="openSettings()">Settings</button>
+                <button class="logout-button" type="button" (click)="logout()">Log out</button>
             </div>
         </nav>
     </div>
