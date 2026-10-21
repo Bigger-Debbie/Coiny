@@ -6,3 +6,5 @@
 .cell-value:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 .cell-value:disabled { cursor: default; }
 input { display: block; width: 100%; min-height: 2.6rem; margin: 0; padding: .5rem .6rem; border: 2px solid var(--color-accent); border-radius: 0; font: inherit; background: white; }
+
+.cell-value, input { box-sizing:border-box; min-width:0; max-width:100%; }

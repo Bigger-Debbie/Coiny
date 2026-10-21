@@ -152,15 +152,15 @@ Current verification baseline after transaction management:
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The last full frontend run had 223 passing tests out of 224; the remaining failure
+- The latest frontend run passed 239 tests, excluding the known starter test; that existing failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
-- Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.39 kB
-  and 4.37 kB respectively). The initial bundle is about 529.80 kB against a
+- Dashboard and accounts CSS exceed their 4 kB warning budgets (about 4.65 kB
+  and 4.39 kB respectively). The initial bundle is about 554.43 kB against a
   500 kB warning budget; the production build still passes. CSV import and the transaction editor load lazily.
-- The backend suite has 112 passing xUnit tests for transaction management, bill payments, batch imports, transfers, recurrence, household-scoped
+- The backend suite has 130 passing xUnit tests for transaction management, bill payments, batch imports, transfers, recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).
@@ -187,3 +187,5 @@ Tracked API `bin/` and `obj/` files currently generate noisy Git changes after a
 build. Keep them out of feature commits. Local SQLite sidecars (`coiny.db-wal`,
 `coiny.db-shm`) and `.DS_Store` may also appear as untracked files. Ignore-rule and
 tracked-artifact cleanup is still separate work; this guide does not remove them.
+
+Multi-account imports require the `20261020201539_AddTransactionImportSessions` migration. It adds a household-scoped receipt table for immutable session retries and does not rewrite existing financial records.

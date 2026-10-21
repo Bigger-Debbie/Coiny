@@ -15,6 +15,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<TransactionImportSession> TransactionImportSessions => Set<TransactionImportSession>();
     public DbSet<TransactionImportBatch> TransactionImportBatches => Set<TransactionImportBatch>();
     public DbSet<AccountBalanceSnapshot> AccountBalanceSnapshots => Set<AccountBalanceSnapshot>();
     public DbSet<HouseholdBudget> HouseholdBudgets => Set<HouseholdBudget>();

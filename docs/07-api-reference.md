@@ -404,7 +404,7 @@ Errors: 400 invalid accounts, dates, amounts, directions, or incompatible pairs;
 entry; 409 already-linked/not-linked entries or a concurrent link change.
 Domain errors use Problem Details; malformed bodies use validation responses.
 The Add Transaction modal supports manual paired, unknown, and external entries.
-Link/unlink matching is available from transaction details. Multi-account import sessions are a future stage.
+Link/unlink matching is available from transaction details. Multi-account import sessions use the endpoints below.
 
 ## Transaction payload
 
@@ -1075,3 +1075,36 @@ Returns existing unlinked Transfer entries from the specified other account in t
 ```
 
 Explicitly creates **one** missing counterpart, using the source amount and opposite direction, and links it to the existing source. Target account must be active, different, and in the current household; the date must be on/after its opening balance date. The source must still be unlinked and match the required expected edit version. The source posting date, amount, description, notes, cleared status, and import provenance remain intact. The new entry copies the description, starts uncleared, has no imported provenance, and uses the supplied posting date. Only the new entry’s account snapshots are recalculated. Changes commit atomically. Returns 201 with outgoing/incoming; stale/already-linked sources return 409. Retrying after success cannot add another counterpart. This operation does not infer whether another bank row exists; choose it only after checking existing entries. Existing pair creation with `POST /api/transfers` remains for brand-new movements, not reconciling movements already recorded.
+
+### Multi-account CSV import sessions
+
+`POST /api/transaction-imports/sessions/validate` and `POST /api/transaction-imports/sessions` require Bearer authentication and household membership.
+
+```json
+{
+  "submissionId": "bcaecf20-488b-41e0-8914-f3d343a7a1ae",
+  "files": [
+    {
+      "accountId": 1,
+      "submissionId": "0550fab1-a431-491b-bfed-a14952a10484",
+      "filename": "bills.csv",
+      "rows": [{ "rowId": 2, "date": "2026-10-20", "amount": 250, "direction": "Out", "categoryType": "Transfer", "counterparty": "Unknown", "description": "Transfer to Spending", "isCleared": true, "allowDuplicate": false }]
+    },
+    {
+      "accountId": 2,
+      "submissionId": "2287c621-b557-4a5d-80e5-1da407b2feb1",
+      "filename": "spending.csv",
+      "rows": [{ "rowId": 2, "date": "2026-10-21", "amount": 250, "direction": "In", "categoryType": "Transfer", "counterparty": "Unknown", "description": "Transfer from Bills", "isCleared": true, "allowDuplicate": false }]
+    }
+  ],
+  "links": [
+    { "first": { "accountId": 1, "rowId": 2, "transactionId": null, "expectedEditVersion": null }, "second": { "accountId": 2, "rowId": 2, "transactionId": null, "expectedEditVersion": null } }
+  ]
+}
+```
+
+Each file uses the single-file request shape (including optional bank-balance acknowledgment). Limits: 1–8 files, one per account, distinct per-file submission IDs, 1–2,000 included rows per file, 8,000 included rows total. `links` may be empty. A link reference identifies either an included row (`accountId` + `rowId`) or an existing household transfer (`accountId` + `transactionId` + required `expectedEditVersion`). At least one side must be new. Each entry can participate only once; pairs require different accounts, equal amounts, and opposite directions.
+
+Validation returns `{ canImport, files: [{ accountId, validation }], suggestions, moreSuggestions }`. Every per-file validation retains its usual categories, duplicates, projected balance, and bank-comparison information. Suggestions contain `first`/`second` entries with `reference`, `accountName`, `date`, `amount`, `direction`, and `description`. New rows are compared against each other and existing unlinked household transfers within ±7 days. Up to 200 suggestions are returned; ambiguous candidates remain choices rather than automatic matches. No writes occur during validation.
+
+Import returns `{ submissionId, files: [singleFileImportResult], linkedPairs }`. All files and accepted pairings save atomically. The endpoint revalidates every file and accepted relationship inside the write transaction. Matching preserves existing entry balances/dates/provenance and adds no extra ledger movements. Every new included row is created once. Successful same-payload retries return the stored session result. Reusing that session ID with different files or links, or reusing a previously imported per-file submission, returns 409. Invalid row checks return 422 with a session validation response; stale matches return 409; malformed/invalid sessions return 400. Uncertain requests must be retried with the original immutable payload, not a new submission ID.

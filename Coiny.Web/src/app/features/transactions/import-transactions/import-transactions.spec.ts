@@ -10,6 +10,7 @@ import { Component, Input, output } from '@angular/core';
 
 @Component({ selector: 'app-import-review', template: '<p>Review stub</p>' })
 class ReviewStub {
+  @Input() sessionMode = false; readonly reviewed = output<unknown>(); readonly reviewInvalidated = output<void>();
   @Input() bankBalance: unknown; @Input() mappedRows: unknown; @Input() account: unknown; @Input() filename = '';
   readonly busyChange = output<boolean>(); readonly lockedChange = output<boolean>(); readonly completed = output<void>();
 }

@@ -22,6 +22,9 @@ public sealed class ImportApiExceptionFilterAttribute : ExceptionFilterAttribute
 {
     public override void OnException(ExceptionContext context)
     {
+        if (context.Exception is ImportSessionValidationException session) {
+            context.Result = new UnprocessableEntityObjectResult(session.Validation); context.ExceptionHandled = true; return;
+        }
         if (context.Exception is ImportValidationException validation)
         {
             context.Result = new UnprocessableEntityObjectResult(validation.Validation); context.ExceptionHandled = true; return;

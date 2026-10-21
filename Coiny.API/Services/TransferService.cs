@@ -114,7 +114,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         if (request.FirstTransactionId == request.SecondTransactionId)
             throw new ArgumentException("Choose two different entries.");
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
-        await using var unit = await context.Database.BeginTransactionAsync();
+        await using var unit = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync() : null;
         var first = await OwnedEntry(request.FirstTransactionId, householdId);
         var second = await OwnedEntry(request.SecondTransactionId, householdId);
         CheckVersion(first, request.ExpectedFirstEditVersion); CheckVersion(second, request.ExpectedSecondEditVersion);
@@ -125,7 +125,7 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
             throw new ArgumentException("Transfers require equal amounts, opposite directions, and different accounts.");
         Pair(first, second);
         await context.SaveChangesAsync();
-        await unit.CommitAsync();
+        if (unit is not null) await unit.CommitAsync();
         var outgoing = first.TransferDirection == TransferDirection.Out ? first : second;
         var incoming = outgoing == first ? second : first;
         return new(await Response(outgoing.Id, householdId), await Response(incoming.Id, householdId));

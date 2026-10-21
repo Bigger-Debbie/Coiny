@@ -65,3 +65,5 @@ Transaction management tests cover moving entries across dates/accounts, categor
 CSV bank balance tests cover dated ledger comparisons, later-history exclusion, mismatch acknowledgment, concurrent balance changes, immutable opening balances, idempotent retries, and unsupported/invalid references.
 
 Mortgage tests cover loan classification/defaults, per-user preference isolation, matching summary/chart calculations, zero-balance mortgages, migration preservation/defaults, and authenticated preference/subtype endpoints.
+
+Multi-account session tests cover atomic file-and-link commits, rollback when a later account fails, matching against existing entries, independent category/duplicate/bank checks, one-to-one link constraints, household isolation, stale-match rejection, idempotent receipts, and authenticated HTTP contracts.

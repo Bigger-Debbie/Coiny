@@ -6,7 +6,7 @@
     <p>{{ isDebt ? 'Amount owed after import' : 'Balance after import' }}: <strong>{{ imported.balanceAfter | currency }}</strong></p>
     <a class="button button-primary" routerLink="/accounts" [queryParams]="{accountId: account.id}">View account</a>
   } @else {
-    <h2 id="review-heading">Review and import</h2>
+    <h2 id="review-heading">{{ sessionMode ? 'Check transaction rows' : 'Review and import' }}</h2>
     <p>{{ included.length }} included · {{ rows().length - included.length }} excluded · {{ transferCount }} transfers.</p>
     <p class="hint">Click cells to edit. Every included row needs a category or Transfer. Click a status label for details.</p>
     @if (loading()) { <p role="status">Loading categories and import history…</p> }
@@ -32,20 +32,21 @@
             <div><label for="review-category-type">Category type</label><app-select-menu inputId="review-category-type" label="New category type" [options]="categoryTypes" [(ngModel)]="categoryType" /></div>
           </div><button class="button-primary" type="button" (click)="saveCategory()">Save Category</button><button class="button-ghost" type="button" (click)="creatingCategory.set(false)">Cancel</button></div>
         }
+        <div class="sheet-tools"><small>Drag column dividers to resize · Focus a divider and use arrow keys</small><button class="button-ghost" type="button" (click)="resetColumnWidths()">Reset column widths</button></div>
         <div class="sheet-legend" aria-label="Row statuses"><span>✓ Ready</span><span>◷ Needs review</span><span>! Fix data</span><span>— Excluded</span><small>Click a cell to edit · Enter saves · Escape cancels · Tab moves to the next cell</small></div>
         <div class="sheet-scroll" tabindex="0" role="region" aria-label="Editable transaction review spreadsheet">
-          <table class="review-table"><thead><tr>
-            <th scope="col" class="row-number"><span class="column-letter">A</span><label><input type="checkbox" [checked]="allFilteredSelected" (change)="selectFiltered($any($event.target).checked)" aria-label="Select all matching rows across pages" />Row</label></th>
-            <th scope="col" class="include-column"><span class="column-letter">B</span>Include</th>
-            <th scope="col"><span class="column-letter">C</span>Date</th>
-            <th scope="col" class="description-column"><span class="column-letter">D</span>Description</th>
-            <th scope="col"><span class="column-letter">E</span>Merchant</th>
-            <th scope="col"><span class="column-letter">F</span>Direction</th>
-            <th scope="col"><span class="column-letter">G</span>Amount</th>
-            <th scope="col"><span class="column-letter">H</span>Category</th>
-            <th scope="col"><span class="column-letter">I</span>Other account</th>
-            <th scope="col"><span class="column-letter">J</span>Bank classification</th>
-            <th scope="col" class="status-column"><span class="column-letter">K</span>Status</th>
+          <table class="review-table" [style.width.px]="tableWidth()" [style.--row-width.px]="columnWidths()[0]"><colgroup>@for (width of columnWidths(); track $index) { <col [style.width.px]="width" /> }</colgroup><thead><tr>
+            <th scope="col" class="row-number"><span class="column-letter">A</span><label><input type="checkbox" [checked]="allFilteredSelected" (change)="selectFiltered($any($event.target).checked)" aria-label="Select all matching rows across pages" />Row</label><app-column-resize [label]="columns[0].label" [width]="columnWidths()[0]" [min]="columns[0].min" [max]="columns[0].max" [defaultWidth]="columns[0].width" (resized)="resizeColumn(0,$event)" /></th>
+            <th scope="col" class="include-column"><span class="column-letter">B</span>Include<app-column-resize [label]="columns[1].label" [width]="columnWidths()[1]" [min]="columns[1].min" [max]="columns[1].max" [defaultWidth]="columns[1].width" (resized)="resizeColumn(1,$event)" /></th>
+            <th scope="col"><span class="column-letter">C</span>Date<app-column-resize [label]="columns[2].label" [width]="columnWidths()[2]" [min]="columns[2].min" [max]="columns[2].max" [defaultWidth]="columns[2].width" (resized)="resizeColumn(2,$event)" /></th>
+            <th scope="col" class="description-column"><span class="column-letter">D</span>Description<app-column-resize [label]="columns[3].label" [width]="columnWidths()[3]" [min]="columns[3].min" [max]="columns[3].max" [defaultWidth]="columns[3].width" (resized)="resizeColumn(3,$event)" /></th>
+            <th scope="col"><span class="column-letter">E</span>Merchant<app-column-resize [label]="columns[4].label" [width]="columnWidths()[4]" [min]="columns[4].min" [max]="columns[4].max" [defaultWidth]="columns[4].width" (resized)="resizeColumn(4,$event)" /></th>
+            <th scope="col"><span class="column-letter">F</span>Direction<app-column-resize [label]="columns[5].label" [width]="columnWidths()[5]" [min]="columns[5].min" [max]="columns[5].max" [defaultWidth]="columns[5].width" (resized)="resizeColumn(5,$event)" /></th>
+            <th scope="col"><span class="column-letter">G</span>Amount<app-column-resize [label]="columns[6].label" [width]="columnWidths()[6]" [min]="columns[6].min" [max]="columns[6].max" [defaultWidth]="columns[6].width" (resized)="resizeColumn(6,$event)" /></th>
+            <th scope="col"><span class="column-letter">H</span>Category<app-column-resize [label]="columns[7].label" [width]="columnWidths()[7]" [min]="columns[7].min" [max]="columns[7].max" [defaultWidth]="columns[7].width" (resized)="resizeColumn(7,$event)" /></th>
+            <th scope="col"><span class="column-letter">I</span>Other account<app-column-resize [label]="columns[8].label" [width]="columnWidths()[8]" [min]="columns[8].min" [max]="columns[8].max" [defaultWidth]="columns[8].width" (resized)="resizeColumn(8,$event)" /></th>
+            <th scope="col"><span class="column-letter">J</span>Bank classification<app-column-resize [label]="columns[9].label" [width]="columnWidths()[9]" [min]="columns[9].min" [max]="columns[9].max" [defaultWidth]="columns[9].width" (resized)="resizeColumn(9,$event)" /></th>
+            <th scope="col" class="status-column"><span class="column-letter">K</span>Status<app-column-resize [label]="columns[10].label" [width]="columnWidths()[10]" [min]="columns[10].min" [max]="columns[10].max" [defaultWidth]="columns[10].width" (resized)="resizeColumn(10,$event)" /></th>
           </tr></thead><tbody>
           @for (row of pageRows; track row.line) {
             <tr [class.row-excluded]="status(row) === 'excluded'" [class.row-error]="status(row) === 'error'" [class.row-review]="status(row) === 'review'" [class.row-ready]="status(row) === 'ready'">
@@ -89,7 +90,7 @@
       @if (busy()) { <p role="status">Checking or saving the batch…</p> }
       @if (validation(); as checked) {
         <div class="import-summary">
-          <h3>{{ canImportReviewed ? 'Ready to import' : checked.balanceComparison ? 'Review the bank balance difference' : 'Some rows need attention' }}</h3>
+          <h3>{{ canImportReviewed ? (sessionMode ? 'File checked' : 'Ready to import') : checked.balanceComparison ? 'Review the bank balance difference' : 'Some rows need attention' }}</h3>
           @if (checked.projectedBalance !== null) {
             <p>{{ included.length }} transactions will be added to {{ account.name }}, including {{ transferCount }} one-sided transfers.</p>
             <p>{{ isDebt ? 'Amount owed' : 'Current balance' }}: {{ checked.currentBalance | currency }} → {{ isDebt ? 'Amount owed after import' : 'Balance after import' }}: <strong>{{ checked.projectedBalance | currency }}</strong></p>
@@ -105,12 +106,16 @@
                 }
               </section>
             }
-            <label class="check-label"><input type="checkbox" [(ngModel)]="finalConfirmed" [disabled]="busy() || locked()" />I’ve reviewed the categories, transfer classifications, and duplicate decisions. Import these transactions.</label>
+            <label class="check-label"><input type="checkbox" [(ngModel)]="finalConfirmed" [disabled]="busy() || locked()" />{{ sessionMode ? 'I’ve checked this file’s categories, transfers, and duplicate decisions. Nothing is imported yet.' : 'I’ve reviewed the categories, transfer classifications, and duplicate decisions. Import these transactions.' }}</label>
           } @else { <p>Correct or exclude flagged rows, then run the check again. Duplicate entries need an explicit Import anyway choice if you keep them.</p> }
         </div>
       }
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-      <button class="button-primary" type="button" [disabled]="busy() || (!locked() && (!canImportReviewed || !finalConfirmed))" (click)="import()">{{ locked() ? 'Retry this batch safely' : 'Import ' + included.length + ' transactions' }}</button>
+      @if (canImportReviewed || locked()) {
+        <div class="review-next-actions">
+      <button class="button-primary" type="button" [disabled]="busy() || (!locked() && (!canImportReviewed || !finalConfirmed))" (click)="import()">{{ sessionMode ? 'File checked — continue →' : locked() ? 'Retry this batch safely' : 'Import ' + included.length + ' transactions' }}</button>
+        </div>
+      }
     }
   }
 </section>

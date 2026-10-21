@@ -1,3 +1,4 @@
+import type { ImportSession } from './features/transactions/import-session/import-session';
 import { Routes } from '@angular/router';
 import { Login } from './features/auth/login/login';
 import { Dashboard } from './features/dashboard/dashboard';
@@ -5,7 +6,6 @@ import { householdGuard } from './core/guards/household-guard';
 import { authGuard } from './core/guards/auth-guard';
 import { AppLayout } from './layouts/app-layout/app-layout';
 import type { Budget } from './features/budget/budget';
-import type { ImportTransactions } from './features/transactions/import-transactions/import-transactions';
 import { Accounts } from './features/accounts/accounts';
 
 export const routes: Routes = [
@@ -21,7 +21,8 @@ export const routes: Routes = [
         canActivate: [authGuard],
         canActivateChild: [householdGuard],
         children: [
-        { path: 'accounts/import', loadComponent: () => import('./features/transactions/import-transactions/import-transactions').then(m => m.ImportTransactions), canDeactivate: [(component: ImportTransactions) => component.canLeave()] },
+        { path: 'accounts/import-session', redirectTo: ({ queryParams }) => '/accounts/import?' + new URLSearchParams(queryParams).toString() },
+        { path: 'accounts/import', loadComponent: () => import('./features/transactions/import-session/import-session').then(m => m.ImportSession), canDeactivate: [(component: ImportSession) => component.canLeave()] },
         { path: 'accounts/new', redirectTo: ({ queryParams }) => '/accounts?' + new URLSearchParams({ ...queryParams, create: 'account' }).toString() },
         { path: 'household', loadComponent: () => import('./features/households/household-dialog').then(m => m.HouseholdDialog) },
         { path: 'accounts', component: Accounts },

@@ -29,6 +29,13 @@ describe('Import transaction review', () => {
     http.expectOne(r => r.url.endsWith('/transaction-imports')).flush([]);
     f.detectChanges(); await f.whenStable(); return f;
   }
+  it('shows the continue action only after successful checks and hides it after edits', async () => {
+    const f=await render();const c=f.componentInstance;
+    expect(f.nativeElement.querySelector('.review-next-actions')).toBeNull();
+    c.validate();http.expectOne(r=>r.url.endsWith('/validate')).flush(valid());f.detectChanges();
+    expect(f.nativeElement.querySelector('.review-next-actions button')).toBeTruthy();
+    c.changed(true);f.detectChanges();expect(f.nativeElement.querySelector('.review-next-actions')).toBeNull();
+  });
   it('requires balance difference acknowledgment and binds it to the reviewed calculation', async () => {
     const f = await render([mapped()], { date: '2026-10-16', balance: 1000 }); const c = f.componentInstance;
     c.validate(); const preview = http.expectOne(r => r.url.endsWith('/validate'));
@@ -132,4 +139,14 @@ describe('Import transaction review', () => {
     expect(f.nativeElement.querySelector('#row-details').textContent).toContain('opening date');
     expect(f.nativeElement.querySelectorAll('app-review-cell input')).toHaveLength(0);
   });
+  it('resizes and resets column widths without changing review data or validation', () => {
+    const f=TestBed.createComponent(ImportReview); const c=f.componentInstance;
+    const original=c.rows(); const validation=c.validation();
+    c.resizeColumn(3,500); expect(c.columnWidths()[3]).toBe(500);
+    c.resizeColumn(3,1); expect(c.columnWidths()[3]).toBe(c.columns[3].min);
+    c.resizeColumn(3,9999); expect(c.columnWidths()[3]).toBe(c.columns[3].max);
+    c.resetColumnWidths(); expect(c.columnWidths()).toEqual(c.columns.map(column=>column.width));
+    expect(c.rows()).toBe(original); expect(c.validation()).toBe(validation);
+  });
+
 });

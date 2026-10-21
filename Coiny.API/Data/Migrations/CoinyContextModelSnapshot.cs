@@ -666,6 +666,38 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("TransactionImportBatches");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.TransactionImportSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "SubmissionId")
+                        .IsUnique();
+
+                    b.ToTable("TransactionImportSessions");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -1070,6 +1102,17 @@ namespace Coiny.API.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+
+                    b.Navigation("Household");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.TransactionImportSession", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Household");
                 });

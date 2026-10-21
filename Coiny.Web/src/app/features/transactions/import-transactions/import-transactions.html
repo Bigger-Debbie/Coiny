@@ -1,9 +1,12 @@
 <div class="import-page">
-  <div class="page-heading"><div><small class="step-label">{{ step() === 'mapping' ? 'Step 1 of 2 · File and mapping' : 'Step 2 of 2 · Review and import' }}</small><h1 class="page-title">{{ step() === 'mapping' ? 'Import transactions' : 'Review transactions' }}</h1></div>
+  @if (!sessionMode) { <div class="page-heading"><div><small class="step-label">{{ step() === 'mapping' ? 'Step 1 of 2 · File and mapping' : 'Step 2 of 2 · Review and import' }}</small><h1 class="page-title">{{ step() === 'mapping' ? 'Import transactions' : 'Review transactions' }}</h1></div>
     @if (step() === 'review' && !importCompleted()) { <button class="button-outline" type="button" [disabled]="importBusy() || importLocked()" (click)="backToMapping()">← Back to mapping</button> }
     @else { <a class="button button-outline" routerLink="/accounts" [queryParams]="accountId ? {accountId: accountId} : null">Back to accounts</a> }
   </div>
+  } @else if (step() === 'review') { <button class="button-outline" type="button" (click)="backToMapping()">← Back to column mapping</button> }
+  @if (!sessionMode || step() === 'mapping') {
   <p class="intro">{{ step() === 'mapping' ? 'Choose your account and match the columns in your bank export.' : selectedAccount?.name + ' · ' + filename }}</p>
+  }
   @if (loading()) { <p role="status">Loading accounts…</p> }
   @else if (loadError()) { <p role="alert">Your accounts couldn’t load.</p><button class="button-primary" (click)="loadAccounts()">Try again</button> }
   @else if (!accounts().length) { <p>Add an account before importing its transaction history.</p><a class="button button-primary" routerLink="/accounts" [queryParams]="{create: 'account'}">+ Add Account</a> }
@@ -13,8 +16,8 @@
     <section class="panel" aria-labelledby="file-heading">
       <h2 id="file-heading">Account and file</h2>
       <div class="fields">
-        <div><label for="import-account">Destination account in Coiny</label><app-select-menu inputId="import-account" label="Destination account" [options]="accountOptions" [(ngModel)]="accountId" (ngModelChange)="invalidate()" /></div>
-        <div><label for="csv-file">Bank CSV export</label><input id="csv-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" [disabled]="reading()" (change)="chooseFile($event)" /><small>{{ filename ? 'Current file: ' + filename + '. ' : '' }}Up to 2,000 rows and 2 MB.</small></div>
+        <div><label for="import-account">Destination account in Coiny</label><app-select-menu inputId="import-account" label="Destination account" [options]="accountOptions" [disabled]="sessionMode" [(ngModel)]="accountId" (ngModelChange)="invalidate()" /></div>
+        <div><label for="csv-file">Bank CSV export</label><input [hidden]="sessionMode" id="csv-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" [disabled]="reading()" (change)="chooseFile($event)" /><small>{{ filename ? 'Current file: ' + filename + '. ' : '' }}Up to 2,000 rows and 2 MB.</small></div>
       </div>
       @if (selectedAccount; as account) { <p class="hint">{{ account.name }} starts on {{ account.openingBalanceDate }}. Earlier transactions will be flagged. Its opening balance should be the balance before the history you import.</p> }
       @if (reading()) { <p role="status">Reading your file…</p> }
@@ -77,7 +80,7 @@
           @for (status of statuses; track status) { <label><input type="checkbox" [checked]="excludedStatuses.includes(status)" (change)="toggleStatus(status, $any($event.target).checked)" />{{ status || '(empty)' }}</label> }
           </fieldset>
         }
-        <div class="table-scroll"><table><caption>First three source records</caption><thead><tr>@for (header of csv.headers; track $index) { <th scope="col">{{ $index + 1 }}. {{ header }}</th> }</tr></thead><tbody>@for (row of csv.rows.slice(0, 3); track row.line) { <tr>@for (value of row.values; track $index) { <td>{{ value }}</td> }</tr> }</tbody></table></div>
+        <details [open]="!sessionMode"><summary>View sample rows from your file</summary><div class="table-scroll"><table><caption>First three source records</caption><thead><tr>@for (header of csv.headers; track $index) { <th scope="col">{{ $index + 1 }}. {{ header }}</th> }</tr></thead><tbody>@for (row of csv.rows.slice(0, 3); track row.line) { <tr>@for (value of row.values; track $index) { <td>{{ value }}</td> }</tr> }</tbody></table></div></details>
         <label class="confirmation"><input type="checkbox" [(ngModel)]="confirmed" />I’ve checked the destination account, date format, and money direction.</label>
         <button class="button-primary" type="button" (click)="showPreview()">Preview transactions →</button>
         @if (preview().length) { <small>Your row edits are preserved. Changing a mapping resets the review.</small> }
@@ -88,7 +91,7 @@
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
     @if (preview().length) {
       @if (selectedAccount; as account) {
-        <app-import-review [hidden]="step() !== 'review'" [mappedRows]="preview()" [bankBalance]="bankBalance()" [account]="account" [filename]="filename" (busyChange)="importBusy.set($event)" (lockedChange)="importLocked.set($event)" (completed)="importCompleted.set(true)" />
+        <app-import-review [sessionMode]="sessionMode" (reviewed)="reviewed.emit($event)" (reviewInvalidated)="reviewInvalidated.emit()" [hidden]="step() !== 'review'" [mappedRows]="preview()" [bankBalance]="bankBalance()" [account]="account" [filename]="filename" (busyChange)="importBusy.set($event)" (lockedChange)="importLocked.set($event)" (completed)="importCompleted.set(true)" />
       }
     }
     @if (importCompleted()) { <button class="button-outline" type="button" (click)="restart()">Import another file</button> }

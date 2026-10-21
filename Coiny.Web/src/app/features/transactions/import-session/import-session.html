@@ -1,0 +1,55 @@
+<div class="session-page">
+  <header class="page-heading"><div><small>Step {{ step }} of {{ totalSteps }}</small><h1 class="page-title">{{ stage() === 'done' ? 'Import complete' : 'Import transactions' }}</h1></div><a class="button button-outline" routerLink="/accounts">Back to accounts</a></header>
+  @if (stage() !== 'done') { <ol class="progress" aria-label="Import progress"><li [class.current]="step===1" [attr.aria-current]="step===1?'step':null">1. Files</li><li [class.current]="step===2" [attr.aria-current]="step===2?'step':null">2. Review each file</li>@if (hasMatchingStep) { <li [class.current]="stage()==='transfers'" [attr.aria-current]="stage()==='transfers'?'step':null">3. Match transfers</li> }<li [class.current]="stage()==='confirm'" [attr.aria-current]="stage()==='confirm'?'step':null">{{ totalSteps }}. Confirm</li></ol> }
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (busy()) { <p role="status">{{ locked ? 'Saving your session…' : 'Checking account data and transfer matches…' }}</p> }
+  @if (stage()==='files') {
+    <section class="panel"><h2>Which accounts are you updating?</h2><p>Add one or more bank exports, then choose the Coiny account for each file.</p>
+      @if (loading()) { <p role="status">Loading accounts…</p> }
+      @else if (!accounts().length) { <p>No active accounts are available.</p><button class="button-outline" (click)="loadAccounts()">Reload accounts</button><a routerLink="/accounts" [queryParams]="{create:'account'}">Add an account</a> }
+      @else {
+        <label class="upload">Choose CSV files<input type="file" multiple accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" (change)="addFiles($event)" /></label><small>Up to 8 files · 2 MB each · one file per account · 8,000 included transactions in total.</small>
+        <div class="file-list">@for (file of files(); track file.id) {
+          <article class="file-card"><div><strong>{{ file.file.name }}</strong><small>{{ (file.file.size / 1024).toFixed(1) }} KB</small></div>
+            <div><label [for]="'file-account-'+file.id">Coiny account</label><app-select-menu [inputId]="'file-account-'+file.id" [label]="'Account for '+file.file.name" [options]="accountOptions(file)" [(ngModel)]="file.accountId" /></div>
+            <button class="button-ghost" type="button" (click)="remove(file)" [attr.aria-label]="'Remove '+file.file.name">Remove</button></article>
+        }</div>
+        <div class="actions"><button class="button-primary" [disabled]="!files().length" (click)="start()">{{ files().length === 1 ? 'Review file →' : 'Review files →' }}</button></div>
+      }
+    </section>
+  }
+  @if (stage()==='review') {
+    <section class="file-context" aria-label="Current file"><div><h2>{{ accountName(files()[active()].accountId) }}</h2><p>{{ files().length > 1 ? 'File ' + (active()+1) + ' of ' + files().length + ' · ' : '' }}{{ files()[active()].file.name }}</p><p class="hint">Check this file’s columns, then its transaction rows. Nothing is imported until the final step.</p></div><button class="button-outline" [disabled]="anyBusy || locked" (click)="backToFiles()">← Files</button></section>
+    @if (files().length > 1) { <nav class="file-tabs" aria-label="Files to review">@for (file of files(); track file.id; let i=$index) { <button type="button" [class.current]="active()===i" [disabled]="anyBusy || locked" (click)="reviewFile(i)" [attr.aria-current]="active()===i?'step':null">{{ accountName(file.accountId) }} <span>{{ file.request ? '✓ Checked' : 'Needs review' }}</span></button> }</nav> }
+    @if (ready) { <button class="button-primary" [disabled]="anyBusy" (click)="checkSession()">Continue →</button> }
+  }
+  <div [hidden]="stage()!=='review'"><ng-container #fileHost /></div>
+  @if (stage()==='transfers') {
+    <section class="panel"><h2>Do these transfers belong together?</h2><p>Select the pairs you recognize. Coiny will link them without adding another transaction.</p><p class="hint">Suggestions compare equal amounts and opposite directions within 7 days. Both posting dates are preserved. Unsure? Leave a match unchecked and link it later.</p>
+      <div class="match-summary"><strong>{{ accepted().length }} pairs selected</strong><span>{{ unmatchedTransfers }} new transfer entries will remain unlinked</span></div>
+      @if (validation()?.moreSuggestions) { <p class="hint">Showing the first 200 suggestions. Remaining transfers can be linked individually after import.</p> }
+      @for (match of shownSuggestions; track match) {
+        <label class="match-card" [class.selected]="selected(match)" [class.unavailable]="unavailable(match)"><input type="checkbox" [ngModel]="selected(match)" (ngModelChange)="toggle(match,$event)" [disabled]="unavailable(match) || anyBusy || locked" />
+          <div class="match-body"><div class="match-title"><strong>{{ match.first.amount | currency }}</strong><small>{{ match.first.date===match.second.date?'Same posting date':'Different posting dates — review' }}</small></div><div class="pair">
+            @for (entry of [match.first,match.second]; track $index) { <div><strong>{{ entry.accountName }}</strong><span>{{ entry.direction==='Out'?'Money out':'Money in' }} · {{ entry.date | date:'MMM d, yyyy':'UTC' }}</span><span>{{ entry.description }}</span><small>{{ entry.reference.transactionId!==null?'Already recorded in Coiny':'From this import · row '+entry.reference.rowId }}</small></div> }
+          </div>@if (unavailable(match)) { <small>One entry is used in another selected pair. Uncheck that pair to choose this one.</small> }</div>
+        </label>
+      } @empty { <div class="empty-state"><h3>No transfer matches to review</h3><p>Your files can still be imported. Unmatched transfers stay as single entries.</p></div> }
+      @if (pageCount>1) { <nav class="pagination" aria-label="Transfer suggestion pages"><button class="button-ghost" [disabled]="page<=1" (click)="page=page-1">Previous</button><span>{{ page }} / {{ pageCount }}</span><button class="button-ghost" [disabled]="page>=pageCount" (click)="page=page+1">Next</button></nav> }
+      <div class="actions"><button class="button-outline" [disabled]="anyBusy" (click)="reviewFile(active())">← Review files</button><button class="button-primary" [disabled]="anyBusy" (click)="confirmStep()">Review import summary →</button></div>
+    </section>
+  }
+  @if (stage()==='confirm') {
+    <section class="panel"><h2>Ready to update your accounts?</h2><p>{{ totalRows }} new transactions · {{ accepted().length }} transfer pairs · {{ unmatchedTransfers }} unmatched transfer entries.</p>
+      <div class="summary-list">@for (check of validation()?.files; track check.accountId) {
+        <article><div><strong>{{ accountName(check.accountId) }}</strong><small>{{ rowCount(check.accountId) }} new transactions</small></div><div class="balance"><span>{{ check.validation.currentBalance | currency }} → <strong>{{ check.validation.projectedBalance | currency }}</strong></span><small>Balance after import{{ check.validation.balanceComparison ? (check.validation.balanceComparison.requiresAcknowledgment ? ' · bank difference acknowledged' : ' · bank balance matches') : '' }}</small></div></article>
+      }</div>
+      <p class="hint">Each bank row is imported once. Selected matches only connect entries; they do not move money again. Everything saves together.</p>
+      <label class="check"><input type="checkbox" [(ngModel)]="confirmed" [disabled]="anyBusy || locked" /> I’ve reviewed each account and the transfer matches. Unmatched transfers can stay unlinked.</label>
+      <div class="actions"><button class="button-outline" [disabled]="anyBusy || locked" (click)="hasMatchingStep ? stage.set('transfers') : reviewFile(active())">{{ hasMatchingStep ? '← Transfer matches' : '← Review file' }}</button><button class="button-primary" [disabled]="anyBusy || (!locked && !confirmed)" (click)="save()">{{ locked?'Retry this session safely':'Import '+totalRows+' transactions' }}</button></div>
+    </section>
+  }
+  @if (stage()==='done' && result(); as done) {
+    <section class="panel"><h2>Your accounts are up to date</h2><p>{{ done.linkedPairs }} transfer pairs linked. No extra transfer entries were created.</p><div class="summary-list">@for (file of done.files; track file.accountId) { <article><div><strong>{{ accountName(file.accountId) }}</strong><small>{{ file.importedCount }} transactions · {{ file.filename }}</small></div><strong>{{ file.balanceAfter | currency }}</strong></article> }</div><div class="actions"><a class="button button-primary" routerLink="/accounts">View accounts</a></div></section>
+  }
+</div>

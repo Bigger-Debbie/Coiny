@@ -1,5 +1,6 @@
+import { ColumnResize } from '../../../shared/components/column-resize/column-resize';
 import { ToastService, notificationSignal } from '../../../core/services/toast.service';
-import { Component, DestroyRef, inject, Input, OnChanges, output, signal } from '@angular/core';
+import { Component, computed, DestroyRef, inject, Input, OnChanges, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -18,12 +19,30 @@ interface ReviewRow extends ImportReviewRow {
   selected: boolean; categoryChoice: string | null; counterparty: 'Unknown' | 'External'; allowDuplicate: boolean;
 }
 
-@Component({ selector: 'app-import-review', host: { 'data-review-surface': '' }, imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink, SelectMenu, ReviewCell],
+@Component({ selector: 'app-import-review', host: { 'data-review-surface': '' }, imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink, SelectMenu, ReviewCell, ColumnResize],
   templateUrl: './import-review.html', styleUrls: ['./import-transactions.css', './import-review.css'] })
 export class ImportReview implements OnChanges {
+  readonly columns = [
+    {label:'Row',width:80,min:72,max:160}, {label:'Include',width:64,min:64,max:120},
+    {label:'Date',width:120,min:112,max:200}, {label:'Description',width:320,min:160,max:720},
+    {label:'Merchant',width:160,min:112,max:480}, {label:'Direction',width:112,min:104,max:200},
+    {label:'Amount',width:112,min:104,max:240}, {label:'Category',width:240,min:160,max:480},
+    {label:'Other account',width:184,min:144,max:480}, {label:'Bank classification',width:160,min:128,max:400},
+    {label:'Status',width:144,min:128,max:240},
+  ];
+  readonly columnWidths = signal(this.columns.map(column => column.width));
+  readonly tableWidth = computed(() => this.columnWidths().reduce((sum,width) => sum+width,0));
+  resizeColumn(index:number,width:number) {
+    const column=this.columns[index]; if(!column || !Number.isFinite(width)) return;
+    this.columnWidths.update(widths=>widths.map((value,i)=>i===index?Math.round(Math.max(column.min,Math.min(column.max,width))):value));
+  }
+  resetColumnWidths() { this.columnWidths.set(this.columns.map(column=>column.width)); }
   private readonly toasts = inject(ToastService);
   @Input({ required: true }) mappedRows: readonly ImportReviewRow[] = [];
   @Input({ required: true }) account!: Account;
+  @Input() sessionMode = false;
+  readonly reviewed = output<TransactionImportRequest>();
+  readonly reviewInvalidated = output<void>();
   @Input() bankBalance: BankBalanceReference | null = null;
   @Input({ required: true }) filename = '';
   readonly busyChange = output<boolean>();
@@ -130,7 +149,7 @@ export class ImportReview implements OnChanges {
         error: () => { this.loadError.set(true); this.loading.set(false); },
       });
   }
-  changed(keepDuplicates = false): void { this.balanceAcknowledged = false; this.validation.set(null); if (!keepDuplicates) this.lastChecks.set([]); this.finalConfirmed = false; this.error.set(''); this.notice.set(''); this.submissionId = crypto.randomUUID(); }
+  changed(keepDuplicates = false): void { this.reviewInvalidated.emit(); this.balanceAcknowledged = false; this.validation.set(null); if (!keepDuplicates) this.lastChecks.set([]); this.finalConfirmed = false; this.error.set(''); this.notice.set(''); this.submissionId = crypto.randomUUID(); }
   directionChanged(row: ReviewRow): void { if (row.categoryChoice !== 'transfer') row.categoryChoice = null; this.changed(); }
   filterChanged(): void { this.page = 1; this.rows().forEach(row => row.selected = false); }
   selectFiltered(selected: boolean): void { const filtered = new Set(this.filtered); this.rows().forEach(row => { if (filtered.has(row)) row.selected = selected; }); }
@@ -168,6 +187,7 @@ export class ImportReview implements OnChanges {
   import(): void {
     if (this.busy() || this.result()) return;
     if (!this.pendingRequest && (!this.canImportReviewed || !this.finalConfirmed)) return;
+    if (this.sessionMode) { this.reviewed.emit(this.request()); return; }
     this.pendingRequest ??= this.request();
     this.locked.set(true); this.lockedChange.emit(true); this.setBusy(true); this.error.set('');
     this.api.import(this.pendingRequest).pipe(takeUntilDestroyed(this.destroy)).subscribe({

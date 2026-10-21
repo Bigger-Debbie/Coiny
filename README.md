@@ -75,3 +75,5 @@ password recovery, and complete expired-session handling remain future work.
 
 For current development limitations and test status, see the
 [setup guide](docs/06-development-setup.md#verification).
+
+CSV import supports multi-account sessions with independent file mapping, per-account spreadsheet review, explicit transfer matching across files or existing entries, and one atomic final save. The same flow handles a single file, hiding file-switching controls and skipping transfer matching when there are no suggestions.

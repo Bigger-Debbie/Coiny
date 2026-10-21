@@ -31,7 +31,7 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
         var householdId = await user.GetCurrentHouseholdIdAsync();
         var userId = user.GetUserId() ?? throw new UnauthorizedAccessException();
         var hash = Hash(request);
-        await using var unit = await context.Database.BeginTransactionAsync();
+        await using var unit = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync() : null;
         var existing = await context.TransactionImportBatches.AsNoTracking().SingleOrDefaultAsync(b =>
             b.HouseholdId == householdId && b.SubmissionId == request.SubmissionId);
         if (existing is not null) return Replay(existing, hash);
@@ -81,10 +81,10 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
             // Rebuild once from the earliest imported date, rather than once per row.
             await snapshots.RecalculateFromAsync(request.AccountId, request.Rows.Min(r => r.Date!.Value));
             await context.SaveChangesAsync();
-            await unit.CommitAsync();
+            if (unit is not null) await unit.CommitAsync();
             return Response(batch);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 })
+        catch (DbUpdateException ex) when (unit is not null && ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 })
         {
             await unit.RollbackAsync();
             context.ChangeTracker.Clear();

@@ -1,5 +1,5 @@
 import { notificationSignal } from '../../../core/services/toast.service';
-import { Component, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
+import { Component, effect, DestroyRef, HostListener, inject, Input, OnInit, output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -8,7 +8,7 @@ import { Account } from '../../../shared/models/account/account';
 import { SelectMenu, SelectOption } from '../../../shared/components/select-menu/select-menu';
 import { CSV_MAX_BYTES, CsvDelimiter, CsvDocument, CsvError, parseCsv } from './csv-parser';
 import { BankBalanceOrder, bankBalanceReference, CsvDateFormat, CsvMapping, ImportReviewRow, mapCsv, suggestColumns } from './csv-mapping';
-import { BankBalanceReference } from '../../../shared/models/transactions/transaction-import';
+import { BankBalanceReference, TransactionImportRequest } from '../../../shared/models/transactions/transaction-import';
 import { ImportReview } from './import-review';
 
 @Component({
@@ -16,6 +16,16 @@ import { ImportReview } from './import-review';
   templateUrl: './import-transactions.html', styleUrl: './import-transactions.css',
 })
 export class ImportTransactions implements OnInit {
+  @Input() sessionMode = false;
+  @Input() sessionFile: File | null = null;
+  @Input() sessionAccountId = 0;
+  readonly sessionBusy = output<boolean>();
+  constructor() { effect(() => { this.sessionBusy.emit(this.reading() || this.importBusy() || this.loading()); }); }
+  readonly reviewed = output<TransactionImportRequest>();
+  readonly reviewInvalidated = output<void>();
+  @ViewChild(ImportReview) private review?: ImportReview;
+  recheckReview() { this.review?.changed(true); }
+
   private readonly accountsApi = inject(AccountService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -86,7 +96,9 @@ export class ImportTransactions implements OnInit {
   get excludedCount(): number { return this.preview().filter(row => row.excluded).length; }
 
   ngOnInit(): void {
-    this.loadAccounts(); this.destroy.onDestroy(() => this.readVersion++);
+    this.destroy.onDestroy(() => this.readVersion++);
+    if (this.sessionMode) { this.accountId = this.sessionAccountId; this.file = this.sessionFile ?? undefined; this.loadAccounts(); if (this.file) void this.readFile(); return; }
+    this.loadAccounts();
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroy)).subscribe(params => {
       const review = params.get('step') === 'review';
       if (!review && (this.importBusy() || this.importLocked())) { void this.navigateStep('review', true); return; }
@@ -98,6 +110,7 @@ export class ImportTransactions implements OnInit {
   private navigateStep(step: 'mapping' | 'review', replaceUrl = false): Promise<boolean> {
     this.step.set(step);
     window.scrollTo({ top: 0, behavior: 'instant' });
+    if (this.sessionMode) return Promise.resolve(true);
     return this.router.navigate([], { relativeTo: this.route, queryParams: { step: step === 'review' ? 'review' : null }, queryParamsHandling: 'merge', replaceUrl });
   }
   loadAccounts(): void {
@@ -147,7 +160,7 @@ export class ImportTransactions implements OnInit {
       this.statusChanged();
     } catch (error) { this.error.set(error instanceof Error ? error.message : 'The CSV couldn’t be parsed.'); }
   }
-  invalidate(): void { if (this.importBusy() || this.importLocked()) return; this.preview.set([]); this.bankBalance.set(null); this.confirmed = false; }
+  invalidate(): void { this.reviewInvalidated.emit(); if (this.importBusy() || this.importLocked()) return; this.preview.set([]); this.bankBalance.set(null); this.confirmed = false; }
   statusChanged(): void { this.excludedStatuses = this.statuses.filter(value => /\bpending\b/i.test(value)); this.invalidate(); }
   toggleStatus(status: string, excluded: boolean): void {
     this.excludedStatuses = excluded ? [...this.excludedStatuses, status] : this.excludedStatuses.filter(value => value !== status);
