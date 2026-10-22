@@ -429,3 +429,23 @@ links when its identity and occurrence remain intact. Draft edits never release
 live links. Earlier-month links remain when the plan for that month still contains
 the occurrence. Released payments retain their paid date and notes; no ledger entry
 or balance is changed. Their transactions become available for linking again.
+
+### Browsing income periods
+
+Previous and Next move to the date before the selected period starts and its next
+payday respectively, using the existing `income-period?asOf=` API. Current returns
+to today's period. The selected household/individual income schedule is preserved.
+Period navigation updates bills, contributions, totals, and calendar shading without
+changing the overall monthly outlook selection.
+
+A period within one month shows that full month. A period spanning months shows
+both full months, side by side on wide screens and stacked on smaller screens.
+Longer periods (for example annual income) show each covered month. One shared day
+details area supports dates and payment actions from every displayed month.
+Calendar months and payment states reload after payment changes, retaining the
+selected period. Incomplete periods still show their available month and explain
+why dates or navigation are unavailable. No forecasting amounts are added.
+
+The remaining income is labeled **Potential savings** in the monthly totals,
+wizard summary, and donut. Its segment is consistently green and uses a thinner
+ring while preserving the correct percentage of total income.

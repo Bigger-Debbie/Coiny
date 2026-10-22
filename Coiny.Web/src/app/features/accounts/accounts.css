@@ -55,3 +55,7 @@ a:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid
 .loan-form { border:0; padding:0; margin:0; } .loan-actions { display:flex; justify-content:flex-end; gap:.75rem; margin-top:1rem; }
 
 .account-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.75rem; }
+
+.category-pane-shell { position:relative; min-width:0; min-height:43rem; }
+.category-pane-shell > app-category-breakdown { position:absolute; inset:0; }
+@media(max-width:1050px) { .category-pane-shell { min-height:0; } .category-pane-shell > app-category-breakdown { position:static; } }

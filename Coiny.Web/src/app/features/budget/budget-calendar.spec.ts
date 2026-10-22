@@ -16,6 +16,49 @@ describe('BudgetCalendar', () => {
   beforeEach(() => { TestBed.configureTestingModule({ imports: [BudgetCalendar], providers: [provideHttpClient(), provideHttpClientTesting()] }); http = TestBed.inject(HttpTestingController); });
   afterEach(() => http.verify());
   function render() { const f = TestBed.createComponent(BudgetCalendar); f.componentRef.setInput('month', month); f.detectChanges(); http.expectOne(r => r.url.endsWith('/income-period')).flush(period); f.detectChanges(); return f; }
+  it('navigates using payday boundaries and preserves the income schedule', () => {
+    const f = render(); const c = f.componentInstance;
+    c.selectSource('salary-a'); http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, sourceKey: 'salary-a' });
+    c.nextPeriod();
+    const next = http.expectOne(r => r.url.endsWith('/income-period'));
+    expect(next.request.params.get('asOf')).toBe('2026-10-23'); expect(next.request.params.get('sourceKey')).toBe('salary-a');
+    next.flush({ ...period, startDate: '2026-10-23', endDate: '2026-10-29', nextPayday: '2026-10-30' });
+    expect(c.selectedDay()).toBe('2026-10-23');
+    c.previousPeriod(); const previous = http.expectOne(r => r.url.endsWith('/income-period'));
+    expect(previous.request.params.get('asOf')).toBe('2026-10-22'); previous.flush(period);
+    c.currentPeriod(); const current = http.expectOne(r => r.url.endsWith('/income-period'));
+    expect(current.request.params.has('asOf')).toBe(false); expect(current.request.params.get('sourceKey')).toBe('salary-a'); current.flush(period);
+  });
+  it('shows both full months for split periods with shared details and payment refreshes', () => {
+    const f = render(); const c = f.componentInstance;
+    c.nextPeriod(); http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, startDate: '2026-10-30', endDate: '2026-11-12', nextPayday: '2026-11-13' });
+    const novemberBill = { ...bill, date: '2026-11-05', sourceKey: 'electric' };
+    const november = { ...month, month: '2026-11-01', events: [novemberBill] };
+    const req = http.expectOne(r => r.url.endsWith('/month')); expect(req.request.params.get('month')).toBe('2026-11-01'); req.flush(november); f.detectChanges();
+    expect(f.nativeElement.querySelectorAll('.calendar-month')).toHaveLength(2);
+    expect(f.nativeElement.querySelectorAll('.day')).toHaveLength(61);
+    expect(c.inPeriod('2026-10-30')).toBe(true); expect(c.inPeriod('2026-11-12')).toBe(true); expect(c.inPeriod('2026-11-13')).toBe(false);
+    (f.nativeElement.querySelector('[aria-label^="2026-11-05"]') as HTMLButtonElement).click(); f.detectChanges();
+    expect(f.nativeElement.querySelector('.day-details').textContent).toContain('Electric');
+    c.paymentBill.set(novemberBill); const payment = { isPaid: true, paidOn: '2026-10-16', note: null, transactionId: 10 };
+    c.paymentSaved(payment);
+    const refresh = http.expectOne(r => r.url.endsWith('/income-period')); expect(refresh.request.params.get('asOf')).toBe('2026-10-23');
+    refresh.flush({ ...period, startDate: '2026-10-30', endDate: '2026-11-12', nextPayday: '2026-11-13' });
+    http.expectOne(r => r.url.endsWith('/month')).flush({ ...november, events: [{ ...novemberBill, payment }] }); f.detectChanges();
+    expect(f.nativeElement.querySelector('.day-details').textContent).toContain('Paid · Linked');
+    c.currentPeriod(); http.expectOne(r => r.url.endsWith('/income-period')).flush(period); f.detectChanges();
+    expect(f.nativeElement.querySelectorAll('.calendar-month')).toHaveLength(1);
+  });
+  it('handles December to January and cancels obsolete month requests', () => {
+    const f = render(); const c = f.componentInstance;
+    c.loadPeriod(); http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, startDate: '2026-12-25', endDate: '2027-01-07', nextPayday: '2027-01-08' });
+    const old = http.match(r => r.url.endsWith('/month')); expect(old.map(r => r.request.params.get('month'))).toEqual(['2026-12-01', '2027-01-01']);
+    c.currentPeriod(); expect(old.every(r => r.cancelled)).toBe(true);
+    http.expectOne(r => r.url.endsWith('/income-period')).flush(period); expect(c.calendars()).toEqual([month]);
+    c.loadPeriod(); http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, startDate: '2026-12-25', endDate: '2027-01-07' });
+    const requests = http.match(r => r.url.endsWith('/month')); requests[0].flush({ ...month, month: '2026-12-01', events: [] }); requests[1].flush({ ...month, month: '2027-01-01', events: [] }); f.detectChanges();
+    expect(f.nativeElement.querySelectorAll('.day')).toHaveLength(62);
+  });
   it('hides only completed linked payments when show completed is off', () => {
     const f = render(); const c = f.componentInstance;
     const linked = { ...bill, payment: { isPaid: true, paidOn: '2026-10-16', note: null, transactionId: 42 } };

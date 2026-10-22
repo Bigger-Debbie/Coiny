@@ -1,5 +1,7 @@
 export type BreakdownType = 'Expense' | 'Income';
 export interface CategoryBreakdownItem {
+  color?: string;
+  strokeWidth?: number;
   categoryId: number;
   categoryName: string;
   amount: number;

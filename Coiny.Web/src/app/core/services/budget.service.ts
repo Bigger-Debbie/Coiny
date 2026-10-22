@@ -26,8 +26,8 @@ export class BudgetService {
     return this.http.get<BudgetPreview>(`${this.url}/draft/${id}/preview`, { params: { expectedEditVersion, month } });
   }
   publish(id: number, expectedEditVersion: number) { return this.http.post<BudgetRevision>(`${this.url}/draft/${id}/publish`, { expectedEditVersion }); }
-  incomePeriod(sourceKey: string | null = null) {
-    return this.http.get<BudgetIncomePeriod>(`${this.url}/income-period`, { params: sourceKey ? { sourceKey } : {} });
+  incomePeriod(sourceKey: string | null = null, asOf?: string) {
+    return this.http.get<BudgetIncomePeriod>(`${this.url}/income-period`, { params: { ...(sourceKey ? { sourceKey } : {}), ...(asOf ? { asOf } : {}) } });
   }
   month(month: string) { return this.http.get<BudgetMonth>(`${this.url}/month`, { params: { month } }); }
 }

@@ -1,11 +1,16 @@
 <section class="calendar-layout" aria-label="Budget calendar and current income period">
   <aside class="period-shell">
   <div class="panel period-panel">
-    <h2>Current income period</h2>
+    <h2>{{ periodTitle }}</h2>
+    <nav class="period-navigation" aria-label="Income period navigation">
+      <button type="button" class="button-outline" [disabled]="loading() || !period()?.startDate || period()!.startDate! <= '0001-01-02'" (click)="previousPeriod()">‹ Previous</button>
+      <button type="button" class="button-ghost" [disabled]="loading()" (click)="currentPeriod()">Current</button>
+      <button type="button" class="button-outline" [disabled]="loading() || !period()?.nextPayday" (click)="nextPeriod()">Next ›</button>
+    </nav>
     <label for="income-period-source">Income schedule</label>
     <app-select-menu inputId="income-period-source" label="Income schedule" [options]="sourceOptions" [ngModel]="sourceKey()" (ngModelChange)="selectSource($event)" />
     <p class="hint">Household income starts a new period on each distinct payday. Individual schedules use that source’s paydays.</p>
-    @if (loading()) { <p role="status">Finding your current income period…</p> }
+    @if (loading()) { <p role="status">Finding your income period…</p> }
     @else if (error()) { <div role="alert"><p>Your income period couldn’t load.</p><button class="button-outline" (click)="loadPeriod()">Try again</button>@if (sourceKey()) { <button class="button-ghost" (click)="resetSource()">Use household income</button> }</div> }
     @else if (period(); as p) {
       <p class="as-of">As of {{ p.asOf | date:'MMM d, yyyy':'UTC' }}</p>
@@ -45,11 +50,18 @@
   </div>
   </aside>
   <article class="panel calendar-panel">
-    <header><h2>{{ month.month | date:'MMMM yyyy':'UTC' }}</h2><button class="button-ghost" (click)="selectMonth.emit(today.slice(0, 7) + '-01')">This month</button></header>
-    <div class="calendar-key"><span class="income">● Income</span><span class="bill">● Bills</span><span class="contribution">● Contributions</span><span class="awaiting-icon">◷ Awaiting transaction</span><span class="paid-check">✓ Linked</span><span>Shaded days: current income period</span></div>
+    <header><h2>Payment calendar</h2><button type="button" class="button-ghost" (click)="currentPeriod()">Current period</button></header>
+    <div class="calendar-key"><span class="income">● Income</span><span class="bill">● Bills</span><span class="contribution">● Contributions</span><span class="awaiting-icon">◷ Awaiting transaction</span><span class="paid-check">✓ Linked</span><span>Shaded days: selected income period</span></div>
+    @if (calendarLoading()) { <p role="status">Loading calendar months…</p> }
+    @else if (calendarError()) { <p role="alert">The calendar couldn’t load.</p><button type="button" class="button-outline" (click)="loadCalendars()">Retry calendar</button> }
+    @else {
+    <div class="calendar-months" [class.multiple-months]="calendars().length > 1">
+    @for (calendar of calendars(); track calendar.month) {
+    <section class="calendar-month" [attr.aria-label]="calendar.month | date:'MMMM yyyy':'UTC'">
+    <h3 class="month-title">{{ calendar.month | date:'MMMM yyyy':'UTC' }}</h3>
     <div class="calendar-grid" role="group" aria-label="Monthly scheduled items">
       @for (day of weekdays; track day) { <span class="weekday" aria-hidden="true">{{ day }}</span> }
-      @for (day of days; track $index) {
+      @for (day of daysFor(calendar); track $index) {
         @if (day) {
           <div class="day-cell" [class.tooltip-hidden]="tooltipHidden()" (pointerenter)="tooltipHidden.set(false)" (focusin)="tooltipHidden.set(false)" (keydown.escape)="tooltipHidden.set(true)" [class.in-period]="inPeriod(day.date)" [class.selected]="selectedDay() === day.date" [class.today]="today === day.date">
             <button class="day" type="button" [attr.aria-label]="dayLabel(day.date, day.events)" [attr.aria-pressed]="selectedDay() === day.date" [attr.aria-current]="today === day.date ? 'date' : null" (click)="selectedDay.set(day.date)">
@@ -59,6 +71,9 @@
           </div>
         } @else { <span class="blank" aria-hidden="true"></span> }
       }
+    </div>
+    </section>
+    }
     </div>
     <section class="day-details" aria-label="Selected day details" aria-live="polite">
       <h3>{{ selectedDay() | date:'EEEE, MMMM d':'UTC' }}</h3>
@@ -70,6 +85,7 @@
       }
       @empty { <p class="hint">No scheduled items on this day.</p> }
     </section>
+    }
   </article>
 </section>
 

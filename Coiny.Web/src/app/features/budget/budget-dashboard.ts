@@ -43,11 +43,11 @@ export class BudgetDashboard {
     if (this.month === this.chartMonth) return this.chartData;
     this.chartMonth = this.month;
     const month = this.month;
-    this.chartData = month ? groups.map((group, index) => ({
+    this.chartData = month ? groups.map<CategoryBreakdownItem>((group, index) => ({
       categoryId: index + 1, categoryName: group.label,
       amount: month.allocations.filter(a => a.allocationType === group.type).reduce((sum, a) => sum + a.plannedAmount, 0),
       transactionCount: 0, percentage: 0,
-    })).concat([{ categoryId: 7, categoryName: 'Unassigned', amount: month.unassigned, transactionCount: 0, percentage: 0 }])
+    })).concat([{ categoryId: 7, categoryName: 'Potential savings', color: '#047c04', strokeWidth: 16, amount: month.unassigned, transactionCount: 0, percentage: 0 }])
       .filter(item => item.amount > 0).map(item => ({ ...item, percentage: this.total ? item.amount / this.total * 100 : 0 })) : [];
     return this.chartData;
   }

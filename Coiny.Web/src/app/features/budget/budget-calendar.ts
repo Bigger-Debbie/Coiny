@@ -1,9 +1,9 @@
-import { Component, DestroyRef, inject, Input, OnChanges, OnInit, output, signal } from '@angular/core';
+import { Component, DestroyRef, inject, Input, OnChanges, OnInit, SimpleChanges, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BillPayment } from './bill-payment';
-import { Subscription } from 'rxjs';
+import { forkJoin, of, Subscription } from 'rxjs';
 import { BudgetService } from '../../core/services/budget.service';
 import { BillPaymentState, BudgetEvent, BudgetIncomePeriod, BudgetMonth } from '../../shared/models/budget/budget';
 import { getTrendDates } from '../dashboard/trend-range';
@@ -22,6 +22,49 @@ export class BudgetCalendar implements OnInit, OnChanges {
   private readonly api = inject(BudgetService);
   private readonly destroy = inject(DestroyRef);
   private request?: Subscription;
+  private calendarRequest?: Subscription;
+  private referenceDate?: string;
+  readonly calendars = signal<BudgetMonth[]>([]);
+  readonly calendarLoading = signal(false);
+  readonly calendarError = signal(false);
+  get periodTitle() {
+    const p = this.period();
+    return p?.startDate && p.endDate && this.today >= p.startDate && this.today <= p.endDate ? 'Current income period' : 'Income period';
+  }
+  previousPeriod() {
+    const start = this.period()?.startDate;
+    if (this.loading() || !start || start <= '0001-01-02') return;
+    const date = new Date(start + 'T00:00:00Z'); date.setUTCDate(date.getUTCDate() - 1);
+    this.referenceDate = date.toISOString().slice(0, 10); this.selectedDay.set(this.referenceDate); this.loadPeriod();
+  }
+  nextPeriod() {
+    if (this.loading() || !this.period()?.nextPayday) return;
+    this.referenceDate = this.period()!.nextPayday!; this.selectedDay.set(this.referenceDate); this.loadPeriod();
+  }
+  currentPeriod() { this.referenceDate = undefined; this.selectedDay.set(this.today); this.loadPeriod(); }
+  loadCalendars() {
+    this.calendarRequest?.unsubscribe(); this.calendarError.set(false);
+    const p = this.period();
+    const first = (p?.startDate ?? this.month.month).slice(0, 7) + '-01';
+    const last = (p?.endDate ?? first).slice(0, 7) + '-01';
+    const months: string[] = []; let date = first;
+    // Annual income schedules may cover more than two months.
+    while (date <= last && months.length < 13) {
+      months.push(date);
+      const d = new Date(date + 'T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + 1);
+      date = d.toISOString().slice(0, 10); if (date.length !== 10) break;
+    }
+    this.calendarLoading.set(true);
+    this.calendarRequest = forkJoin(months.map(m => m === this.month.month ? of(this.month) : this.api.month(m)))
+      .pipe(takeUntilDestroyed(this.destroy)).subscribe({
+        next: calendars => {
+          this.calendars.set(calendars); this.calendarLoading.set(false);
+          if (!calendars.some(c => this.selectedDay().startsWith(c.month.slice(0, 7))))
+            this.selectedDay.set(p?.startDate ?? first);
+        },
+        error: () => { this.calendarLoading.set(false); this.calendarError.set(true); },
+      });
+  }
   readonly paymentBill = signal<BudgetEvent | null>(null);
   canTrackPayment(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills', 'Subscriptions', 'Savings', 'Investments'].includes(event.allocationType ?? ''); }
   awaitingTransaction(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId == null; }
@@ -54,35 +97,36 @@ export class BudgetCalendar implements OnInit, OnChanges {
     return [{ value: null, label: 'Household income' }, ...(this.period()?.sources ?? []).map(s => ({ value: s.sourceKey, label: s.name }))];
   }
   ngOnInit() { this.sourceKey.set(this.source); this.loadPeriod(); }
-  ngOnChanges() { this.selectedDay.set(this.today.startsWith(this.month.month.slice(0, 7)) ? this.today : this.month.month); }
+  ngOnChanges(changes: SimpleChanges) { if (!changes['month']) return; this.calendarRequest?.unsubscribe(); this.calendars.set([this.month]); this.calendarLoading.set(false); this.calendarError.set(false); this.selectedDay.set(this.today.startsWith(this.month.month.slice(0, 7)) ? this.today : this.month.month); }
   loadPeriod() {
-    this.request?.unsubscribe(); this.loading.set(true); this.error.set(false);
-    this.request = this.api.incomePeriod(this.sourceKey()).pipe(takeUntilDestroyed(this.destroy)).subscribe({
-      next: period => { this.period.set(period); this.loading.set(false); },
+    this.request?.unsubscribe(); this.calendarRequest?.unsubscribe(); this.loading.set(true); this.error.set(false);
+    this.request = this.api.incomePeriod(this.sourceKey(), this.referenceDate).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+      next: period => { this.period.set(period); this.loading.set(false); this.loadCalendars(); },
       error: () => { this.error.set(true); this.loading.set(false); },
     });
   }
   selectSource(value: string | number | null) { this.sourceKey.set(value === null ? null : String(value)); this.sourceChange.emit(this.sourceKey()); this.loadPeriod(); }
   resetSource() { this.selectSource(null); }
-  get days() {
-    const [year, month] = this.month.month.split('-').map(Number);
+  get days() { return this.daysFor(this.calendars()[0] ?? this.month); }
+  daysFor(calendar: BudgetMonth) {
+    const [year, month] = calendar.month.split('-').map(Number);
     const start = new Date(0); start.setUTCFullYear(year, month - 1, 1); start.setUTCHours(0, 0, 0, 0);
     const offset = (start.getUTCDay() + 6) % 7;
     const end = new Date(start); end.setUTCMonth(month, 0);
     return Array.from({ length: Math.ceil((offset + end.getUTCDate()) / 7) * 7 }, (_, index) => {
       const day = index - offset + 1;
       if (day < 1 || day > end.getUTCDate()) return null;
-      const date = this.month.month.slice(0, 8) + String(day).padStart(2, '0');
-      return { day, date, events: this.month.events.filter(event => event.date === date) };
+      const date = calendar.month.slice(0, 8) + String(day).padStart(2, '0');
+      return { day, date, events: calendar.events.filter(event => event.date === date) };
     });
   }
-  get selectedEvents() { return this.month.events.filter(e => e.date === this.selectedDay()); }
+  get selectedEvents() { return this.calendars().flatMap(c => c.events).filter(e => e.date === this.selectedDay()); }
   inPeriod(date: string) {
     const period = this.period();
     return !this.loading() && !this.error() && !!period?.startDate && !!period.endDate && date >= period.startDate && date <= period.endDate;
   }
   kind(event: BudgetEvent) { return event.isIncome ? 'Income' : ['Housing', 'Bills', 'Subscriptions'].includes(event.allocationType ?? '') ? 'Bill' : ['Savings', 'Investments'].includes(event.allocationType ?? '') ? 'Contribution' : 'Spending'; }
   dayLabel(date: string, events: BudgetEvent[]) {
-    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', current income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}${this.canTrackPayment(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
+    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', selected income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}${this.canTrackPayment(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
   }
 }

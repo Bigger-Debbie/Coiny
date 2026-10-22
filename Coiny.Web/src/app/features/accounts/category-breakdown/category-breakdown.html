@@ -7,13 +7,13 @@
     </div>
   </div>
   <p class="period">{{ startDate | date:'MMM d, y':'UTC' }} – {{ endDate | date:'MMM d, y':'UTC' }}</p>
-  <div [attr.aria-busy]="loading()">
+  <div class="chart-content" [attr.aria-busy]="loading()">
     @if (loading()) { <p class="state" role="status">Loading your {{ type() === 'Expense' ? 'expenses' : 'income' }}…</p> }
     @else if (error()) {
       <div class="state" role="status"><p>Your breakdown couldn’t load.</p><button type="button" class="button-ghost" (click)="load()">Try again</button></div>
     } @else if (breakdown(); as data) {
       @if (data.totalAmount > 0 && data.categories.length) {
-        <app-donut-chart [categories]="data.categories" [total]="data.totalAmount" [type]="type()" />
+        <app-donut-chart [scrollLegend]="true" [categories]="data.categories" [total]="data.totalAmount" [type]="type()" />
       } @else { <p class="state" role="status">No {{ type() === 'Expense' ? 'expenses' : 'income' }} in this period.</p> }
     }
   </div>

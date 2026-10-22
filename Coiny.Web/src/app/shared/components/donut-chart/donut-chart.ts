@@ -6,6 +6,7 @@ let nextChartId = 0;
 const colors = ['#2f305f', '#eb9a50', '#047c04', '#167b83', '#7b4a96', '#d4a027', '#9b001e', '#486c9b'];
 @Component({
   selector: 'app-donut-chart',
+  host: { '[class.scroll-legend]': 'scrollLegend' },
   imports: [CurrencyPipe, DecimalPipe],
   templateUrl: './donut-chart.html',
   styleUrl: './donut-chart.css',
@@ -16,6 +17,7 @@ export class DonutChart {
     this.data.set(value);
     this.hovered.set(null); this.focused.set(null); this.pinned.set(null);
   }
+  @Input() scrollLegend = false;
   @Input() total = 0;
   @Input() centerLabel = '';
   @Input() periodLabel = 'Selected period';
@@ -40,7 +42,8 @@ export class DonutChart {
         ...category, percentage,
         dash: (percentage - gap) + ' ' + (100 - percentage + gap),
         offset: -(offset + gap / 2),
-        color: colors[(category.categoryId - 1 + colors.length) % colors.length],
+        strokeWidth: category.strokeWidth ?? 38,
+        color: category.color ?? colors[(category.categoryId - 1 + colors.length) % colors.length],
         initial: Array.from(category.categoryName.trim())[0]?.toUpperCase() || '?',
         dx: Math.cos(angle) * 4, dy: Math.sin(angle) * 4,
         tooltipX: 50 + Math.cos(angle) * 22,

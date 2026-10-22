@@ -128,7 +128,9 @@
         </nav>
       </div>
     </section>
+    <div class="category-pane-shell">
     <app-category-breakdown [accountId]="selectedId()" [startDate]="transactionDates().startDate" [endDate]="transactionDates().endDate" [refreshKey]="breakdownRefresh()" />
+    </div>
     </div>
   }
   @if (modal() === 'account') {

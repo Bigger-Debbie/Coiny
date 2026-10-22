@@ -15,7 +15,7 @@
       <div class="totals" aria-label="Monthly planned totals">
         <div class="panel income-total"><span>Take-home income</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
         <div class="panel allocations-total"><span>Planned allocations</span><strong>{{ plan.allocated | currency }}</strong></div>
-        <div class="panel" [class.over]="plan.overBudget > 0"><span>{{ plan.overBudget > 0 ? 'Over budget' : 'Unassigned' }}</span><strong>{{ (plan.overBudget > 0 ? plan.overBudget : plan.unassigned) | currency }}</strong></div>
+        <div class="panel" [class.over]="plan.overBudget > 0"><span>{{ plan.overBudget > 0 ? 'Over budget' : 'Potential savings' }}</span><strong>{{ (plan.overBudget > 0 ? plan.overBudget : plan.unassigned) | currency }}</strong></div>
       </div>
       <div class="outlook-grid">
         <article class="panel allocation-chart">
@@ -25,7 +25,7 @@
               [periodLabel]="(selectedMonth | date:'MMMM yyyy':'UTC') || ''" chartLabel="Planned income allocation" [showCounts]="false" [unsigned]="true" />
           } @else { <p>No income or allocations are scheduled for this month.</p> }
           @if (plan.overBudget > 0) { <p class="warning">Your plan exceeds take-home income by {{ plan.overBudget | currency }}. The donut shows shares of planned allocations, which total {{ plan.allocated | currency }}.</p> }
-          @else { <p class="hint">The donut includes what you’ve allocated and any income still unassigned. Hover, focus, or tap a segment for details.</p> }
+          @else { <p class="hint">The donut includes your planned allocations and potential savings from income you haven’t allocated. Hover, focus, or tap a segment for details.</p> }
         </article>
         <div class="detail-panels">
           <article class="panel breakdown"><h3>Budget breakdown</h3>

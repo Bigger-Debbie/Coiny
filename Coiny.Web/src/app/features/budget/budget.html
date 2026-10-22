@@ -94,7 +94,7 @@
             <h2>{{ month.month | date:'MMMM yyyy':'UTC' }}</h2>
 
             <dl><div><dt>Expected take-home income</dt><dd>{{ month.expectedIncome | currency }}</dd></div><div><dt>Total allocated</dt><dd>{{ month.allocated | currency }}</dd></div>
-              <div class="remaining"><dt>Unassigned</dt><dd>{{ month.unassigned | currency }}</dd></div>
+              <div class="remaining"><dt>Potential savings</dt><dd>{{ month.unassigned | currency }}</dd></div>
               @if (month.overBudget > 0) { <div class="error"><dt>Over budget</dt><dd>{{ month.overBudget | currency }}</dd></div> }
             </dl>
             @if (month.overBudget > 0) { <p class="error">Your plan exceeds expected income. You can still publish it and adjust it later.</p> }

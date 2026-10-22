@@ -26,9 +26,13 @@ describe('BudgetDashboard', () => {
   }
   it('groups allocations, includes unassigned income, and excludes payroll deductions from the donut', () => {
     const f = render(); const c = f.componentInstance;
-    expect(c.categories.map(i => [i.categoryName, i.amount])).toEqual([['Housing', 2000], ['Bills', 1500], ['Unassigned', 1500]]);
+    expect(c.categories.map(i => [i.categoryName, i.amount])).toEqual([['Housing', 2000], ['Bills', 1500], ['Potential savings', 1500]]);
     expect(c.categories.reduce((sum, i) => sum + i.percentage, 0)).toBe(100);
     const chart = f.debugElement.query(By.directive(DonutChart)).componentInstance as DonutChart;
+    const potential = chart.slices().find(slice => slice.categoryName === 'Potential savings')!;
+    expect(potential.color).toBe('#047c04'); expect(potential.strokeWidth).toBe(16);
+    expect(potential.percentage).toBe(30);
+    expect(f.nativeElement.querySelectorAll('.slice-shape circle')[2].getAttribute('stroke-width')).toBe('16');
     expect(chart.total).toBe(5000); expect(chart.centerLabel).toBe('Monthly income');
     expect(chart.showCounts).toBe(false); expect(chart.unsigned).toBe(true);
     expect(f.nativeElement.textContent).toContain('Already deducted from paychecks');
@@ -44,7 +48,7 @@ describe('BudgetDashboard', () => {
   });
   it('handles all-unassigned, zero income, and months with no applicable revision', () => {
     const f = render({ ...plan, allocated: 0, unassigned: 5000, allocations: [] });
-    expect(f.componentInstance.categories.map(i => i.categoryName)).toEqual(['Unassigned']);
+    expect(f.componentInstance.categories.map(i => i.categoryName)).toEqual(['Potential savings']);
     f.componentRef.setInput('month', { ...plan, expectedIncome: 0, allocated: 0, unassigned: 0, allocations: [] }); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('No income or allocations');
     expect(f.debugElement.query(By.directive(DonutChart))).toBeNull();
