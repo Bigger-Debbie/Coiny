@@ -10,7 +10,7 @@ namespace Coiny.API.Services;
 public class BudgetConflictException(string message) : InvalidOperationException(message);
 public class BudgetDraftNotFoundException() : InvalidOperationException("Draft not found in the current household, or already published.");
 
-public class BudgetService(
+public partial class BudgetService(
     CoinyContext context,
     ICurrentUserService currentUser,
     IBudgetScheduleService schedules,
@@ -176,8 +176,7 @@ public class BudgetService(
             .Where(p => p.HouseholdId == householdId && p.TransactionId != null).ToListAsync();
         foreach (var monthGroup in payments.GroupBy(p => new DateOnly(p.DueDate.Year, p.DueDate.Month, 1)))
         {
-            var revision = await ApplicableRevision(householdId, monthGroup.Key);
-            var events = revision is null ? [] : ProjectMonth(revision, monthGroup.Key).Events;
+            var events = (await GetMonthAsync(monthGroup.Key)).Events;
             foreach (var payment in monthGroup)
             {
                 var occurrence = events.FirstOrDefault(e => !e.IsIncome && e.SourceKey == payment.AllocationKey && e.Date == payment.DueDate &&
@@ -195,14 +194,12 @@ public class BudgetService(
     {
         ValidateMonth(month);
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
-        var revision = await ApplicableRevision(householdId, month);
-        if (revision is null) return new() { Month = month };
-        var result = ProjectMonth(revision, month);
+        var result = ProjectPublishedMonth(await Published(householdId), month);
         await ApplyPayments(householdId, result.Events);
         return result;
     }
 
-    private BudgetMonthResponse ProjectMonth(BudgetRevision revision, DateOnly month)
+    private BudgetMonthResponse ProjectMonth(BudgetRevision revision, DateOnly month, bool protect = true)
     {
         var income = new List<BudgetMonthlyItem>();
         var allocations = new List<BudgetMonthlyItem>();
@@ -220,10 +217,38 @@ public class BudgetService(
         {
             var dates = allocation.Schedule is null ? Array.Empty<DateOnly>() : schedules.GetOccurrences(allocation.Schedule, month);
             allocations.Add(new() { SourceKey = allocation.SourceKey, Id = allocation.Id, Name = allocation.Name, AllocationType = allocation.AllocationType,
-                OccurrenceCount = dates.Count, PlannedAmount = allocation.Amount * (allocation.Schedule is null ? 1 : dates.Count) });
+                DailyAmounts = allocation.Schedule is null ? Enumerable.Range(1,DateTime.DaysInMonth(month.Year,month.Month)).ToDictionary(day => new DateOnly(month.Year,month.Month,day), day => Portion(allocation.Amount,day,day,DateTime.DaysInMonth(month.Year,month.Month))) : null,
+                IsScheduled = allocation.Schedule is not null, OccurrenceCount = dates.Count, PlannedAmount = allocation.Amount * (allocation.Schedule is null ? 1 : dates.Count) });
             foreach (var date in dates)
                 events.Add(new() { SourceKey = allocation.SourceKey, Date = date, ItemId = allocation.Id, Name = allocation.Name,
                     AllocationType = allocation.AllocationType, Amount = allocation.Amount });
+        }
+        if (protect)
+        {
+            foreach (var saved in Protected(revision).Where(p => p.Event.IsPeriodSetAside && p.DailyAmounts is not null))
+            {
+                var old = allocations.SingleOrDefault(a => a.SourceKey == saved.Event.SourceKey);
+                if (old?.IsScheduled == true) continue;
+                var daily = old?.DailyAmounts?.ToDictionary(p => p.Key,p => p.Value) ?? new Dictionary<DateOnly,decimal>();
+                foreach (var amount in saved.DailyAmounts!.Where(p => p.Key.Year == month.Year && p.Key.Month == month.Month)) daily[amount.Key] = amount.Value;
+                if (daily.Count == 0) continue;
+                if (old is not null) allocations.Remove(old);
+                allocations.Add(new() { SourceKey = saved.Event.SourceKey, Id = old?.Id ?? saved.Event.ItemId, Name = old?.Name ?? saved.Event.Name,
+                    AllocationType = old?.AllocationType ?? saved.Event.AllocationType, DailyAmounts = daily, PlannedAmount = daily.Values.Sum() });
+            }
+            foreach (var locked in Protected(revision).Where(p => !p.Event.IsPeriodSetAside && p.Event.Date.Year == month.Year && p.Event.Date.Month == month.Month))
+            {
+                var saved = locked.Event;
+                events.RemoveAll(e => !e.IsIncome && e.SourceKey == saved.SourceKey && (e.Date == saved.Date || e.Date == locked.SuppressedDate));
+                events.Add(saved);
+                if (!allocations.Any(a => a.SourceKey == saved.SourceKey))
+                    allocations.Add(new() { SourceKey = saved.SourceKey, Id = saved.ItemId, Name = saved.Name, AllocationType = saved.AllocationType, IsScheduled = true });
+            }
+            allocations = allocations.Select(a => new BudgetMonthlyItem {
+                SourceKey = a.SourceKey, Id = a.Id, Name = a.Name, AllocationType = a.AllocationType, IsScheduled = a.IsScheduled, DailyAmounts = a.DailyAmounts,
+                OccurrenceCount = events.Count(e => !e.IsIncome && e.SourceKey == a.SourceKey),
+                PlannedAmount = a.IsScheduled ? events.Where(e => !e.IsIncome && e.SourceKey == a.SourceKey).Sum(e => e.Amount) : a.DailyAmounts?.Values.Sum() ?? a.PlannedAmount,
+            }).ToList();
         }
         var totalIncome = income.Sum(i => i.PlannedAmount);
         var allocated = allocations.Sum(a => a.PlannedAmount);
@@ -236,17 +261,16 @@ public class BudgetService(
         };
     }
 
-    public async Task<BudgetIncomePeriodResponse> GetIncomePeriodAsync(DateOnly? asOf = null, Guid? sourceKey = null)
+    public Task<BudgetIncomePeriodResponse> GetIncomePeriodAsync(DateOnly? asOf = null, Guid? sourceKey = null) => GetPeriod(asOf, sourceKey);
+    private async Task<BudgetIncomePeriodResponse> GetPeriod(DateOnly? asOf, Guid? sourceKey, List<BudgetRevision>? versions = null)
     {
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), ApplicationTimeZone).DateTime);
         var date = asOf ?? today;
         if (date == DateOnly.MinValue) throw new ArgumentException("Choose a valid reference date.");
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
         // Read one consistent set of published versions; drafts never enter period calculations.
-        var published = await Revisions(householdId).Where(r => r.State == BudgetRevisionState.Published).ToListAsync();
-        BudgetRevision? Revision(DateOnly month) => published.Where(r => r.EffectiveFromMonth <= month)
-            .OrderByDescending(r => r.EffectiveFromMonth).ThenByDescending(r => r.RevisionNumber).FirstOrDefault();
-        var current = Revision(new(date.Year, date.Month, 1));
+        var published = versions ?? await Published(householdId);
+        var current = Applicable(published, date);
         var sources = current?.IncomeSources.OrderBy(i => i.Id).Select(i => new BudgetIncomeSourceOption {
             SourceKey = i.SourceKey, Name = i.Name,
         }).ToList() ?? [];
@@ -258,8 +282,7 @@ public class BudgetService(
         for (var m = Math.Max(0, index - 12); m <= Math.Min(9999 * 12 - 1, index + 12); m++)
         {
             var month = new DateOnly(m / 12 + 1, m % 12 + 1, 1);
-            var revision = Revision(month);
-            if (revision is not null) events.AddRange(ProjectMonth(revision, month).Events);
+            events.AddRange(ProjectPublishedMonth(published, month, false).Events);
         }
         var paydays = events.Where(e => e.IsIncome && (!sourceKey.HasValue || e.SourceKey == sourceKey))
             .Select(e => e.Date).Distinct().Order().ToList();
@@ -290,13 +313,21 @@ public class BudgetService(
     private static decimal Portion(decimal monthly, int fromDay, int toDay, int days) =>
         decimal.Round(monthly * toDay / days, 2, MidpointRounding.AwayFromZero) -
         decimal.Round(monthly * (fromDay - 1) / days, 2, MidpointRounding.AwayFromZero);
+    private static decimal AmountBetween(BudgetMonthlyItem item, int from, int to, int year, int month) => item.DailyAmounts is null
+        ? Portion(item.PlannedAmount,from,to,DateTime.DaysInMonth(year,month))
+        : item.DailyAmounts.Where(p => p.Key.Year == year && p.Key.Month == month && p.Key.Day >= from && p.Key.Day <= to).Sum(p => p.Value);
     private IEnumerable<(BudgetMonthResponse Plan, DateOnly From, DateOnly To)> PeriodMonths(DateOnly start, DateOnly end, IReadOnlyList<BudgetRevision> published)
     {
         for (var month = new DateOnly(start.Year, start.Month, 1); month <= end;)
         {
-            var revision = published.Where(r => r.EffectiveFromMonth <= month).OrderByDescending(r => r.EffectiveFromMonth).ThenByDescending(r => r.RevisionNumber).FirstOrDefault();
             var last = new DateOnly(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
-            if (revision is not null) yield return (ProjectMonth(revision, month), start > month ? start : month, end < last ? end : last);
+            var from = start > month ? start : month; var to = end < last ? end : last;
+            var boundaries = published.Select(Effective).Where(d => d > from && d <= to).Append(from).Distinct().Order().ToList();
+            for (var i = 0; i < boundaries.Count; i++)
+            {
+                var revision = Applicable(published, boundaries[i]);
+                if (revision is not null) yield return (ProjectMonth(revision, month), boundaries[i], i + 1 < boundaries.Count ? boundaries[i + 1].AddDays(-1) : to);
+            }
             if (last == DateOnly.MaxValue) break;
             month = month.AddMonths(1);
         }
@@ -308,20 +339,22 @@ public class BudgetService(
         var allocations = parts.SelectMany(p => p.Plan.Allocations.Select(a => new BudgetMonthlyItem {
             SourceKey = a.SourceKey, Id = a.Id, Name = a.Name, AllocationType = a.AllocationType,
             OccurrenceCount = p.Plan.Events.Count(e => !e.IsIncome && e.SourceKey == a.SourceKey && e.Date >= p.From && e.Date <= p.To),
-            PlannedAmount = a.OccurrenceCount == 0 ? Portion(a.PlannedAmount, p.From.Day, p.To.Day, DateTime.DaysInMonth(p.From.Year,p.From.Month)) :
+            IsScheduled = a.IsScheduled, PlannedAmount = !a.IsScheduled ? AmountBetween(a, p.From.Day, p.To.Day, p.From.Year,p.From.Month) :
                 p.Plan.Events.Where(e => !e.IsIncome && e.SourceKey == a.SourceKey && e.Date >= p.From && e.Date <= p.To).Sum(e => e.Amount),
         })).GroupBy(a => a.SourceKey).Select(g => new BudgetMonthlyItem {
             SourceKey = g.Key, Id = g.Last().Id, Name = g.Last().Name, AllocationType = g.Last().AllocationType,
-            PlannedAmount = g.Sum(a => a.PlannedAmount), OccurrenceCount = g.Sum(a => a.OccurrenceCount),
+            IsScheduled = g.Any(a => a.IsScheduled), PlannedAmount = g.Sum(a => a.PlannedAmount), OccurrenceCount = g.Sum(a => a.OccurrenceCount),
         }).ToList();
+        var protectedGoals = published.SelectMany(r => Protected(r).Where(p => p.Event.IsPeriodSetAside && Applicable(published,p.Event.Date)?.Id == r.Id)).ToList();
         // Generated goal dates always use the canonical household timeline, even in an individual-source view.
         for (var i = 0; i + 1 < householdPaydays.Count; i++)
         {
             var goalStart = householdPaydays[i]; var goalEnd = householdPaydays[i + 1].AddDays(-1);
             if (goalStart < start || goalEnd > end || goalEnd < start) continue;
             var goals = PeriodMonths(goalStart, goalEnd, published).SelectMany(p => p.Plan.Allocations
-                .Where(a => Contribution(a.AllocationType) && a.OccurrenceCount == 0 && a.PlannedAmount > 0)
-                .Select(a => new { Item = a, Amount = Portion(a.PlannedAmount, p.From.Day, p.To.Day, DateTime.DaysInMonth(p.From.Year,p.From.Month)) }))
+                .Where(a => Contribution(a.AllocationType) && !a.IsScheduled && a.PlannedAmount > 0)
+                .Select(a => new { Item = a, Amount = AmountBetween(a, p.From.Day, p.To.Day, p.From.Year,p.From.Month) - protectedGoals.Where(g => g.Event.SourceKey == a.SourceKey)
+                    .Sum(g => g.DailyAmounts?.Where(d => d.Key >= p.From && d.Key <= p.To).Sum(d => d.Value) ?? 0) }))
                 .GroupBy(g => g.Item.SourceKey);
             foreach (var goal in goals)
             {
@@ -331,8 +364,18 @@ public class BudgetService(
                     Date = goalEnd, Amount = amount, IsPeriodSetAside = true });
             }
         }
+        // Preserve paid generated set-asides when the monthly rate or definition changes.
+        foreach (var saved in protectedGoals.Select(p => p.Event).Where(e => e.Date >= start && e.Date <= end))
+        {
+            if (householdPaydays.Count == 0) continue;
+            events.RemoveAll(e => !e.IsIncome && e.SourceKey == saved.SourceKey && e.Date == saved.Date);
+            events.Add(saved);
+            if (!allocations.Any(a => a.SourceKey == saved.SourceKey)) allocations.Add(new() { SourceKey = saved.SourceKey, Id = saved.ItemId, Name = saved.Name, AllocationType = saved.AllocationType });
+        }
         allocations = allocations.Select(a => new BudgetMonthlyItem { SourceKey = a.SourceKey, Id = a.Id, Name = a.Name,
-            AllocationType = a.AllocationType, PlannedAmount = a.PlannedAmount,
+            AllocationType = a.AllocationType, IsScheduled = a.IsScheduled,
+            PlannedAmount = householdPaydays.Count > 0 && Contribution(a.AllocationType) && (!a.IsScheduled || events.Any(e => e.SourceKey == a.SourceKey && e.IsPeriodSetAside))
+                ? events.Where(e => !e.IsIncome && e.SourceKey == a.SourceKey).Sum(e => e.Amount) : a.PlannedAmount,
             OccurrenceCount = events.Count(e => !e.IsIncome && e.SourceKey == a.SourceKey) }).ToList();
         var income = parts.SelectMany(p => p.Plan.IncomeSources.Select(a => {
             var allCount = a.OccurrenceCount; var count = p.Plan.Events.Count(e => e.IsIncome && e.SourceKey == a.SourceKey && e.Date >= p.From && e.Date <= p.To);
@@ -341,16 +384,16 @@ public class BudgetService(
                 HealthInsurance = allCount == 0 ? 0 : a.HealthInsurance / allCount * count,
                 RetirementContributions = allCount == 0 ? 0 : a.RetirementContributions / allCount * count };
         })).GroupBy(a => a.SourceKey).Select(g => new BudgetMonthlyItem { SourceKey = g.Key, Id = g.Last().Id, Name = g.Last().Name,
-            PlannedAmount = g.Sum(a => a.PlannedAmount), OccurrenceCount = g.Sum(a => a.OccurrenceCount),
+            IsScheduled = g.Any(a => a.IsScheduled), PlannedAmount = g.Sum(a => a.PlannedAmount), OccurrenceCount = g.Sum(a => a.OccurrenceCount),
             HealthInsurance = g.Sum(a => a.HealthInsurance), RetirementContributions = g.Sum(a => a.RetirementContributions) }).Where(a => a.OccurrenceCount > 0).ToList();
         var expected = income.Sum(a => a.PlannedAmount); var allocated = allocations.Sum(a => a.PlannedAmount);
-        return new() { Month = new(start.Year,start.Month,1), RevisionId = parts.FirstOrDefault().Plan?.RevisionId,
+        return new() { Month = new(start.Year,start.Month,1), RevisionId = parts.LastOrDefault().Plan?.RevisionId,
             IncomeSources = income, Allocations = allocations, ExpectedIncome = expected, Allocated = allocated,
             Unassigned = Math.Max(0, expected - allocated), OverBudget = Math.Max(0, allocated - expected),
             HealthInsurance = income.Sum(a => a.HealthInsurance), RetirementContributions = income.Sum(a => a.RetirementContributions),
             Events = events.OrderBy(e => e.Date).ThenBy(e => e.IsIncome ? 0 : 1).ThenBy(e => e.Name).ToList() };
     }
-    private IReadOnlyList<BudgetComparisonPoint> PeriodPoints(DateOnly start, DateOnly end, BudgetMonthResponse plan, IReadOnlyList<BudgetRevision> published)
+    private IReadOnlyList<BudgetComparisonPoint> PeriodPoints(DateOnly start, DateOnly end, BudgetMonthResponse plan, IReadOnlyList<BudgetRevision> published, bool monthly = false)
     {
         var parts = PeriodMonths(start,end,published).ToList(); var points = new List<BudgetComparisonPoint>(); decimal spending = 0, contributions = 0;
         for (var date = start; date <= end;)
@@ -358,8 +401,12 @@ public class BudgetService(
             spending += plan.Events.Where(e => !e.IsIncome && !Contribution(e.AllocationType) && e.Date == date).Sum(e => e.Amount);
             contributions += plan.Events.Where(e => !e.IsIncome && Contribution(e.AllocationType) && e.Date == date).Sum(e => e.Amount);
             foreach (var part in parts.Where(p => p.From <= date && p.To >= date))
-                spending += part.Plan.Allocations.Where(a => !Contribution(a.AllocationType) && a.OccurrenceCount == 0)
-                    .Sum(a => Portion(a.PlannedAmount,date.Day,date.Day,DateTime.DaysInMonth(date.Year,date.Month)));
+                spending += part.Plan.Allocations.Where(a => !Contribution(a.AllocationType) && !a.IsScheduled)
+                    .Sum(a => AmountBetween(a,date.Day,date.Day,date.Year,date.Month));
+            if (monthly)
+                foreach (var part in parts.Where(p => p.From <= date && p.To >= date))
+                    contributions += part.Plan.Allocations.Where(a => Contribution(a.AllocationType) && !a.IsScheduled)
+                        .Sum(a => AmountBetween(a,date.Day,date.Day,date.Year,date.Month));
             points.Add(new(date,spending,null,contributions,null));
             if (date == end) break;
             date = date.AddDays(1);
@@ -381,8 +428,8 @@ public class BudgetService(
         .Where(r => r.HouseholdBudget.HouseholdId == householdId)
         .Include(r => r.IncomeSources).Include(r => r.Allocations).AsSingleQuery();
     private Task<BudgetRevision?> ApplicableRevision(int householdId, DateOnly month) => Revisions(householdId)
-        .Where(r => r.State == BudgetRevisionState.Published && r.EffectiveFromMonth <= month)
-        .OrderByDescending(r => r.EffectiveFromMonth).ThenByDescending(r => r.RevisionNumber).FirstOrDefaultAsync();
+        .Where(r => r.State == BudgetRevisionState.Published && (r.EffectiveFromDate ?? r.EffectiveFromMonth) <= month)
+        .OrderByDescending(r => r.EffectiveFromDate ?? r.EffectiveFromMonth).ThenByDescending(r => r.RevisionNumber).FirstOrDefaultAsync();
     private async Task<BudgetRevision> OwnedDraft(int householdId, int id) =>
         await Revisions(householdId).SingleOrDefaultAsync(r => r.Id == id && r.State == BudgetRevisionState.Draft)
         ?? throw new BudgetDraftNotFoundException();
@@ -449,7 +496,7 @@ public class BudgetService(
     };
     private static BudgetRevisionResponse Response(BudgetRevision r) => new() {
         Id = r.Id, RevisionNumber = r.RevisionNumber, EditVersion = r.EditVersion, EffectiveFromMonth = r.EffectiveFromMonth,
-        State = r.State, SetupStep = r.SetupStep, PublishedAt = r.PublishedAt,
+        EffectiveFromDate = r.EffectiveFromDate, State = r.State, SetupStep = r.SetupStep, PublishedAt = r.PublishedAt,
         IncomeSources = r.IncomeSources.OrderBy(i => i.Id).Select(Income).ToList(),
         Allocations = r.Allocations.OrderBy(a => a.Id).Select(Allocation).ToList(),
     };

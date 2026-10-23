@@ -25,6 +25,20 @@ describe('BudgetActualsPanel', () => {
     const f = TestBed.createComponent(BudgetActualsPanel); f.componentRef.setInput('month', report.month); f.detectChanges();
     const request = http.expectOne(r => r.url.endsWith('/actuals')); expect(request.request.params.get('month')).toBe(report.month); expect(request.request.params.get('type')).toBe('Expense'); request.flush(report); f.detectChanges(); return f;
   }
+  it('explains other-period payments without false over-plan warnings and retains real overspending',()=>{
+    const f=render(); const c=f.componentInstance;
+    const prior={ ...report.items[0],name:'Mazda App',planned:0,actual:10,remaining:-10,priorPeriodActual:10 };
+    c.report.set({ ...report,items:[prior] }); f.detectChanges();
+    expect(f.nativeElement.querySelector('tbody').textContent).toContain('Payment for prior period');
+    expect(f.nativeElement.querySelector('tbody').textContent).not.toContain('Over plan');
+    expect(f.nativeElement.querySelector('td.over')).toBeNull(); expect(c.comparisonRemaining(prior)).toBe(0);
+    c.report.set({ ...report,items:[{ ...prior,planned:100,actual:130,remaining:-30 }] }); f.detectChanges();
+    expect(f.nativeElement.querySelector('td.over').textContent).toContain('-$20.00');
+    expect(f.nativeElement.querySelector('td.over').textContent).toContain('Over plan');
+    c.report.set({ ...report,items:[{ ...prior,priorPeriodActual:0,futurePeriodActual:10 }] }); f.detectChanges();
+    expect(f.nativeElement.querySelector('tbody').textContent).toContain('Payment for future period');
+    expect(f.nativeElement.querySelector('td.over')).toBeNull();
+  });
   it('opens an item transaction breakdown independently of assignment filters and paginates it', () => {
     const f = render(); const c = f.componentInstance;
     (f.nativeElement.querySelector('.item-name') as HTMLButtonElement).click(); f.detectChanges();

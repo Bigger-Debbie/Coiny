@@ -15,6 +15,15 @@ namespace Coiny.API.Controllers;
 [Route("api/budgets")]
 public class BudgetsController(IBudgetService budgets) : ControllerBase
 {
+    [HttpGet("management")]
+    public async Task<ActionResult<BudgetManagementResponse>> Management() => Ok(await budgets.GetManagementAsync());
+
+    [HttpPost("items/preview")]
+    public async Task<ActionResult<BudgetItemReview>> ReviewItem(BudgetItemChange request) => Ok(await budgets.ChangeItemAsync(request, true));
+
+    [HttpPost("items")]
+    public async Task<ActionResult<BudgetItemReview>> ChangeItem(BudgetItemChange request) => Ok(await budgets.ChangeItemAsync(request, false));
+
     [HttpGet("setup")]
     public async Task<ActionResult<BudgetSetupStatusResponse>> Setup() => Ok(await budgets.GetSetupStatusAsync());
 

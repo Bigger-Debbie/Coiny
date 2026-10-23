@@ -187,8 +187,9 @@ describe('Budget setup', () => {
     const req = http.expectOne(r => r.url.endsWith('/month'));
     expect(req.request.params.get('month')).toBe('2026-11-01'); req.flush(month);
     await vi.waitFor(() => expect(f.componentInstance.loading()).toBe(false)); f.detectChanges();
-    expect(f.nativeElement.textContent).toContain('Edit budget');
+    expect(f.nativeElement.textContent).not.toContain('Edit budget');
     http.expectOne(r => r.url.endsWith('/income-period')).flush({ asOf:'2026-11-01', startDate:null,endDate:null,nextPayday:'2026-11-13',sources:[],bills:[],contributions:[],billsTotal:0,contributionsTotal:0 }); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Your income-period outlook');
+    expect(f.nativeElement.textContent).toContain('Manage budget items');
   });
 });

@@ -6,7 +6,7 @@
 
 The backend models, migrations, recurrence calculator, and household-scoped
 draft/publish/month-projection services and authenticated HTTP endpoints are implemented.
-The frontend setup wizard and published monthly allocation dashboard are implemented.
+The frontend setup wizard and published allocation dashboard are implemented. Established budgets are managed directly from the breakdown; see “Manage an established budget” below.
 The current-income-period bill list, monthly calendar, and bill occurrence payment tracking are implemented.
 Richer editing and forecasting remain to be built.
 The existing account/category breakdown is a summary of recorded transactions;
@@ -492,3 +492,42 @@ Expected remaining is after planned savings/contributions and is not the total
 amount saved. Running-balance forecasting and carried fund balances remain roadmap
 work. This change needs an API restart but no database migration or financial data
 rewrite.
+
+## Manage an established budget
+
+The wizard is used for initial setup. Once published, the Budget breakdown offers
+clickable income/allocation rows, Add actions within sections, and Manage all items
+for definitions without an occurrence in the selected outlook. An existing saved
+wizard draft can still be finished; item edits are blocked until it is published
+so the two editing flows cannot silently overwrite each other.
+
+Item details open a shared-style modal. Edit or remove an item, choose an effective
+date (today by default), review its income-period and monthly impact, then save.
+Removal stops future occurrences; it never deletes transactions or paid history.
+Section moves retain the same stable source key. Saving creates an immutable
+published revision behind the scenes, without sending the user to the wizard.
+
+`EffectiveFromDate` supplements the existing first-of-month revision boundary.
+Old revisions retain their original monthly behavior. Monthly projections are
+composed from dated segments; period projections use the same segments. Monthly
+allowances are prorated by differences of rounded cumulative daily portions, so a
+midmonth edit affects only days on or after its effective date. Earlier scheduled
+dates and paydays continue to use the earlier definition.
+
+Paid future occurrences are captured in `ProtectedPaymentsJson`, retaining their
+planned amount, due date, name, section, and stable identity even if the definition
+is renamed, moved, rescheduled, or removed. A rescheduled paid occurrence suppresses
+its replacement at the corresponding ordinal within that month to avoid counting
+the same scheduled payment twice. Paid generated set-asides also retain the daily
+allowance portions that funded them. Payment status and links remain read from the
+payment table; the snapshot does not create or alter transactions.
+
+To avoid overwriting a separately scheduled future revision, subsequent changes
+must start on or after the latest published effective date. The editor displays
+this earliest date. The reviewed revision ID and an atomic edit-version reservation
+reject concurrent/stale saves. Household scoping applies to reads, previews, and
+publication. Preview performs no persistent writes.
+
+Schema migration: `20261023162702_AddEffectiveBudgetDates` adds a nullable effective
+date and protected-payment JSON to revisions. Existing definitions and financial
+records are retained.

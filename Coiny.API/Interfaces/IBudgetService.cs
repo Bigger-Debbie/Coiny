@@ -4,6 +4,8 @@ namespace Coiny.API.Interfaces;
 
 public interface IBudgetService
 {
+    Task<BudgetManagementResponse> GetManagementAsync();
+    Task<BudgetItemReview> ChangeItemAsync(BudgetItemChange request, bool preview);
     Task<BudgetIncomePeriodResponse> GetIncomePeriodAsync(DateOnly? asOf = null, Guid? sourceKey = null);
     Task<BudgetSetupStatusResponse> GetSetupStatusAsync();
     Task<BudgetDraftPreviewResponse> PreviewDraftAsync(int draftId, int expectedEditVersion, DateOnly month);

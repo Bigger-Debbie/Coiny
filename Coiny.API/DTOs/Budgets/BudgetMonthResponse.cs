@@ -15,6 +15,7 @@ public class BudgetMonthResponse
     public IReadOnlyList<BudgetMonthlyItem> IncomeSources { get; init; } = [];
     public IReadOnlyList<BudgetMonthlyItem> Allocations { get; init; } = [];
     public IReadOnlyList<BudgetScheduledEvent> Events { get; init; } = [];
+    public IReadOnlyList<BudgetComparisonPoint>? PlannedPoints { get; set; }
 }
 
 public class BudgetMonthlyItem
@@ -27,6 +28,9 @@ public class BudgetMonthlyItem
     public decimal RetirementContributions { get; init; }
     public decimal PlannedAmount { get; init; }
     public int OccurrenceCount { get; init; }
+    public bool IsScheduled { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlyDictionary<DateOnly, decimal>? DailyAmounts { get; init; }
 }
 
 public class BudgetScheduledEvent

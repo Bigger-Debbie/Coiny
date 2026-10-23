@@ -32,6 +32,26 @@ public class BudgetApiTests
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
     [Fact]
+    public async Task Published_item_management_reviews_then_publishes_and_rejects_stale_saves()
+    {
+        await using var host = await Api.Create();
+        var service = host.Database.Service(); var draft = await service.StartDraftAsync(new(2026,11,1));
+        var saved = await service.SaveDraftAsync(draft.Id, JsonSerializer.Deserialize<BudgetDraftRequest>(CompleteDraft,Json)!);
+        await service.PublishDraftAsync(saved.Id,saved.EditVersion);
+        var management = (await host.Client.GetFromJsonAsync<BudgetManagementResponse>("/api/budgets/management",Json))!;
+        var change = new BudgetItemChange { ExpectedRevisionId = management.Revision.Id, EffectiveDate = new(2026,11,15),
+            SourceKey = management.Revision.Allocations[0].SourceKey, Allocation = new() { Name = "Groceries", Amount = 900, AllocationType = Coiny.API.Enums.BudgetAllocationType.Spending } };
+        (await host.Client.PostAsJsonAsync("/api/budgets/items/preview",change,Json)).EnsureSuccessStatusCode();
+        Assert.Equal(management.Revision.Id,(await service.GetManagementAsync()).Revision.Id);
+        (await host.Client.PostAsJsonAsync("/api/budgets/items",change,Json)).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Conflict,(await host.Client.PostAsJsonAsync("/api/budgets/items",change,Json)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PostAsync("/api/budgets/items",Body("{}"))).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/api/budgets/management")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.PostAsJsonAsync("/api/budgets/items",change,Json)).StatusCode);
+    }
+
+    [Fact]
     public async Task HttpWorkflowSupportsResumePreviewPublishAndFutureSetupStatus()
     {
         await using var host = await Api.Create();

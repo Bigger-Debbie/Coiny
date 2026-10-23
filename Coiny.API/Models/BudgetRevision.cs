@@ -12,6 +12,9 @@ public class BudgetRevision : BaseEntity
     public int EditVersion { get; set; }
     /// <summary>The first calendar month to which this version applies.</summary>
     public DateOnly EffectiveFromMonth { get; set; }
+    public DateOnly? EffectiveFromDate { get; set; }
+    // Immutable planned occurrences already paid when this version was published.
+    public string ProtectedPaymentsJson { get; set; } = "[]";
     public BudgetRevisionState State { get; set; } = BudgetRevisionState.Draft;
     public BudgetSetupStep SetupStep { get; set; } = BudgetSetupStep.Income;
     public DateTime? PublishedAt { get; set; }

@@ -7,6 +7,7 @@ public class BudgetRevisionResponse
     public int Id { get; init; }
     public int RevisionNumber { get; init; }
     public int EditVersion { get; init; }
+    public DateOnly? EffectiveFromDate { get; init; }
     public DateOnly EffectiveFromMonth { get; init; }
     public BudgetRevisionState State { get; init; }
     public BudgetSetupStep SetupStep { get; init; }

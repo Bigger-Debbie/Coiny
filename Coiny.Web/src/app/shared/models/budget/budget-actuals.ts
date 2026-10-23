@@ -1,6 +1,7 @@
 import { AllocationType } from './budget';
 export interface BudgetActualsItem {
   allocationKey: string; name: string; allocationType: AllocationType;
+  priorPeriodActual?: number; futurePeriodActual?: number;
   planned: number; actual: number; remaining: number; awaitingTransaction: number; transactionCount: number;
 }
 export interface BudgetCategoryDefault {
@@ -11,6 +12,7 @@ export interface BudgetActualsTransaction {
   id: number; editVersion: number; pairedEditVersion: number | null; date: string;
   description: string; merchant?: string | null; amount: number; accountName: string; categoryName: string;
   categoryType: 'Expense' | 'Transfer'; allocationKey: string | null; allocationName: string | null;
+  paymentDueDate?: string | null;
   assignmentSource: 'Payment' | 'Override' | 'Category' | 'Unassigned';
 }
 export interface BudgetActuals {

@@ -47,6 +47,16 @@ describe('BudgetDashboard', () => {
     expect(chart.slices().find(c=>c.categoryName==='Monthly remainder')?.color).toBe('#047c04');
     expect(chart.slices().find(c=>c.categoryName==='Subscriptions')?.color).toBe('#486c9b');
   });
+  it('opens item management from breakdown rows and section add actions and refreshes after saving', () => {
+    const f=render({ ...plan,incomeSources:[{ ...plan.incomeSources[0],sourceKey:'salary' }] });
+    f.nativeElement.querySelector('.editable-item').click();
+    expect(f.componentInstance.itemEditor()?.selection).toEqual({ isIncome:true,sourceKey:'salary' });
+    f.componentInstance.itemEditor.set(null);
+    f.nativeElement.querySelector('.add-item').click();
+    expect(f.componentInstance.itemEditor()?.selection).toMatchObject({ isIncome:true,add:true });
+    const changed=vi.spyOn(f.componentInstance.budgetChanged,'emit'); f.componentInstance.itemSaved();
+    expect(changed).toHaveBeenCalledOnce(); expect(f.componentInstance.itemEditor()).toBeNull();
+  });
   it('groups allocations, includes unassigned income, and excludes payroll deductions from the donut', () => {
     const f = render(); const c = f.componentInstance;
     expect(c.categories.map(i => [i.categoryName, i.amount])).toEqual([['Housing', 2000], ['Bills', 1500], ['Monthly remainder', 1500]]);

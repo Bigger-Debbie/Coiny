@@ -54,6 +54,8 @@ export class BudgetActualsPanel implements OnChanges {
   readonly types: SelectOption[] = [{ value: 'Expense', label: 'Expenses' }, { value: 'Transfer', label: 'Transfers' }, { value: '', label: 'Expenses and transfers' }];
   get totalPages() { return Math.max(1, Math.ceil((this.report()?.totalCount ?? 0) / 10)); }
   get activeCategoryDefaults() { return this.report()?.categoryDefaults.filter(rule => rule.isActive) ?? []; }
+  comparisonRemaining(item: BudgetActualsItem) { return Math.round((item.remaining + (item.priorPeriodActual ?? 0) + (item.futurePeriodActual ?? 0)) * 100) / 100; }
+  get hasOtherPeriodPayments() { return this.report()?.items.some(i => i.priorPeriodActual || i.futurePeriodActual) ?? false; }
   contribution(item: BudgetActualsItem) { return ['Savings', 'Investments'].includes(item.allocationType); }
   get targets(): SelectOption[] { return [{ value: '', label: 'Not assigned' }, ...(this.report()?.items ?? []).map(i => ({ value: i.allocationKey, label: i.name, detail: i.allocationType === 'Investments' ? 'Investing' : i.allocationType }))]; }
   get assignmentTargets(): SelectOption[] {

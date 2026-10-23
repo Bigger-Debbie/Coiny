@@ -79,21 +79,23 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
             var target = plan.Allocations.SingleOrDefault(a => a.SourceKey == key);
             if (t.Category.CategoryType == CategoryType.Transfer && target?.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Investments)) target = null;
             rows.Add(new(t.Id, t.EditVersion, t.PairedTransaction?.EditVersion, DateOnly.FromDateTime(t.TransactionDate), t.Description, t.Amount,
-                t.Account.Name, t.Category.Name, t.Category.CategoryType, target?.SourceKey, target?.Name, source, t.Merchant));
+                t.Account.Name, t.Category.Name, t.Category.CategoryType, target?.SourceKey, target?.Name, source, t.Merchant, payment?.DueDate));
         }
         var items = plan.Allocations.Select(a =>
         {
             var assigned = rows.Where(t => t.AllocationKey == a.SourceKey).ToList();
             var actual = assigned.Sum(t => t.Amount);
             var pending = plan.Events.Where(e => e.SourceKey == a.SourceKey && e.Payment is { IsPaid: true, TransactionId: null }).Sum(e => e.Amount);
-            return new BudgetActualsItem(a.SourceKey!.Value, a.Name, a.AllocationType!.Value, a.PlannedAmount, actual, a.PlannedAmount - actual, pending, assigned.Count);
+            return new BudgetActualsItem(a.SourceKey!.Value, a.Name, a.AllocationType!.Value, a.PlannedAmount, actual, a.PlannedAmount - actual, pending, assigned.Count,
+                assigned.Where(t => t.PaymentDueDate < rangeStart).Sum(t => t.Amount),
+                assigned.Where(t => t.PaymentDueDate > last).Sum(t => t.Amount));
         }).ToList();
         var visible = rows.Where(t => (allocationKey.HasValue ? t.AllocationKey == allocationKey : view == "all" || t.AllocationKey is null) && (type is null || t.CategoryType.ToString() == type))
             .OrderByDescending(t => t.Date).ThenByDescending(t => t.Id).ToList();
         var totalPages = Math.Max(1, (visible.Count + 9) / 10); page = Math.Min(page, totalPages);
         bool Contribution(BudgetMonthlyItem item) => item.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
         var contributionKeys = plan.Allocations.Where(Contribution).Select(a => a.SourceKey).ToHashSet();
-        var plannedPoints = incomePeriod?.PlannedPoints ?? Enumerable.Range(1, last.Day).Select(day =>
+        var plannedPoints = incomePeriod?.PlannedPoints ?? plan.PlannedPoints ?? Enumerable.Range(1, last.Day).Select(day =>
         {
             var date = new DateOnly(month.Year, month.Month, day);
             decimal Planned(bool contribution)

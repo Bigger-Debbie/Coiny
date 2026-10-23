@@ -1,3 +1,4 @@
+import { BudgetItemEditor } from './budget-item-editor';
 import { BudgetService } from '../../core/services/budget.service';
 import { getTrendDates } from '../dashboard/trend-range';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -5,7 +6,7 @@ import { Subscription } from 'rxjs';
 import { Component, DestroyRef, inject, Input, OnChanges, SimpleChanges, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BudgetMonth, BudgetIncomePeriod, AllocationType } from '../../shared/models/budget/budget';
+import { BudgetMonth, BudgetIncomePeriod, AllocationType, BudgetItemSelection, BudgetMonthlyItem } from '../../shared/models/budget/budget';
 import { CategoryBreakdownItem } from '../../shared/models/transactions/category-breakdown';
 import { BudgetCalendar } from './budget-calendar';
 import { BudgetActualsPanel } from './budget-actuals';
@@ -17,7 +18,7 @@ const groups: { type: AllocationType; label: string; color: string }[] = [
   { type: 'Investments', label: 'Investing', color: '#d4a027' },
 ];
 @Component({
-  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel],
+  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
   templateUrl: './budget-dashboard.html', styleUrl: './budget-dashboard.css',
 })
 export class BudgetDashboard implements OnChanges {
@@ -66,6 +67,11 @@ export class BudgetDashboard implements OnChanges {
   readonly actualsRefresh = signal(0);
   refreshActuals() { this.actualsRefresh.update(value => value + 1); if (this.mode() === 'period') this.loadPeriod(); }
   readonly selectMonth = output<string>();
+  readonly budgetChanged = output<void>();
+  readonly itemEditor = signal<{ selection: BudgetItemSelection | null } | null>(null);
+  manageItem(item: BudgetMonthlyItem, isIncome: boolean) { this.itemEditor.set({ selection: { sourceKey:item.sourceKey,isIncome } }); }
+  addItem(isIncome: boolean, type?: string) { this.itemEditor.set({ selection: { isIncome,type:type as AllocationType,add:true } }); }
+  itemSaved() { this.itemEditor.set(null); this.actualsRefresh.update(v=>v+1); this.budgetChanged.emit(); }
   private chartData: CategoryBreakdownItem[] = [];
   private chartMonth: BudgetMonth | null = null;
   get allocationSections() {

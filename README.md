@@ -70,7 +70,7 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 The dashboard, login screen, profile menu/local logout, and accounts page with
 interactive income/expense category breakdown are implemented. Household budgeting
 now has models, recurrence, a draft/preview/publish API, and a resumable frontend
-setup wizard and published monthly allocation dashboard. The calendar highlights
+setup wizard and published budget dashboard with dated item management directly from the breakdown. The calendar highlights
 the current income period and scheduled items. Next are richer budget editing
 and reporting.
 Signup and create/join household setup are implemented. Transaction corrections and CSV imports are implemented. Account/category management,

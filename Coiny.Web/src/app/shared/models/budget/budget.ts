@@ -12,13 +12,13 @@ export interface BudgetDraftRequest {
   incomeSources: BudgetIncome[]; allocations: BudgetAllocation[];
 }
 export interface BudgetRevision extends Omit<BudgetDraftRequest, 'expectedEditVersion'> {
-  id: number; revisionNumber: number; editVersion: number; state: 'Draft' | 'Published'; publishedAt: string | null;
+  effectiveFromDate?: string | null; id: number; revisionNumber: number; editVersion: number; state: 'Draft' | 'Published'; publishedAt: string | null;
 }
 export interface BudgetSetup {
   currentMonth: string; hasPublishedBudget: boolean; firstPublishedMonth: string | null;
   currentRevisionId: number | null; draft: BudgetRevision | null;
 }
-export interface BudgetMonthlyItem { id: number; name: string; allocationType: AllocationType | null; plannedAmount: number; healthInsurance?: number; retirementContributions?: number; occurrenceCount: number; }
+export interface BudgetMonthlyItem { sourceKey?: string | null; isScheduled?: boolean; id: number; name: string; allocationType: AllocationType | null; plannedAmount: number; healthInsurance?: number; retirementContributions?: number; occurrenceCount: number; }
 export interface BudgetEvent { isPeriodSetAside?: boolean; payment?: BillPaymentState | null; sourceKey?: string | null; date: string; itemId: number; name: string; isIncome: boolean; allocationType: AllocationType | null; amount: number; }
 export interface BudgetMonth {
   month: string; revisionId: number | null; healthInsurance: number; retirementContributions: number; expectedIncome: number; allocated: number;
@@ -38,3 +38,8 @@ export interface BudgetIncomePeriod {
 export type BudgetPaymentStatus = 'Unpaid' | 'AwaitingTransaction' | 'Linked';
 export interface BillPaymentState { status?: BudgetPaymentStatus; linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
 export interface BillTransactionCandidate { id: number; date: string; amount: number; description: string; accountName: string; categoryName: string; exactAmount: boolean; categoryType?: 'Income' | 'Expense' | 'Transfer'; transferDirection?: 'In' | 'Out' | null; }
+
+export interface BudgetManagement { revision: BudgetRevision; earliestEffectiveDate: string; }
+export interface BudgetItemChange { expectedRevisionId: number; effectiveDate: string; isIncome: boolean; sourceKey: string | null; remove: boolean; income?: BudgetIncome; allocation?: BudgetAllocation; }
+export interface BudgetItemReview { before: BudgetMonth; after: BudgetMonth; protectedPayments: number; effectiveDate: string; beforePeriod: BudgetIncomePeriod; afterPeriod: BudgetIncomePeriod; }
+export interface BudgetItemSelection { sourceKey?: string | null; isIncome: boolean; type?: AllocationType; add?: boolean; }

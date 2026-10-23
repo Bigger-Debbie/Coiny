@@ -83,6 +83,23 @@ public class BudgetActualsTests
         await Assign(db, 1, null, true); Assert.Equal(140, (await Service(db).GetAsync(Month)).AssignedActual);
         Assert.Equal(6, await db.Context().Transactions.CountAsync()); Assert.Empty(await db.Context().AccountBalanceSnapshots.ToListAsync());
     }
+    [Fact] public async Task Linked_payments_identify_due_dates_outside_the_report_without_moving_posted_actuals()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);
+        var payments = new BillPaymentService(db.Context(), new User(), db.Service(), db.Clock);
+        await payments.SaveAsync(keys["Electric"],new(2026,9,15),new() { IsPaid=true,TransactionId=2 });
+        await payments.SaveAsync(keys["IRA"],new(2026,11,15),new() { IsPaid=true,TransactionId=1 });
+        var report=await Service(db).GetAsync(Month,"all");
+        var electric=Assert.Single(report.Items,i=>i.Name=="Electric");
+        Assert.Equal(100,electric.Actual); Assert.Equal(100,electric.PriorPeriodActual); Assert.Equal(0,electric.FuturePeriodActual);
+        var ira=Assert.Single(report.Items,i=>i.Name=="IRA");
+        Assert.Equal(40,ira.Actual); Assert.Equal(40,ira.FuturePeriodActual);
+        Assert.Equal(new DateOnly(2026,9,15),Assert.Single(report.Transactions,t=>t.Id==2).PaymentDueDate);
+        Assert.Equal(140,report.AssignedActual); Assert.Equal(100,report.Points[15].ActualSpending); Assert.Equal(40,report.Points[15].ActualContributions);
+        Assert.Equal(0,(await Service(db).GetAsync(new(2026,9,1),"all")).AssignedActual);
+        var samePeriod=await Service(db).GetPeriodAsync(new(2026,10,16),"all");
+        Assert.Equal(100,Assert.Single(samePeriod.Items,i=>i.Name=="Electric").PriorPeriodActual);
+    }
     [Fact] public async Task Rules_are_effective_dated_stale_writes_rejected_and_future_month_has_no_actuals()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);

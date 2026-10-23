@@ -1,0 +1,45 @@
+<app-modal [title]="title" [busy]="busy()" (dismiss)="dismiss.emit()">
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p>@if (mode() === 'list' || !management()) { <button type="button" class="button-outline" [disabled]="busy()" (click)="load()">Reload budget items</button> } }
+  @if (busy()) { <p role="status">{{ management() ? 'Checking your budget…' : 'Loading budget items…' }}</p> }
+  @if (management(); as data) {
+    @if (mode() === 'list') {
+      <p class="hint">Manage the latest plan here. Changes start on a chosen date; past and paid occurrences are kept.</p>
+      <h3>Income</h3>
+      @for (item of data.revision.incomeSources; track item.sourceKey) { <button type="button" class="item-row" (click)="open(item,true)"><span>{{ item.name }}<small>Per paycheck</small></span><strong>{{ item.amount | currency }} <span aria-hidden="true">›</span></strong></button> }
+      <button type="button" class="button-outline add" (click)="open(null,true)">+ Add income source</button>
+      <h3>Allocations</h3>
+      @for (item of data.revision.allocations; track item.sourceKey) { <button type="button" class="item-row" (click)="open(item,false)"><span>{{ item.name }}<small>{{ item.allocationType }} · {{ item.schedule ? 'Per payment' : 'Monthly amount' }}</small></span><strong>{{ item.amount | currency }} <span aria-hidden="true">›</span></strong></button> }
+      <button type="button" class="button-outline add" (click)="open(null,false)">+ Add budget item</button>
+    } @else if (mode() === 'details') {
+      <p class="amount">{{ item!.amount | currency }} <small>{{ isIncome ? 'Per paycheck' : item!.schedule ? 'Per payment' : 'Per month' }}</small></p>
+      @if (item!.schedule; as schedule) { <dl><div><dt>Frequency</dt><dd>{{ schedule.frequency === 'EveryTwoWeeks' ? 'Every two weeks' : schedule.frequency === 'TwiceMonthly' ? 'Twice a month' : schedule.frequency === 'EverySixMonths' ? 'Every six months' : schedule.frequency }}</dd></div><div><dt>Schedule starts</dt><dd>{{ schedule.startDate | date:'MMM d, yyyy':'UTC' }}</dd></div>@if (schedule.dayOfMonth) { <div><dt>Payment day</dt><dd>{{ schedule.dayOfMonth }}@if (schedule.secondDayOfMonth) { and {{ schedule.secondDayOfMonth }} }</dd></div> }@if (schedule.endDate) { <div><dt>Ends</dt><dd>{{ schedule.endDate | date:'MMM d, yyyy':'UTC' }}</dd></div> }</dl> }
+      <p class="hint">Edits apply from {{ data.earliestEffectiveDate | date:'MMM d, yyyy':'UTC' }} by default. You can choose a later date. Earlier and paid occurrences keep their history and transaction links.</p>
+      <div class="actions"><button type="button" class="button-ghost" (click)="mode.set('list')">All items</button><button type="button" class="button-outline" (click)="remove()">Remove item</button><button type="button" class="button-primary" (click)="edit()">Edit item</button></div>
+    } @else if (mode() === 'edit') {
+      <form [formGroup]="form" (ngSubmit)="reviewChange()">
+        <fieldset [disabled]="busy()">
+          @if (removing) { <p>Stop future occurrences of <strong>{{ item!.name }}</strong>. Past and paid occurrences, transactions, and payment links will be kept.</p> }
+          @else {
+            <div class="fields"><div><label for="budget-item-name">Name</label><input id="budget-item-name" maxlength="100" formControlName="name" /></div><div><label for="budget-item-amount">{{ isIncome ? 'Take-home amount per paycheck' : schedule ? 'Amount per payment' : 'Monthly amount' }}</label><input id="budget-item-amount" type="number" min="0" step="0.01" formControlName="amount" /></div></div>
+            @if (!isIncome) { <label for="budget-item-section">Budget section</label><app-select-menu inputId="budget-item-section" label="Budget section" [options]="types" formControlName="allocationType" (ngModelChange)="changeType()" /> }
+            @if (isIncome) { <details><summary>Paycheck deductions (optional)</summary><p class="hint">Already excluded from take-home pay. These amounts are for visibility only.</p><div class="fields"><div><label for="item-health">Health insurance per paycheck</label><input id="item-health" type="number" min="0" step="0.01" formControlName="healthInsurancePerPaycheck" /></div><div><label for="item-retirement">Retirement per paycheck</label><input id="item-retirement" type="number" min="0" step="0.01" formControlName="retirementContributionPerPaycheck" /></div></div></details> }
+            @if (!scheduledRequired) { <label class="checkbox"><input type="checkbox" [checked]="!!schedule" (change)="toggleSchedule($event)" />Schedule individual payments</label> }
+            @if (schedule; as group) { <app-budget-schedule id="budget-item" [income]="isIncome" [group]="group" /> }
+          }
+          <div class="effective"><label for="item-effective">{{ removing ? 'Stop from' : 'Apply changes from' }}</label><input id="item-effective" type="date" [min]="data.earliestEffectiveDate" formControlName="effectiveDate" /><small>Earlier occurrences and paid items are preserved. Monthly allowances change only for days on or after this date.</small>@if (data.earliestEffectiveDate > data.revision.effectiveFromMonth && data.revision.effectiveFromDate) { <small>The latest budget update starts {{ data.revision.effectiveFromDate | date:'MMM d, yyyy':'UTC' }}.</small> }</div>
+        </fieldset>
+        <div class="actions"><button type="button" class="button-outline" [disabled]="busy()" (click)="dismiss.emit()">Cancel</button><button type="submit" class="button-primary" [disabled]="busy()">Review change</button></div>
+      </form>
+    } @else if (review(); as result) {
+      <p><strong>{{ removing ? 'Remove' : item ? 'Update' : 'Add' }} {{ form.value.name || item?.name }}</strong> from {{ result.effectiveDate | date:'MMM d, yyyy':'UTC' }}.</p>
+      <p class="hint">{{ result.protectedPayments }} already-paid {{ result.protectedPayments === 1 ? 'occurrence is' : 'occurrences are' }} protected. Past occurrences and existing transaction links stay in place.</p>
+      @if (result.afterPeriod.plan; as after) {
+        <h3>Income-period impact</h3><p class="hint">{{ result.afterPeriod.startDate | date:'MMM d':'UTC' }} – {{ result.afterPeriod.endDate | date:'MMM d, yyyy':'UTC' }}</p>
+        <dl><div><dt>Income</dt><dd>{{ result.beforePeriod.plan?.expectedIncome | currency }} → {{ after.expectedIncome | currency }}</dd></div><div><dt>Allocations</dt><dd>{{ result.beforePeriod.plan?.allocated | currency }} → {{ after.allocated | currency }}</dd></div><div><dt>Expected remaining</dt><dd>{{ result.beforePeriod.expectedRemaining | currency }} → {{ result.afterPeriod.expectedRemaining | currency }}</dd></div></dl>
+      } @else { <p class="hint">This change does not have a complete income period yet. Check the income schedule if needed.</p> }
+      <h3>{{ result.after.month | date:'MMMM yyyy':'UTC' }}</h3><dl><div><dt>Monthly allocations</dt><dd>{{ result.before.allocated | currency }} → {{ result.after.allocated | currency }}</dd></div><div><dt>Monthly remainder</dt><dd>{{ (result.before.expectedIncome - result.before.allocated) | currency }} → {{ (result.after.expectedIncome - result.after.allocated) | currency }}</dd></div></dl>
+      <p class="hint">Saving publishes this change to your household budget. No money is moved.</p>
+      <div class="actions"><button type="button" class="button-outline" [disabled]="busy()" (click)="back()">Back to edit</button><button type="button" class="button-primary" [disabled]="busy()" (click)="save()">{{ busy() ? 'Saving…' : 'Save budget change' }}</button></div>
+    }
+  }
+</app-modal>

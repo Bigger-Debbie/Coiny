@@ -17,7 +17,7 @@
         </ol>
       }
       @if (!wizard() && status.hasPublishedBudget) {
-        <app-budget-dashboard [month]="projection()" [selectedMonth]="selectedMonth()" [loading]="monthLoading()" [error]="monthError()" (selectMonth)="loadPublished($event)" />
+        <app-budget-dashboard [month]="projection()" [selectedMonth]="selectedMonth()" [loading]="monthLoading()" [error]="monthError()" (selectMonth)="loadPublished($event)" (budgetChanged)="loadPublished(selectedMonth())" />
       }
       <div class="budget-layout" [class.setup-layout]="wizard()">
         @if (wizard()) {
@@ -111,7 +111,7 @@
           </aside>
         }
       </div>
-      @if (!wizard()) {
+      @if (!wizard() && (!status.hasPublishedBudget || draft())) {
         <div class="intro panel">
           <div><h2>{{ status.hasPublishedBudget ? 'Your household plan' : 'Let’s build your household budget' }}</h2>
             <p>{{ status.hasPublishedBudget ? 'Your published plan is shared with your household. Edit a draft to make changes from a chosen month.' : 'Start with take-home income, plan your bills and spending, then decide what to save or invest.' }}</p>

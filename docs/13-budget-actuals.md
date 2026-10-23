@@ -109,3 +109,14 @@ set-asides enter the planned line on the household period's last day. Monthly
 spending allowances use exact prorated portions. Cross-month category rules are
 resolved per transaction posting month; category rule editing remains monthly.
 See [income-period budgeting](09-household-budgeting.md#income-period-budgeting).
+
+Linked payments carry their scheduled due date as `paymentDueDate`. Item totals
+include `priorPeriodActual` and `futurePeriodActual` for linked transactions whose
+due dates fall outside the selected report range. Posting-date actuals, cash-flow
+totals, and chart points remain unchanged. The UI shows “Payment for prior period”
+or “Payment for future period” with its amount, and compares the current plan with
+actuals excluding those other-period payments. Displayed remaining is therefore
+`remaining + priorPeriodActual + futurePeriodActual` (rounded to cents). Genuine
+current-period overspending still shows Over plan; contributions still use Above
+target. Transaction details show the scheduled date so users can inspect the
+timing difference. This also applies to monthly report boundaries.

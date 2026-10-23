@@ -1,7 +1,5 @@
 # API and Postman Reference
 
-[Documentation index](../README.md#documentation)
-
 ## Conventions
 
 The default local API base is `http://localhost:5298/api`. Request/response fields
@@ -68,6 +66,9 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, ten recent transactions |
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
 | GET | `/api/budgets/setup` | 200 | Budget setup status and resumable draft |
+| GET | `/api/budgets/management` | 200 | Latest published item definitions and earliest allowed effective date |
+| POST | `/api/budgets/items/preview` | 200 | Review one dated item change without publishing or writing data |
+| POST | `/api/budgets/items` | 200 | Publish one reviewed item change, preserving past and paid occurrences |
 | GET | `/api/budgets/draft` | 200 or 204 | Saved draft, or no content when absent |
 | POST | `/api/budgets/draft` | 200 | Start or resume the household draft |
 | PUT | `/api/budgets/draft/{draftId}` | 200 | Replace draft definitions and save wizard progress |
@@ -1350,3 +1351,50 @@ bill-payment/candidate APIs without creating financial transactions automaticall
 Publication preserves compatible generated-goal links and releases obsolete ones.
 No new schema or reserve endpoint is required. Missing/invalid periods return 400;
 authentication and household access checks continue to return 401/403.
+
+
+## Payments across report periods
+
+Budget actuals item responses additionally expose `priorPeriodActual` and
+`futurePeriodActual`. These identify linked payments due outside the report's
+start/end dates. Transaction responses expose nullable `paymentDueDate`. Actual,
+raw remaining, and graph totals retain posting-date behavior; the UI's current
+period remaining comparison adds these other-period amounts back to raw remaining.
+
+## Published budget item updates
+
+Published item editing uses `GET /api/budgets/management` to obtain `revision.id`,
+the complete latest definitions (including schedules/source keys), and
+`earliestEffectiveDate`. Submit the same body to `POST /api/budgets/items/preview`
+and then `POST /api/budgets/items` after review:
+
+```json
+{
+  "expectedRevisionId": 15,
+  "effectiveDate": "2026-10-23",
+  "isIncome": false,
+  "sourceKey": "c89373f0-abb7-4727-8897-ef32e23f444d",
+  "remove": false,
+  "allocation": {
+    "name": "Streaming",
+    "amount": 15.99,
+    "allocationType": "Subscriptions",
+    "schedule": {
+      "frequency": "Monthly",
+      "startDate": "2026-10-01",
+      "dayOfMonth": 25
+    }
+  }
+}
+```
+
+For an addition, omit `sourceKey`. For removal, supply `sourceKey` and `remove:true`
+and omit the definition. Income changes use `isIncome:true` and `income` instead
+of `allocation`, with the existing paycheck schedule/deduction fields. Review
+responses contain `before`, `after`, `beforePeriod`, `afterPeriod`, `effectiveDate`,
+and `protectedPayments`. Validation returns 400, stale definitions or a saved
+wizard draft return 409, unauthenticated requests return 401, and missing household
+membership returns 403. Re-fetch management after every successful save. Changes
+cannot predate today or the latest scheduled published update.
+
+[Documentation index](../README.md#documentation)

@@ -402,11 +402,18 @@ namespace Coiny.API.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateOnly?>("EffectiveFromDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateOnly>("EffectiveFromMonth")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("HouseholdBudgetId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProtectedPaymentsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("TEXT");
