@@ -25,18 +25,27 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
         if (key is null) return null;
         return plan.Allocations.SingleOrDefault(a => a.SourceKey == key) ?? throw new ArgumentException("Choose an item in this month's published budget.");
     }
-    public async Task<BudgetActualsResponse> GetAsync(DateOnly month, string view = "unassigned", string? type = null, int page = 1, Guid? allocationKey = null)
+    public Task<BudgetActualsResponse> GetAsync(DateOnly month, string view = "unassigned", string? type = null, int page = 1, Guid? allocationKey = null) =>
+        Report(month,view,type,page,allocationKey,null);
+    public async Task<BudgetActualsResponse> GetPeriodAsync(DateOnly? asOf = null, string view = "unassigned", string? type = null, int page = 1, Guid? allocationKey = null)
+    {
+        var period = await budgets.GetIncomePeriodAsync(asOf);
+        if (period.Plan is null || period.StartDate is null || period.EndDate is null) throw new ArgumentException("Choose a complete published income period.");
+        return await Report(new(period.StartDate.Value.Year,period.StartDate.Value.Month,1),view,type,page,allocationKey,period);
+    }
+    private async Task<BudgetActualsResponse> Report(DateOnly month, string view, string? type, int page, Guid? allocationKey, BudgetIncomePeriodResponse? incomePeriod)
     {
         if (page < 1 || page > 100000 || view is not ("unassigned" or "all") || type is not (null or "Expense" or "Transfer"))
             throw new ArgumentException("Choose a valid view, transaction type, and page.");
         var household = await user.GetCurrentHouseholdIdAsync();
-        var plan = await Plan(month);
+        var plan = incomePeriod?.Plan ?? await Plan(month);
         if (allocationKey.HasValue) Target(plan, allocationKey);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).DateTime);
-        var last = new DateOnly(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
-        DateOnly? through = today < month ? null : today < last ? today : last;
-        var rules = await context.BudgetCategoryRules.AsNoTracking().Where(r => r.HouseholdId == household && r.EffectiveFromMonth <= month).ToListAsync();
-        var effective = rules.GroupBy(r => r.CategoryId).ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.EffectiveFromMonth).First());
+        var rangeStart = incomePeriod?.StartDate ?? month;
+        var last = incomePeriod?.EndDate ?? new DateOnly(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
+        DateOnly? through = today < rangeStart ? null : today < last ? today : last;
+        var rules = await context.BudgetCategoryRules.AsNoTracking().Where(r => r.HouseholdId == household && r.EffectiveFromMonth <= last).ToListAsync();
+        var effective = rules.Where(r => r.EffectiveFromMonth <= month).GroupBy(r => r.CategoryId).ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.EffectiveFromMonth).First());
         var categories = await context.Categories.AsNoTracking().Where(c => c.HouseholdId == household && c.CategoryType == CategoryType.Expense).OrderBy(c => c.Name).ToListAsync();
         var defaults = categories.Select(c =>
         {
@@ -46,7 +55,7 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
         var ledger = new List<Transaction>();
         if (through.HasValue)
         {
-            var start = month.ToDateTime(TimeOnly.MinValue); var end = through.Value.ToDateTime(TimeOnly.MaxValue);
+            var start = rangeStart.ToDateTime(TimeOnly.MinValue); var end = through.Value.ToDateTime(TimeOnly.MaxValue);
             // A paired movement is counted once, on its receiving entry's posting date.
             ledger = await context.Transactions.AsNoTracking().Include(t => t.Category).Include(t => t.Account).Include(t => t.PairedTransaction)
                 .Where(t => t.HouseholdId == household && t.TransactionDate >= start && t.TransactionDate <= end &&
@@ -63,7 +72,9 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
             var assignment = overrides.SingleOrDefault(a => a.TransactionId == t.Id || a.TransactionId == t.PairedTransactionId);
             var source = payment is not null ? "Payment" : assignment is not null ? "Override" : "Unassigned";
             Guid? key = payment?.AllocationKey ?? assignment?.AllocationKey;
-            if (payment is null && assignment is null && t.Category.CategoryType == CategoryType.Expense && effective.TryGetValue(t.CategoryId, out var rule))
+            var postingMonth = new DateOnly(t.TransactionDate.Year,t.TransactionDate.Month,1);
+            var rule = rules.Where(r => r.CategoryId == t.CategoryId && r.EffectiveFromMonth <= postingMonth).OrderByDescending(r => r.EffectiveFromMonth).FirstOrDefault();
+            if (payment is null && assignment is null && t.Category.CategoryType == CategoryType.Expense && rule is not null)
             { key = rule.AllocationKey; source = key.HasValue ? "Category" : "Unassigned"; }
             var target = plan.Allocations.SingleOrDefault(a => a.SourceKey == key);
             if (t.Category.CategoryType == CategoryType.Transfer && target?.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Investments)) target = null;
@@ -82,7 +93,7 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
         var totalPages = Math.Max(1, (visible.Count + 9) / 10); page = Math.Min(page, totalPages);
         bool Contribution(BudgetMonthlyItem item) => item.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
         var contributionKeys = plan.Allocations.Where(Contribution).Select(a => a.SourceKey).ToHashSet();
-        var points = Enumerable.Range(1, last.Day).Select(day =>
+        var plannedPoints = incomePeriod?.PlannedPoints ?? Enumerable.Range(1, last.Day).Select(day =>
         {
             var date = new DateOnly(month.Year, month.Month, day);
             decimal Planned(bool contribution)
@@ -93,16 +104,19 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
                 // Round the cumulative pace, not each daily increment, so month end equals the plan exactly.
                 return scheduled + decimal.Round(monthly * day / last.Day, 2, MidpointRounding.AwayFromZero);
             }
-            var recorded = rows.Where(t => t.Date <= date).ToList();
-            decimal? actualSpending = through.HasValue && date <= through.Value
+            return new BudgetComparisonPoint(date, Planned(false), null, Planned(true), null);
+        }).ToList();
+        var points = plannedPoints.Select(p => {
+            var recorded = rows.Where(t => t.Date <= p.Date).ToList();
+            decimal? spending = through.HasValue && p.Date <= through.Value
                 ? recorded.Where(t => t.CategoryType == CategoryType.Expense && !contributionKeys.Contains(t.AllocationKey)).Sum(t => t.Amount) : null;
-            decimal? actualContributions = through.HasValue && date <= through.Value
+            decimal? contributions = through.HasValue && p.Date <= through.Value
                 ? recorded.Where(t => t.AllocationKey.HasValue && contributionKeys.Contains(t.AllocationKey)).Sum(t => t.Amount) : null;
-            return new BudgetComparisonPoint(date, Planned(false), actualSpending, Planned(true), actualContributions);
+            return new BudgetComparisonPoint(p.Date,p.PlannedSpending,spending,p.PlannedContributions,contributions);
         }).ToList();
         return new()
         {
-            Month = month, ThroughDate = through, Planned = plan.Allocated, AssignedActual = items.Sum(a => a.Actual),
+            Month = month, StartDate = rangeStart, EndDate = last, ThroughDate = through, Planned = plan.Allocated, AssignedActual = items.Sum(a => a.Actual),
             UnassignedExpenses = rows.Where(t => t.AllocationKey is null && t.CategoryType == CategoryType.Expense).Sum(t => t.Amount),
             AwaitingTransaction = items.Sum(a => a.AwaitingTransaction), Items = items, CategoryDefaults = defaults,
             Transactions = visible.Skip((page - 1) * 10).Take(10).ToList(), Page = page, TotalCount = visible.Count, Points = points

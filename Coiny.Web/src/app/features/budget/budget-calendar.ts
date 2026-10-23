@@ -3,7 +3,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BillPayment } from './bill-payment';
-import { forkJoin, of, Subscription } from 'rxjs';
+import { forkJoin, Subscription } from 'rxjs';
 import { BudgetService } from '../../core/services/budget.service';
 import { BillPaymentState, BudgetEvent, BudgetIncomePeriod, BudgetMonth } from '../../shared/models/budget/budget';
 import { getTrendDates } from '../dashboard/trend-range';
@@ -15,6 +15,7 @@ import { SelectMenu, SelectOption } from '../../shared/components/select-menu/se
 })
 export class BudgetCalendar implements OnInit, OnChanges {
   @Input({ required: true }) month!: BudgetMonth;
+  @Input() controlledPeriod: BudgetIncomePeriod | null = null;
   @Input() source: string | null = null;
   readonly sourceChange = output<string | null>();
   readonly selectMonth = output<string>();
@@ -55,9 +56,19 @@ export class BudgetCalendar implements OnInit, OnChanges {
       date = d.toISOString().slice(0, 10); if (date.length !== 10) break;
     }
     this.calendarLoading.set(true);
-    this.calendarRequest = forkJoin(months.map(m => m === this.month.month ? of(this.month) : this.api.month(m)))
+    this.calendarRequest = forkJoin(months.map(m => this.api.month(m)))
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
         next: calendars => {
+          // Fetch full months on each refresh so payments outside the selected period
+          // also stay current. Overlay generated set-asides and period occurrences.
+          const period = this.period();
+          const currentEvents = [...(period?.plan?.events.filter(e => e.isIncome) ?? []), ...(period?.bills ?? []), ...(period?.contributions ?? [])];
+          const identity = (event: BudgetEvent) => `${event.date}:${event.isIncome}:${event.sourceKey ?? event.itemId}`;
+          calendars = calendars.map(c => {
+            const events = new Map(c.events.map(event => [identity(event), event]));
+            for (const event of currentEvents.filter(e => e.date.startsWith(c.month.slice(0,7)))) events.set(identity(event),event);
+            return { ...c, events: [...events.values()] };
+          });
           this.calendars.set(calendars); this.calendarLoading.set(false);
           if (!calendars.some(c => this.selectedDay().startsWith(c.month.slice(0, 7))))
             this.selectedDay.set(p?.startDate ?? first);
@@ -82,7 +93,7 @@ export class BudgetCalendar implements OnInit, OnChanges {
     const bill = this.paymentBill();
     if (!bill) return;
     this.month = { ...this.month, events: this.month.events.map(e => e.sourceKey === bill.sourceKey && e.date === bill.date && this.canTrackPayment(e) ? { ...e, payment } : e) };
-    this.paymentBill.set(null); this.loadPeriod();
+    this.paymentBill.set(null); if (!this.controlledPeriod) this.loadPeriod();
     this.paymentChanged.emit();
   }
   readonly period = signal<BudgetIncomePeriod | null>(null);
@@ -96,8 +107,16 @@ export class BudgetCalendar implements OnInit, OnChanges {
   get sourceOptions(): SelectOption[] {
     return [{ value: null, label: 'Household income' }, ...(this.period()?.sources ?? []).map(s => ({ value: s.sourceKey, label: s.name }))];
   }
-  ngOnInit() { this.sourceKey.set(this.source); this.loadPeriod(); }
-  ngOnChanges(changes: SimpleChanges) { if (!changes['month']) return; this.calendarRequest?.unsubscribe(); this.calendars.set([this.month]); this.calendarLoading.set(false); this.calendarError.set(false); this.selectedDay.set(this.today.startsWith(this.month.month.slice(0, 7)) ? this.today : this.month.month); }
+  ngOnInit() { this.sourceKey.set(this.source); if (!this.controlledPeriod) this.loadPeriod(); }
+  ngOnChanges(changes: SimpleChanges) {
+    if (this.controlledPeriod) {
+      this.period.set(this.controlledPeriod); this.loading.set(false); this.error.set(false);
+      if (changes['controlledPeriod']?.previousValue?.startDate !== this.controlledPeriod.startDate)
+        this.selectedDay.set(this.controlledPeriod.startDate ?? this.controlledPeriod.asOf);
+      this.loadCalendars(); return;
+    }
+    if (changes['controlledPeriod']?.previousValue) { this.sourceKey.set(this.source); this.loadPeriod(); }
+    if (!changes['month']) return; this.calendarRequest?.unsubscribe(); this.calendars.set([this.month]); this.calendarLoading.set(false); this.calendarError.set(false); this.selectedDay.set(this.today.startsWith(this.month.month.slice(0, 7)) ? this.today : this.month.month); }
   loadPeriod() {
     this.request?.unsubscribe(); this.calendarRequest?.unsubscribe(); this.loading.set(true); this.error.set(false);
     this.request = this.api.incomePeriod(this.sourceKey(), this.referenceDate).pipe(takeUntilDestroyed(this.destroy)).subscribe({

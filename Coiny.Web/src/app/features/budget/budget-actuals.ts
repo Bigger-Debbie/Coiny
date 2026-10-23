@@ -16,6 +16,7 @@ import { BudgetComparisonChart } from './budget-comparison-chart';
 })
 export class BudgetActualsPanel implements OnChanges {
   @Input({ required: true }) month = '';
+  @Input() periodAsOf: string | null = null;
   @Input() refreshKey = 0;
   private readonly api = inject(BudgetService);
   private readonly destroy = inject(DestroyRef);
@@ -31,7 +32,7 @@ export class BudgetActualsPanel implements OnChanges {
   showItem(item: BudgetActualsItem, page = 1) {
     this.itemRequest?.unsubscribe(); this.selectedItem.set(item); this.itemReport.set(null);
     this.itemLoading.set(true); this.itemError.set('');
-    this.itemRequest = this.api.actuals(this.month, 'all', '', page, item.allocationKey)
+    this.itemRequest = (this.periodAsOf ? this.api.periodActuals(this.periodAsOf, 'all', '', page, item.allocationKey) : this.api.actuals(this.month, 'all', '', page, item.allocationKey))
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
         next: report => {
           this.itemReport.set(report);
@@ -60,10 +61,10 @@ export class BudgetActualsPanel implements OnChanges {
     return [{ value: 'default', label: this.editing()?.categoryType === 'Transfer' ? 'No contribution assignment' : 'Use category default' },
       { value: '', label: 'Leave unassigned' }, ...allowed.map(i => ({ value: i.allocationKey, label: i.name }))];
   }
-  ngOnChanges(changes: SimpleChanges) { this.closeItem(); if (changes['month']) this.report.set(null); this.page = 1; this.categoryChoices.clear(); this.editing.set(null); this.load(); }
+  ngOnChanges(changes: SimpleChanges) { this.closeItem(); if (changes['month'] || changes['periodAsOf']) this.report.set(null); this.page = 1; this.categoryChoices.clear(); this.editing.set(null); this.load(); }
   load(page = this.page) {
     this.request?.unsubscribe(); this.loading.set(true); this.error.set(''); this.page = page;
-    this.request = this.api.actuals(this.month, this.view, this.type, page).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+    this.request = (this.periodAsOf ? this.api.periodActuals(this.periodAsOf,this.view,this.type,page) : this.api.actuals(this.month, this.view, this.type, page)).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next: report => { this.report.set(report); this.page = report.page; this.categoryChoices.clear(); this.loading.set(false); },
       error: () => { this.error.set('The comparison couldn’t load. Try again.'); this.loading.set(false); },
     });
@@ -84,7 +85,7 @@ export class BudgetActualsPanel implements OnChanges {
   saveAssignment() {
     const entry = this.editing(); if (!entry || this.saving()) return;
     this.saving.set(true); this.editError.set('');
-    this.api.assignTransaction(entry.id, this.month, this.assignment === 'default' ? null : this.assignment || null,
+    this.api.assignTransaction(entry.id, entry.date.slice(0,7) + '-01', this.assignment === 'default' ? null : this.assignment || null,
       this.assignment === 'default', entry.editVersion, entry.pairedEditVersion).pipe(takeUntilDestroyed(this.destroy)).subscribe({
         next: () => { this.saving.set(false); this.editing.set(null); this.toasts.success('Budget assignment updated.'); this.load(); },
         error: response => { this.saving.set(false); this.editError.set(response.error?.detail || 'The assignment couldn’t save. Reload and try again.'); },

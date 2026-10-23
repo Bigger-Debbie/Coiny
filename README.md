@@ -17,7 +17,7 @@ experience remain future work.
 | Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic import and history | Transfer matching UI, account/category management, saved bank mappings |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and forecasting |
 | Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Budget setup, monthly allocation donut, breakdown, calendar, bill/contribution payments, and planned/actual graphs and allocation comparisons with category defaults and transaction assignments | Goals, forecasting |
+| Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual graphs and allocation comparisons with category defaults and transaction assignments | Goals, forecasting |
 
 ## Get started
 

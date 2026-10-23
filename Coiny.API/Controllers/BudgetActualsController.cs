@@ -13,6 +13,10 @@ public class BudgetActualsController(BudgetActualsService service) : ControllerB
     public async Task<ActionResult<BudgetActualsResponse>> Get([FromQuery, Required] DateOnly? month,
         [FromQuery] string view = "unassigned", [FromQuery] string? type = null, [FromQuery] int page = 1, [FromQuery] Guid? allocationKey = null) =>
         Ok(await service.GetAsync(month!.Value, view, type, page, allocationKey));
+    [HttpGet("period")]
+    public async Task<ActionResult<BudgetActualsResponse>> Period([FromQuery] DateOnly? asOf = null,
+        [FromQuery] string view = "unassigned", [FromQuery] string? type = null, [FromQuery] int page = 1, [FromQuery] Guid? allocationKey = null) =>
+        Ok(await service.GetPeriodAsync(asOf,view,type,page,allocationKey));
     [HttpPut("categories/{categoryId:int:min(1)}")]
     public async Task<IActionResult> Category(int categoryId, SaveBudgetCategoryRuleRequest request)
     { await service.SaveCategoryAsync(categoryId, request); return NoContent(); }

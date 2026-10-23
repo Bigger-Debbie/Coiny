@@ -19,7 +19,7 @@ export interface BudgetSetup {
   currentRevisionId: number | null; draft: BudgetRevision | null;
 }
 export interface BudgetMonthlyItem { id: number; name: string; allocationType: AllocationType | null; plannedAmount: number; healthInsurance?: number; retirementContributions?: number; occurrenceCount: number; }
-export interface BudgetEvent { payment?: BillPaymentState | null; sourceKey?: string | null; date: string; itemId: number; name: string; isIncome: boolean; allocationType: AllocationType | null; amount: number; }
+export interface BudgetEvent { isPeriodSetAside?: boolean; payment?: BillPaymentState | null; sourceKey?: string | null; date: string; itemId: number; name: string; isIncome: boolean; allocationType: AllocationType | null; amount: number; }
 export interface BudgetMonth {
   month: string; revisionId: number | null; healthInsurance: number; retirementContributions: number; expectedIncome: number; allocated: number;
   unassigned: number; overBudget: number; incomeSources: BudgetMonthlyItem[];
@@ -28,6 +28,7 @@ export interface BudgetMonth {
 export interface BudgetPreview { draftId: number; editVersion: number; month: BudgetMonth; }
 
 export interface BudgetIncomePeriod {
+  plan?: BudgetMonth | null; expectedRemaining?: number; plannedPoints?: import('./budget-actuals').BudgetComparisonPoint[];
   asOf: string; sourceKey: string | null; sources: { sourceKey: string; name: string }[];
   startDate: string | null; endDate: string | null; nextPayday: string | null;
   unpaidBillsTotal?: number; unpaidContributionsTotal?: number; billsTotal: number; contributionsTotal: number; bills: BudgetEvent[]; contributions: BudgetEvent[];

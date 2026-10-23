@@ -4,7 +4,7 @@
   @else if (error()) { <p role="alert">{{ error() }}</p><button type="button" class="button-outline" (click)="load()">Try again</button> }
   @else if (report(); as data) {
     @if (loading()) { <p class="hint" role="status">Updating comparison…</p> }
-    <p class="hint">@if (data.throughDate) { Recorded through {{ data.throughDate | date:'MMM d, yyyy':'UTC' }}. } @else { This future month shows your plan; actuals will appear as transactions are recorded. } Actuals use posting dates. Linked payments take priority over category defaults and individual assignments.</p>
+    <p class="hint">@if (data.throughDate) { Recorded through {{ data.throughDate | date:'MMM d, yyyy':'UTC' }}. } @else { This future period shows your plan; actuals will appear as transactions are recorded. } Actuals use posting dates. Linked payments take priority over category defaults and individual assignments.</p>
     <app-budget-comparison-chart [points]="data.points ?? []" />
     <div class="totals"><div><span>Planned allocations</span><strong>{{ data.planned | currency }}</strong></div><div><span>Recorded against budget</span><strong>{{ data.assignedActual | currency }}</strong></div><div><span>Expenses not assigned</span><strong>{{ data.unassignedExpenses | currency }}</strong></div></div>
     @if (data.awaitingTransaction) { <p class="awaiting">◷ {{ data.awaitingTransaction | currency }} planned in paid items still awaiting transactions. These amounts are separate from actuals.</p> }
@@ -19,7 +19,7 @@
     </div>
     </details>
     <details class="defaults"><summary>Category defaults</summary>
-      <p class="hint">Choose where each expense category belongs. Defaults apply from {{ month | date:'MMMM yyyy':'UTC' }} forward, until replaced by a later default. Earlier months keep their previous rules. Transfers require an explicit contribution assignment.</p>
+      <p class="hint">Choose where each expense category belongs. Defaults apply from {{ month | date:'MMMM yyyy':'UTC' }} forward, until replaced by a later default. Earlier months keep their previous rules. Transfers require an explicit contribution assignment. @if (periodAsOf) { These are monthly defaults; the selected income period starts in this month. }</p>
       <p class="hint">Multiple categories can share one budget item—for example, Movies and Events can both count toward Entertainment. Each category has one default item to avoid double counting.</p>
       @for (rule of activeCategoryDefaults; track rule.categoryId) {
         <div class="rule"><label [for]="'budget-category-' + rule.categoryId">{{ rule.categoryName }}</label><app-select-menu [inputId]="'budget-category-' + rule.categoryId" [label]="rule.categoryName + ' budget item'" [disabled]="saving()" [options]="targets" [ngModel]="categoryChoices.get(rule.categoryId) ?? rule.allocationKey ?? ''" (ngModelChange)="categoryChoices.set(rule.categoryId, $event)" /><button type="button" class="button-outline" [disabled]="saving() || !categoryChoices.has(rule.categoryId)" (click)="saveCategory(rule)">Save</button></div>
@@ -49,7 +49,7 @@
 
 @if (selectedItem(); as item) {
   <app-modal [title]="item.name + ' transactions'" (dismiss)="closeItem()">
-    <p class="hint">{{ month | date:'MMMM yyyy':'UTC' }} · Transactions use posting dates. Linked transfers count once.</p>
+    <p class="hint">@if (periodAsOf && itemReport(); as detail) { {{ detail.startDate | date:'MMM d':'UTC' }} – {{ detail.endDate | date:'MMM d, yyyy':'UTC' }} } @else { {{ month | date:'MMMM yyyy':'UTC' }} } · Transactions use posting dates. Linked transfers count once.</p>
     @if (itemLoading()) { <p role="status">Loading transactions…</p> }
     @else if (itemError()) { <p role="alert">{{ itemError() }}</p><button type="button" class="button-outline" (click)="showItem(item)">Try again</button> }
     @else if (itemReport(); as detail) {
@@ -57,7 +57,7 @@
       <p class="hint">{{ detail.totalCount }} {{ detail.totalCount === 1 ? 'transaction' : 'transactions' }} make up this actual total.</p>
       @for (entry of detail.transactions; track entry.id) {
         <div class="item-transaction"><span>{{ entry.merchant || entry.description }}@if (entry.merchant) { <small>{{ entry.description }}</small> }<small>{{ entry.date | date:'MMM d, yyyy':'UTC' }} · {{ entry.accountName }}</small><small>{{ entry.categoryName }} · {{ entry.assignmentSource === 'Payment' ? 'Linked payment' : entry.assignmentSource === 'Override' ? 'Individual assignment' : 'Category default' }}</small></span><strong>{{ entry.amount | currency }}</strong></div>
-      } @empty { <p class="hint">No recorded transactions are assigned to this item for this month.</p> }
+      } @empty { <p class="hint">No recorded transactions are assigned to this item for this date range.</p> }
       @if (item.awaitingTransaction) { <p class="awaiting">{{ item.awaitingTransaction | currency }} planned in paid items awaiting transactions. This is separate from the actual total.</p> }
       @if (itemPages > 1) { <nav class="pagination" aria-label="Budget item transaction pages"><button type="button" class="button-ghost" [disabled]="detail.page <= 1" (click)="showItem(item, detail.page - 1)">Previous</button><span>Page {{ detail.page }} of {{ itemPages }}</span><button type="button" class="button-ghost" [disabled]="detail.page >= itemPages" (click)="showItem(item, detail.page + 1)">Next</button></nav> }
     }

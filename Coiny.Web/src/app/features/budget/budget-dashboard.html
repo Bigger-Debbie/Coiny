@@ -1,31 +1,41 @@
 <section aria-label="Published budget dashboard">
   <header class="dashboard-heading">
-    <div><h1 class="page-title">Your monthly outlook</h1><p>How your household’s take-home income is planned.</p></div>
+    <div><h1 class="page-title">{{ mode() === 'period' ? 'Your income-period outlook' : 'Your monthly budget' }}</h1><p>{{ mode() === 'period' ? 'What this household income needs to cover before the next payday.' : 'The monthly plan behind your income periods.' }}</p></div>
+    <div class="outlook-controls">
+      <div class="view-controls" role="group" aria-label="Budget perspective"><button type="button" [class.selected]="mode() === 'period'" (click)="selectMode('period')">Income period</button><button type="button" [class.selected]="mode() === 'month'" (click)="selectMode('month')">Monthly plan</button></div>
+    @if (mode() === 'month') {
     <div class="month-picker">
       <button type="button" class="button-ghost" aria-label="Previous month" [disabled]="loading || !adjacent(-1)" (click)="move(-1)">‹</button>
       <div><label for="budget-month">Budget month</label><input id="budget-month" type="month" min="0001-02" max="9999-12" [disabled]="loading" [ngModel]="selectedMonth.slice(0, 7)" (ngModelChange)="change($event)" /></div>
       <button type="button" class="button-ghost" aria-label="Next month" [disabled]="loading || !adjacent(1)" (click)="move(1)">›</button>
     </div>
+    } @else {
+      <nav class="period-picker" aria-label="Outlook income period"><button type="button" class="button-outline" aria-label="Previous income period" [disabled]="periodLoading() || !period()?.startDate || period()!.startDate! <= '0001-01-02'" (click)="navigatePeriod(-1)">‹</button><div><button type="button" class="button-ghost" (click)="navigatePeriod(0)">Current period</button>@if (period()?.startDate && period()?.endDate) { <small>{{ period()!.startDate | date:'MMM d':'UTC' }} – {{ period()!.endDate | date:'MMM d, yyyy':'UTC' }}</small> }</div><button type="button" class="button-outline" aria-label="Next income period" [disabled]="periodLoading() || !period()?.nextPayday" (click)="navigatePeriod(1)">›</button></nav>
+    }
+    </div>
   </header>
-  @if (loading) { <p role="status">Loading the published plan for {{ selectedMonth | date:'MMMM yyyy':'UTC' }}…</p> }
+  @if (mode() === 'period' && periodLoading()) { <p role="status">Loading income-period outlook…</p> }
+  @else if (mode() === 'period' && periodError()) { <div role="alert"><p>The income period couldn’t load.</p><button type="button" class="button-outline" (click)="loadPeriod()">Try again</button></div> }
+  @else if (mode() === 'period' && period() && !period()?.plan) { <div class="panel"><h3>No complete income period</h3><p>A published payday and a following payday are needed to calculate allocations. Review your income schedule, choose the next period, or view the monthly plan.</p></div> }
+  @else if (loading) { <p role="status">Loading the published plan for {{ selectedMonth | date:'MMMM yyyy':'UTC' }}…</p> }
   @else if (error) { <div class="panel" role="alert"><p>This month’s budget couldn’t load.</p><button class="button-outline" (click)="selectMonth.emit(selectedMonth)">Try again</button></div> }
-  @else if (month; as plan) {
+  @else if (displayPlan; as plan) {
     @if (plan.revisionId === null) { <div class="panel"><h3>No published plan for this month</h3><p>Choose a month when your budget is in effect. Draft changes appear here after you publish them.</p></div> }
     @else {
-      <div class="totals" aria-label="Monthly planned totals">
-        <div class="panel income-total"><span>Take-home income</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
-        <div class="panel allocations-total"><span>Planned allocations</span><strong>{{ plan.allocated | currency }}</strong></div>
-        <div class="panel" [class.over]="plan.overBudget > 0"><span>{{ plan.overBudget > 0 ? 'Over budget' : 'Potential savings' }}</span><strong>{{ (plan.overBudget > 0 ? plan.overBudget : plan.unassigned) | currency }}</strong></div>
+      <div class="totals" aria-label="Planned outlook totals">
+        <div class="panel income-total"><span>{{ mode() === 'period' ? 'Income this period' : 'Take-home income' }}</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
+        <div class="panel allocations-total"><span>{{ mode() === 'period' ? 'Allocations this period' : 'Planned allocations' }}</span><strong>{{ plan.allocated | currency }}</strong></div>
+        <div class="panel remaining-total" [class.over]="plan.overBudget > 0"><span>{{ mode() === 'period' ? 'Expected remaining' : 'Monthly remainder' }}</span><strong>{{ (plan.expectedIncome - plan.allocated) | currency }}</strong><small>{{ plan.overBudget > 0 ? 'Requires funds carried forward.' : 'After planned spending, savings, and contributions.' }}</small></div>
       </div>
       <div class="outlook-grid">
         <article class="panel allocation-chart">
           <h3>Where your income is going</h3>
           @if (total > 0) {
-            <app-donut-chart [categories]="categories" [total]="total" [centerLabel]="plan.overBudget > 0 ? 'Total planned' : 'Monthly income'"
-              [periodLabel]="(selectedMonth | date:'MMMM yyyy':'UTC') || ''" chartLabel="Planned income allocation" [showCounts]="false" [unsigned]="true" />
-          } @else { <p>No income or allocations are scheduled for this month.</p> }
+            <app-donut-chart [categories]="categories" [total]="total" [centerLabel]="plan.overBudget > 0 ? 'Total planned' : mode() === 'period' ? 'Period income' : 'Monthly income'"
+              [periodLabel]="mode() === 'period' ? 'Selected income period' : ((selectedMonth | date:'MMMM yyyy':'UTC') || '')" chartLabel="Planned income allocation" [showCounts]="false" [unsigned]="true" />
+          } @else { <p>No income or allocations are scheduled for this outlook.</p> }
           @if (plan.overBudget > 0) { <p class="warning">Your plan exceeds take-home income by {{ plan.overBudget | currency }}. The donut shows shares of planned allocations, which total {{ plan.allocated | currency }}.</p> }
-          @else { <p class="hint">The donut includes your planned allocations and potential savings from income you haven’t allocated. Hover, focus, or tap a segment for details.</p> }
+          @else { <p class="hint">The donut shows planned allocations and expected remaining income. The thin green segment is what remains after those allocations. Hover, focus, or tap a segment for details.</p> }
         </article>
         <div class="detail-panels">
           <article class="panel breakdown"><h3>Budget breakdown</h3>
@@ -34,7 +44,7 @@
               <summary><span>Income<small>{{ plan.incomeSources.length }} {{ plan.incomeSources.length === 1 ? 'source' : 'sources' }}</small></span><strong>{{ plan.expectedIncome | currency }}</strong></summary>
             <div class="group-content">
             @for (item of plan.incomeSources; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.occurrenceCount }} planned {{ item.occurrenceCount === 1 ? 'payday' : 'paydays' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
-            @empty { <p>No paydays scheduled this month.</p> }
+            @empty { <p>No paydays scheduled for this outlook.</p> }
             @if (plan.healthInsurance || plan.retirementContributions) {
               <div class="paycheck-details"><h4>Already deducted from paychecks</h4><div class="item"><span>Health insurance</span><strong>{{ plan.healthInsurance | currency }}</strong></div><div class="item"><span>Retirement contributions</span><strong>{{ plan.retirementContributions | currency }}</strong></div><small>For visibility only. Already excluded from take-home income and separate from the donut.</small></div>
             }
@@ -44,7 +54,7 @@
               <details class="budget-group">
                 <summary><span>{{ group.label }}<small>{{ group.items.length }} {{ group.items.length === 1 ? 'item' : 'items' }}</small></span><strong>{{ group.total | currency }}</strong></summary>
                 <div class="group-content">
-                @for (item of group.items; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.allocationType === 'Investments' ? 'Investing' : item.allocationType }} · {{ item.occurrenceCount ? item.occurrenceCount + ' scheduled payments' : item.plannedAmount ? 'Monthly allocation' : 'Not scheduled this month' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
+                @for (item of group.items; track item.id) { <div class="item"><span>{{ item.name }}<small>{{ item.allocationType === 'Investments' ? 'Investing' : item.allocationType }} · {{ item.occurrenceCount ? item.occurrenceCount + ' planned payments' : item.plannedAmount ? (mode() === 'period' ? 'Prorated monthly allocation' : 'Monthly allocation') : 'Not scheduled in this outlook' }}</small></span><strong>{{ item.plannedAmount | currency }}</strong></div> }
                 @empty { <p class="hint">No items defined in this section.</p> }
                 </div>
               </details>
@@ -53,8 +63,8 @@
           </article>
         </div>
       </div>
-      <app-budget-actuals [month]="plan.month" [refreshKey]="actualsRefresh()" />
-      <app-budget-calendar [month]="plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" (paymentChanged)="refreshActuals()" />
+      <app-budget-actuals [periodAsOf]="mode() === 'period' ? period()?.asOf ?? null : null" [month]="plan.month" [refreshKey]="actualsRefresh()" />
+      <app-budget-calendar [controlledPeriod]="mode() === 'period' ? period() : null" [month]="mode() === 'period' ? month! : plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" (paymentChanged)="refreshActuals()" />
     }
   }
 </section>

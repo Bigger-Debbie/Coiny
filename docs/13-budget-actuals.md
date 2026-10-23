@@ -2,8 +2,9 @@
 
 [Documentation index](../README.md#documentation)
 
-The budgeting dashboard now compares each published budget item with recorded
-activity. It shows **Planned**, **Actual**, and **Remaining** (planned minus actual),
+The budgeting dashboard defaults to comparing each published budget item with
+recorded activity for the selected household income period. Monthly plan view
+retains the monthly comparison. It shows **Planned**, **Actual**, and **Remaining** (planned minus actual),
 alongside recorded totals and expenses not assigned to the budget. Negative
 remaining amounts show spending over plan, or contributions above target.
 
@@ -15,7 +16,7 @@ of its actual total, including posting dates, accounts, categories, and assignme
 sources. This view is independent of the transaction assignment filters. Paid items
 awaiting transactions remain separate from the recorded total.
 
-The graph defaults to All allocations, matching the monthly planned allocation
+The graph defaults to All allocations, matching the selected outlook’s planned allocation
 total, and compares cumulative planned and actual amounts by day. Choose Spending,
 Contributions, or All allocations; hover, tap, or use the arrow keys for daily
 details. Scheduled items enter the plan on their due dates, while unscheduled
@@ -27,7 +28,8 @@ remains a future increment.
 
 ## Dates and recorded activity
 
-Actuals follow the **transaction posting month**, as agreed. A November bill paid
+Actuals follow transaction posting dates within the selected period (or the
+**transaction posting month** in monthly view). A November bill paid
 on October 31 belongs to October's actuals while November retains the scheduled
 plan. The current month includes activity through today in America/New_York;
 past months include the whole month. Future months show the plan with zero actuals.
@@ -101,3 +103,9 @@ Tests cover category-rule history, individual overrides/reset, payment precedenc
 pending amounts, posting-month boundaries, future activity, transfer counting,
 household isolation, stale writes, HTTP contracts, UI selection/paging/retry, and
 responsive component compilation. See the [API reference](07-api-reference.md#budget-actuals).
+
+Income-period comparisons use `/api/budgets/actuals/period?asOf=...`; scheduled goal
+set-asides enter the planned line on the household period's last day. Monthly
+spending allowances use exact prorated portions. Cross-month category rules are
+resolved per transaction posting month; category rule editing remains monthly.
+See [income-period budgeting](09-household-budgeting.md#income-period-budgeting).

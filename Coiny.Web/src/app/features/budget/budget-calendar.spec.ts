@@ -1,3 +1,5 @@
+import { of } from 'rxjs';
+import { BudgetService } from '../../core/services/budget.service';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -13,7 +15,10 @@ const month: BudgetMonth = { month: '2026-10-01', revisionId: 1, expectedIncome:
     { date: '2026-10-16', itemId: 2, name: 'Salary A', isIncome: true, allocationType: null, amount: 2000 }] };
 describe('BudgetCalendar', () => {
   let http: HttpTestingController;
-  beforeEach(() => { TestBed.configureTestingModule({ imports: [BudgetCalendar], providers: [provideHttpClient(), provideHttpClientTesting()] }); http = TestBed.inject(HttpTestingController); });
+  beforeEach(() => { TestBed.configureTestingModule({ imports: [BudgetCalendar], providers: [provideHttpClient(), provideHttpClientTesting()] }); http = TestBed.inject(HttpTestingController);
+    const api=TestBed.inject(BudgetService); const original=api.month.bind(api);
+    vi.spyOn(api,'month').mockImplementation(date=>date===month.month ? of(month) : original(date));
+  });
   afterEach(() => http.verify());
   function render() { const f = TestBed.createComponent(BudgetCalendar); f.componentRef.setInput('month', month); f.detectChanges(); http.expectOne(r => r.url.endsWith('/income-period')).flush(period); f.detectChanges(); return f; }
   it('navigates using payday boundaries and preserves the income schedule', () => {
@@ -58,6 +63,54 @@ describe('BudgetCalendar', () => {
     c.loadPeriod(); http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, startDate: '2026-12-25', endDate: '2027-01-07' });
     const requests = http.match(r => r.url.endsWith('/month')); requests[0].flush({ ...month, month: '2026-12-01', events: [] }); requests[1].flush({ ...month, month: '2027-01-01', events: [] }); f.detectChanges();
     expect(f.nativeElement.querySelectorAll('.day')).toHaveLength(62);
+  });
+  it('uses the parent period and shows its generated goal without separate navigation or period requests', () => {
+    const goal={ ...bill, name:'Car fund', sourceKey:'car', date:'2026-10-22', isPeriodSetAside:true, allocationType:'Savings' as const };
+    const selected={ ...period, contributions:[goal],contributionsTotal:225.81,plan:{ ...month,events:[...month.events,goal] } };
+    const f=TestBed.createComponent(BudgetCalendar); f.componentRef.setInput('month',month); f.componentRef.setInput('controlledPeriod',selected); f.detectChanges();
+    http.expectNone(r=>r.url.endsWith('/income-period')); expect(f.nativeElement.querySelector('.period-navigation')).toBeNull();
+    expect(f.nativeElement.querySelector('[aria-label^="2026-10-22"] .markers').textContent).toContain('●');
+    expect(f.nativeElement.querySelector('.period-panel').textContent).toContain('Planned set-aside');
+    expect(f.nativeElement.querySelector('.period-total strong').textContent).toContain('$325.81');
+    const emit=vi.spyOn(f.componentInstance.paymentChanged,'emit'); f.componentInstance.paymentBill.set(goal);
+    f.componentInstance.paymentSaved({ isPaid:true,paidOn:'2026-10-16',transactionId:null,note:null });
+    http.expectNone(r=>r.url.endsWith('/income-period')); expect(emit).toHaveBeenCalled();
+  });
+  it('uses refreshed period payment states over stale monthly calendar data for pending, linked, and unpaid bills', () => {
+    const f=TestBed.createComponent(BudgetCalendar);
+    const occurrence={ ...bill, sourceKey:'baby-sitter' };
+    const staleMonth={ ...month, events:[occurrence] };
+    vi.mocked(TestBed.inject(BudgetService).month).mockReturnValue(of(staleMonth));
+    const payment={ isPaid:true,paidOn:'2026-10-16',transactionId:null as number | null,note:null };
+    const makePeriod=(state: typeof payment) => ({ ...period,bills:[{ ...occurrence,payment:state }],plan:{ ...staleMonth,events:[{ ...occurrence,payment:state }] } });
+    f.componentRef.setInput('month',staleMonth); f.componentRef.setInput('controlledPeriod',makePeriod(payment)); f.detectChanges();
+    f.componentInstance.selectedDay.set(bill.date); f.detectChanges();
+    expect(f.nativeElement.querySelector('.period-panel .awaiting-payment')).toBeTruthy();
+    expect(f.nativeElement.querySelector('.day-details .awaiting-payment').textContent).toContain('Link transaction');
+    expect(f.nativeElement.querySelector('[aria-label^="2026-10-17"] .markers').textContent).toContain('◷');
+    f.componentRef.setInput('controlledPeriod',makePeriod({ ...payment,transactionId:42 })); f.detectChanges();
+    expect(f.nativeElement.querySelector('.day-details .paid-bill').textContent).toContain('View payment');
+    expect(f.nativeElement.querySelector('[aria-label^="2026-10-17"] .markers').textContent).toContain('✓');
+    f.componentRef.setInput('controlledPeriod',makePeriod({ ...payment,isPaid:false })); f.detectChanges();
+    expect(f.nativeElement.querySelector('.day-details .awaiting-payment')).toBeNull();
+    expect(f.nativeElement.querySelector('.day-details .paid-bill')).toBeNull();
+    expect(f.nativeElement.querySelector('.day-details').textContent).toContain('Mark paid');
+    expect(f.componentInstance.days.filter(Boolean).flatMap(day=>day!.events)).toHaveLength(1);
+    http.expectNone(r=>r.url.endsWith('/income-period'));
+  });
+  it('refreshes payment status outside the selected period when navigating away from the due period', () => {
+    const occurrence={ ...bill,date:'2026-10-15',sourceKey:'mazda' };
+    const payment={ isPaid:true,paidOn:'2026-10-16',transactionId:410,note:null };
+    const api=TestBed.inject(BudgetService);
+    vi.mocked(api.month).mockReturnValue(of({ ...month,events:[{ ...occurrence,payment }] }));
+    const f=TestBed.createComponent(BudgetCalendar);
+    f.componentRef.setInput('month',{ ...month,events:[occurrence] });
+    f.componentRef.setInput('controlledPeriod',{ ...period,startDate:'2026-10-02',endDate:'2026-10-15',bills:[{ ...occurrence,payment }] }); f.detectChanges();
+    f.componentRef.setInput('controlledPeriod',{ ...period,bills:[] }); f.detectChanges();
+    f.componentInstance.selectedDay.set(occurrence.date); f.detectChanges();
+    expect(api.month).toHaveBeenCalledTimes(2);
+    expect(f.nativeElement.querySelector('.day-details .paid-bill').textContent).toContain('View payment');
+    expect(f.nativeElement.querySelector('[aria-label^="2026-10-15"] .markers').textContent).toContain('✓');
   });
   it('hides only completed linked payments when show completed is off', () => {
     const f = render(); const c = f.componentInstance;

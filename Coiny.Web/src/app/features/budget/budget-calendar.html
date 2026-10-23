@@ -2,6 +2,7 @@
   <aside class="period-shell">
   <div class="panel period-panel">
     <h2>{{ periodTitle }}</h2>
+    @if (!controlledPeriod) {
     <nav class="period-navigation" aria-label="Income period navigation">
       <button type="button" class="button-outline" [disabled]="loading() || !period()?.startDate || period()!.startDate! <= '0001-01-02'" (click)="previousPeriod()">‹ Previous</button>
       <button type="button" class="button-ghost" [disabled]="loading()" (click)="currentPeriod()">Current</button>
@@ -10,6 +11,7 @@
     <label for="income-period-source">Income schedule</label>
     <app-select-menu inputId="income-period-source" label="Income schedule" [options]="sourceOptions" [ngModel]="sourceKey()" (ngModelChange)="selectSource($event)" />
     <p class="hint">Household income starts a new period on each distinct payday. Individual schedules use that source’s paydays.</p>
+    }
     @if (loading()) { <p role="status">Finding your income period…</p> }
     @else if (error()) { <div role="alert"><p>Your income period couldn’t load.</p><button class="button-outline" (click)="loadPeriod()">Try again</button>@if (sourceKey()) { <button class="button-ghost" (click)="resetSource()">Use household income</button> }</div> }
     @else if (period(); as p) {
@@ -17,7 +19,7 @@
       @if (p.startDate && p.endDate) {
         <p class="period-dates">{{ p.startDate | date:'MMM d':'UTC' }} – {{ p.endDate | date:'MMM d, yyyy':'UTC' }}</p>
         <small>Next payday: {{ p.nextPayday | date:'MMM d':'UTC' }}. Bills on that day belong to the next period.</small>
-        <div class="period-total"><span>Remaining unpaid bills</span><strong>{{ (p.unpaidBillsTotal ?? p.billsTotal) | currency }}</strong><small>{{ p.billsTotal | currency }} total scheduled this period</small></div>
+        <div class="period-total"><span>Remaining unpaid bills & contributions</span><strong>{{ ((p.unpaidBillsTotal ?? p.billsTotal) + (p.unpaidContributionsTotal ?? p.contributionsTotal)) | currency }}</strong><small>{{ (p.billsTotal + p.contributionsTotal) | currency }} total scheduled this period</small></div>
         <label class="completed-toggle"><input type="checkbox" role="switch" [ngModel]="showCompleted()" (ngModelChange)="showCompleted.set($event)" /><span>Show completed</span></label>
         <div class="period-events" tabindex="0" role="region" aria-label="Bills and contributions this income period">
         @for (bill of visiblePayments(p.bills); track $index) {
@@ -32,7 +34,7 @@
           <p class="hint">{{ (p.unpaidContributionsTotal ?? p.contributionsTotal) | currency }} remaining unpaid</p>
           @for (item of visiblePayments(p.contributions); track $index) {
             <div class="event-row" [class.paid-bill]="linkedPayment(item)" [class.awaiting-payment]="awaitingTransaction(item)">
-              <span>@if (item.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(item)" [class.awaiting-icon]="awaitingTransaction(item)" aria-hidden="true">{{ paymentMarker(item) }}</span> }{{ item.name }}<small>{{ item.date | date:'MMM d':'UTC' }} · {{ status(item) }}</small></span>
+              <span>@if (item.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(item)" [class.awaiting-icon]="awaitingTransaction(item)" aria-hidden="true">{{ paymentMarker(item) }}</span> }{{ item.name }}<small>{{ item.date | date:'MMM d':'UTC' }} · @if (item.isPeriodSetAside) { Planned set-aside · }{{ status(item) }}</small></span>
               <div class="bill-actions"><strong>{{ item.amount | currency }}</strong><button class="button-outline" (click)="openPayment(item)">{{ paymentAction(item) }}</button></div>
             </div>
           }
@@ -50,7 +52,7 @@
   </div>
   </aside>
   <article class="panel calendar-panel">
-    <header><h2>Payment calendar</h2><button type="button" class="button-ghost" (click)="currentPeriod()">Current period</button></header>
+    <header><h2>Payment calendar</h2>@if (!controlledPeriod) { <button type="button" class="button-ghost" (click)="currentPeriod()">Current period</button> }</header>
     <div class="calendar-key"><span class="income">● Income</span><span class="bill">● Bills</span><span class="contribution">● Contributions</span><span class="awaiting-icon">◷ Awaiting transaction</span><span class="paid-check">✓ Linked</span><span>Shaded days: selected income period</span></div>
     @if (calendarLoading()) { <p role="status">Loading calendar months…</p> }
     @else if (calendarError()) { <p role="alert">The calendar couldn’t load.</p><button type="button" class="button-outline" (click)="loadCalendars()">Retry calendar</button> }
@@ -79,7 +81,7 @@
       <h3>{{ selectedDay() | date:'EEEE, MMMM d':'UTC' }}</h3>
       @for (event of selectedEvents; track $index) {
         <div class="event-row" [class.paid-bill]="linkedPayment(event)" [class.awaiting-payment]="awaitingTransaction(event)">
-          <span>@if (canTrackPayment(event) && event.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(event)" [class.awaiting-icon]="awaitingTransaction(event)" aria-hidden="true">{{ paymentMarker(event) }}</span> }{{ event.name }}<small>{{ kind(event) }}@if (canTrackPayment(event)) { · {{ status(event) }} }</small></span>
+          <span>@if (canTrackPayment(event) && event.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(event)" [class.awaiting-icon]="awaitingTransaction(event)" aria-hidden="true">{{ paymentMarker(event) }}</span> }{{ event.name }}<small>{{ event.isPeriodSetAside ? 'Planned set-aside' : kind(event) }}@if (canTrackPayment(event)) { · {{ status(event) }} }</small></span>
           <div class="bill-actions"><strong>{{ event.amount | currency }}</strong>@if (canTrackPayment(event) && event.sourceKey) { <button class="button-outline" (click)="openPayment(event)">{{ paymentAction(event) }}</button> }</div>
         </div>
       }

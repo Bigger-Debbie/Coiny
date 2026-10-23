@@ -74,6 +74,7 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/draft/{draftId}/preview` | 200 | Preview draft for a month and edit version |
 | POST | `/api/budgets/draft/{draftId}/publish` | 200 | Publish the reviewed draft |
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
+| GET | `/api/budgets/actuals/period` | 200 | Income-period planned/actual totals, daily graph, and paginated activity |
 | GET | `/api/budgets/actuals` | 200 | Monthly allocation comparison and paginated activity assignments |
 | PUT | `/api/budgets/actuals/categories/{categoryId}` | 204 | Save an expense category default effective from a month |
 | PUT | `/api/budgets/actuals/transactions/{transactionId}` | 204 | Set/reset an individual movement's budget assignment |
@@ -1321,3 +1322,31 @@ null for future months). Activity filters and pagination do not filter this seri
 Budget allocation types and setup steps now also accept `Subscriptions`. It is a
 scheduled bill type for publication validation, income-period bill totals, and
 payment linking, while appearing as a separate group in the budgeting UI.
+
+## Income-period outlook and actuals
+
+`GET /api/budgets/income-period?asOf=2026-10-30` now includes `plan` (the same
+shape as a monthly plan, with amounts projected to the selected period),
+`plannedPoints` (daily cumulative planned spending/contributions), and signed
+`expectedRemaining`. A complete period starts on a payday and ends the day before
+the next distinct household payday. Combined income, allocations, payroll details,
+and generated set-asides are included in `plan`. An incomplete period has no plan.
+Individual-source period lookup remains supported, but generated goals always use
+the canonical household boundaries to avoid duplicate payment identities.
+
+`GET /api/budgets/actuals/period?asOf=2026-10-30&view=all&page=1` accepts the same
+activity filters and `allocationKey` as the monthly actuals endpoint. Its response
+includes `startDate` and `endDate`; totals, graph points, and item transactions cover
+that exact period. Transactions follow posting dates; paired transfers count once
+on the receiving date. Category defaults follow each transaction's posting month.
+Save transaction assignments with that transaction's first-of-month date. Category
+rule edits remain monthly and use the period start month in the period editor.
+
+Monthly allowances use differences of rounded cumulative monthly amounts, retaining
+exact cents across period boundaries. Unscheduled Savings/Investments get generated
+`isPeriodSetAside: true` events on the household period's final day; explicitly
+scheduled contributions keep their dates. These events support the existing
+bill-payment/candidate APIs without creating financial transactions automatically.
+Publication preserves compatible generated-goal links and releases obsolete ones.
+No new schema or reserve endpoint is required. Missing/invalid periods return 400;
+authentication and household access checks continue to return 401/403.

@@ -11,6 +11,9 @@ export class BudgetService {
   actuals(month: string, view: string, type: string, page: number, allocationKey?: string) {
     return this.http.get<BudgetActuals>(`${this.url}/actuals`, { params: { month, view, page, ...(type ? { type } : {}), ...(allocationKey ? { allocationKey } : {}) } });
   }
+  periodActuals(asOf: string, view: string, type: string, page: number, allocationKey?: string) {
+    return this.http.get<BudgetActuals>(`${this.url}/actuals/period`, { params: { asOf, view, page, ...(type ? { type } : {}), ...(allocationKey ? { allocationKey } : {}) } });
+  }
   saveCategoryDefault(categoryId: number, month: string, allocationKey: string | null, expectedEditVersion: number) {
     return this.http.put<void>(`${this.url}/actuals/categories/${categoryId}`, { month, allocationKey, expectedEditVersion });
   }

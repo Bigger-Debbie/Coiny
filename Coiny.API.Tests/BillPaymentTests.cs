@@ -35,6 +35,23 @@ public class BillPaymentTests
             new Transaction { Id = 3, HouseholdId = 2, AccountId = 2, CategoryId = 3, Amount = 100, TransactionDate = new(2026,10,15), Description = "Other" });
         await c.SaveChangesAsync();
     }
+    [Fact]
+    public async Task Deliberately_unassigned_transaction_can_be_linked_but_active_assignments_still_block()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync();
+        var key = await Plan(db); await Ledger(db);
+        var c = db.Context();
+        var assignment = new TransactionBudgetAssignment { HouseholdId = 1, TransactionId = 1, AllocationKey = key };
+        c.TransactionBudgetAssignments.Add(assignment); await c.SaveChangesAsync();
+        Assert.DoesNotContain(await Service(db).CandidatesAsync(key, Due, null), t => t.Id == 1);
+        await Assert.ThrowsAsync<BudgetConflictException>(() => Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionId = 1 }));
+        assignment.AllocationKey = null; await c.SaveChangesAsync();
+        Assert.Contains(await Service(db).CandidatesAsync(key, Due, null), t => t.Id == 1);
+        var payment = await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionId = 1 });
+        Assert.Equal(1, payment.TransactionId);
+        Assert.Empty(await db.Context().TransactionBudgetAssignments.ToListAsync());
+        Assert.Equal(3, await db.Context().Transactions.CountAsync());
+    }
     [Theory]
     [InlineData(false, false, false)] // Removal in the current month releases the link.
     [InlineData(false, true, true)] // A future plan preserves historical payment links.

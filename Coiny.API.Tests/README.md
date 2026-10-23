@@ -52,7 +52,7 @@ Coverage includes:
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 171 passing tests. Build output and TestResults are ignored
+The current suite has 176 passing tests. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the

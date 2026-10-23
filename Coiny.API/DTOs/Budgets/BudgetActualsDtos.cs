@@ -6,6 +6,8 @@ namespace Coiny.API.DTOs.Budgets;
 
 public class BudgetActualsResponse
 {
+    public DateOnly StartDate { get; init; }
+    public DateOnly EndDate { get; init; }
     public DateOnly Month { get; init; }
     public DateOnly? ThroughDate { get; init; }
     public decimal Planned { get; init; }

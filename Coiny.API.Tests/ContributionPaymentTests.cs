@@ -59,7 +59,7 @@ public class ContributionPaymentTests
         Assert.True(payment.IsPaid); Assert.Equal("Completed", payment.Note);
         Assert.Equal("AwaitingTransaction", payment.Status);
         var month = await db.Service().GetMonthAsync(new(2026, 10, 1)); Assert.True(Assert.Single(month.Events, e => e.Name == "IRA").Payment!.IsPaid);
-        var period = await db.Service().GetIncomePeriodAsync(); Assert.Equal(200, period.ContributionsTotal); Assert.Equal(100, period.UnpaidContributionsTotal);
+        var period = await db.Service().GetIncomePeriodAsync(); Assert.Equal(245.16m, period.ContributionsTotal); Assert.Equal(145.16m, period.UnpaidContributionsTotal);
         Assert.Equal(100, period.UnpaidBillsTotal); Assert.True(Assert.Single(period.Contributions, e => e.Name == "IRA").Payment!.IsPaid);
         Assert.Equal(1, period.AwaitingTransactionCount); Assert.Equal(100, period.AwaitingTransactionTotal);
         await Payments(db).SaveAsync(keys["Electric"], Due, new() { IsPaid = true });
@@ -67,7 +67,7 @@ public class ContributionPaymentTests
         Assert.Equal(200, (await db.Service().GetIncomePeriodAsync()).AwaitingTransactionTotal);
         Assert.Null(Assert.Single((await db.Service().GetMonthAsync(new(2026, 11, 1))).Events, e => e.Name == "IRA").Payment);
         await Payments(db).SaveAsync(keys["IRA"], Due, new() { IsPaid = false });
-        Assert.Equal(200, (await db.Service().GetIncomePeriodAsync()).UnpaidContributionsTotal);
+        Assert.Equal(245.16m, (await db.Service().GetIncomePeriodAsync()).UnpaidContributionsTotal);
         Assert.Empty(await db.Context().Transactions.ToListAsync()); Assert.Empty(await db.Context().AccountBalanceSnapshots.ToListAsync());
     }
     [Fact]

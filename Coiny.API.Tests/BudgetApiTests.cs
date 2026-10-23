@@ -205,6 +205,10 @@ public class BudgetApiTests
         c.Transactions.Add(new() { Id = 1, HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 40, Description = "Market", TransactionDate = new(2026, 10, 15) }); await c.SaveChangesAsync();
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.GetAsync("/api/budgets/actuals")).StatusCode);
         var report = await host.Client.GetFromJsonAsync<BudgetActualsResponse>("/api/budgets/actuals?month=2026-10-01", Json); Assert.Equal(40, report!.UnassignedExpenses);
+        var periodReport = await host.Client.GetFromJsonAsync<BudgetActualsResponse>("/api/budgets/actuals/period?asOf=2026-10-16",Json);
+        Assert.Equal(new DateOnly(2026,10,1),periodReport!.StartDate); Assert.Equal(new DateOnly(2026,10,31),periodReport.EndDate);
+        Assert.Equal(300,periodReport.Planned); Assert.Equal(40,periodReport.UnassignedExpenses);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.GetAsync("/api/budgets/actuals/period?asOf=invalid")).StatusCode);
         var category = $"{{\"month\":\"2026-10-01\",\"allocationKey\":\"{saved.Allocations[0].SourceKey}\",\"expectedEditVersion\":0}}";
         Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PutAsync("/api/budgets/actuals/categories/1", Body(category))).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await host.Client.PutAsync("/api/budgets/actuals/categories/1", Body(category))).StatusCode);

@@ -449,3 +449,46 @@ why dates or navigation are unavailable. No forecasting amounts are added.
 The remaining income is labeled **Potential savings** in the monthly totals,
 wizard summary, and donut. Its segment is consistently green and uses a thinner
 ring while preserving the correct percentage of total income.
+
+## Income-period budgeting
+
+The dashboard defaults to a household income-period outlook. One top-level period
+selector drives income, allocations, signed expected remaining, donut, breakdown,
+planned-versus-actual graph, transaction drilldown, and calendar. Monthly plan view
+remains available for reviewing definitions and monthly totals. The wizard still
+defines monthly amounts and scheduled due dates. The earlier reserve prototype is
+superseded by the shared period range.
+
+Each period begins on a distinct household payday and ends before the next one;
+paychecks arriving together are combined. Bills/subscriptions and explicit
+contributions use their scheduled dates. Monthly allowances are split using
+rounded cumulative month fractions: the portion for days a–b is rounded(monthly ×
+b/daysInMonth) minus rounded(monthly × (a−1)/daysInMonth). This preserves every
+month's exact cents, even across mixed pay schedules and month boundaries. A
+cross-month period combines its portions of both monthly plans. Published revisions
+for each covered month are respected. Definitions remain unmodified.
+
+Unscheduled monthly Savings/Investments produce **Planned set-aside** events on the
+last day of the household period. A $500 car goal yields $225.81 for Oct 2–15,
+$225.80 for Oct 16–29, and $232.26 for Oct 30–Nov 12 when November is also $500.
+October 1's $16.13 belongs to the earlier period covering that day. Days before the
+first published payday have no complete income period; the UI explains the missing
+boundary rather than inventing income. The monthly view still includes the entire
+monthly definition.
+
+Generated set-asides are included once in allocations and the calendar. They are
+not automatically paid and never create ledger entries. Existing mark-paid/link
+controls apply, with yellow awaiting-transaction and green linked states. Explicit
+contribution schedules keep their original dates. Generated identities use the
+stable allocation key plus household period end date, and publication cleanup
+validates those identities before detaching links. Individual income views group
+the same household goal events rather than creating alternative duplicate dates.
+
+Actuals use transaction posting dates within the selected range, including effective
+category rules from each posting month. Transaction overrides save against their
+posting month; category defaults remain monthly. Negative expected remaining means
+that the period needs funds carried forward. It is not silently reduced to zero.
+Expected remaining is after planned savings/contributions and is not the total
+amount saved. Running-balance forecasting and carried fund balances remain roadmap
+work. This change needs an API restart but no database migration or financial data
+rewrite.

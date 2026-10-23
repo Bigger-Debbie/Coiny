@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { CategoryBreakdownItem } from '../../models/transactions/category-breakdown';
 import { DonutChart } from './donut-chart';
 
 const categories = [
@@ -6,10 +7,29 @@ const categories = [
   { categoryId: 2, categoryName: 'Restaurants', amount: 25, percentage: 25, transactionCount: 1 },
 ];
 describe('DonutChart', () => {
-  function render(data = categories) {
+  function render(data: CategoryBreakdownItem[] = categories) {
     const f = TestBed.createComponent(DonutChart);
     f.componentRef.setInput('categories', data); f.componentRef.setInput('total', 100); f.detectChanges(); return f;
   }
+  it('reserves explicit colors before assigning automatic colors and resolves collisions', () => {
+    const data = [
+      { ...categories[0],categoryId:3 },
+      { ...categories[0],categoryId:11 },
+      { ...categories[0],categoryId:7,categoryName:'Expected remaining',color:'#047c04' },
+      { ...categories[0],categoryId:19,color:'#047C04' },
+    ];
+    const f=render(data); const slices=f.componentInstance.slices();
+    expect(slices.find(c=>c.categoryId===7)?.color).toBe('#047c04');
+    expect(new Set(slices.map(c=>c.color.toLowerCase())).size).toBe(4);
+    const original=new Map(slices.map(c=>[c.categoryId,c.color]));
+    f.componentRef.setInput('categories',[...data].reverse()); f.detectChanges();
+    expect(f.componentInstance.slices().every(c=>original.get(c.categoryId)===c.color)).toBe(true);
+  });
+  it('extends the palette rather than repeating colors for large category lists', () => {
+    const f=render(Array.from({length:24},(_,i)=>({ ...categories[0],categoryId:i*8+1 })));
+    expect(new Set(f.componentInstance.slices().map(c=>c.color)).size).toBe(24);
+    expect(f.nativeElement.querySelectorAll('.legend .avatar')).toHaveLength(24);
+  });
   it('renders proportional arcs, category amounts, counts, and accessible total', () => {
     const f = render();
     const slices = f.componentInstance.slices();

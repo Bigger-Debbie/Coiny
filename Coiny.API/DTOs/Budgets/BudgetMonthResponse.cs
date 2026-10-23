@@ -31,6 +31,7 @@ public class BudgetMonthlyItem
 
 public class BudgetScheduledEvent
 {
+    public bool IsPeriodSetAside { get; init; }
     public BillPaymentResponse? Payment { get; set; }
     public Guid? SourceKey { get; init; }
     public DateOnly Date { get; init; }

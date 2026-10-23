@@ -14,6 +14,7 @@ export interface BudgetActualsTransaction {
   assignmentSource: 'Payment' | 'Override' | 'Category' | 'Unassigned';
 }
 export interface BudgetActuals {
+  startDate?: string; endDate?: string;
   points?: BudgetComparisonPoint[];
   month: string; throughDate: string | null; planned: number; assignedActual: number; unassignedExpenses: number;
   awaitingTransaction: number; items: BudgetActualsItem[]; categoryDefaults: BudgetCategoryDefault[];

@@ -43,6 +43,13 @@ describe('BudgetActualsPanel', () => {
     c.closeItem(); f.detectChanges(); expect(f.nativeElement.querySelector('app-modal')).toBeNull();
     expect(c.view).toBe('unassigned'); expect(c.type).toBe('Expense');
   });
+  it('loads period activity and saves cross-month assignments in the posting month', () => {
+    const f=TestBed.createComponent(BudgetActualsPanel); f.componentRef.setInput('month','2026-10-01'); f.componentRef.setInput('periodAsOf','2026-10-30'); f.detectChanges();
+    const req=http.expectOne(r=>r.url.endsWith('/actuals/period')); expect(req.request.params.get('asOf')).toBe('2026-10-30'); req.flush(report);
+    const entry={ ...report.transactions[0],date:'2026-11-02' }; f.componentInstance.edit(entry); f.componentInstance.assignment='food'; f.componentInstance.saveAssignment();
+    const save=http.expectOne(r=>r.method==='PUT'); expect(save.request.body.month).toBe('2026-11-01'); save.flush(null);
+    http.expectOne(r=>r.url.endsWith('/actuals/period')).flush(report);
+  });
   it('separates planned, actual, unmatched expenses, and awaiting estimates', () => {
     const f = render(); expect(f.nativeElement.textContent).toContain('Recorded against budget'); expect(f.nativeElement.textContent).toContain('$100.00');
     expect(f.nativeElement.querySelector('.awaiting').textContent).toContain('$200.00'); expect(f.nativeElement.textContent).toContain('These amounts are separate from actuals');
@@ -77,6 +84,6 @@ describe('BudgetActualsPanel', () => {
     f.componentRef.setInput('month', '2026-11-01'); f.detectChanges(); expect(old.cancelled).toBe(true);
     http.expectOne(r => r.params.get('month') === '2026-11-01').flush({}, { status: 500, statusText: 'Error' }); f.detectChanges(); expect(f.nativeElement.textContent).toContain('Try again');
     c.load(); http.expectOne(r => r.url.endsWith('/actuals')).flush({ ...report, month: '2026-11-01', throughDate: null, transactions: [] }); f.detectChanges();
-    expect(f.nativeElement.textContent).toContain('This future month shows your plan');
+    expect(f.nativeElement.textContent).toContain('This future period shows your plan');
   });
 });
