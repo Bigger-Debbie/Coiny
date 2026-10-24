@@ -69,4 +69,5 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 .remaining-total { border-color:var(--color-success); }
 .remaining-total strong { color:var(--color-success); }
 .remaining-total.over { border-color:var(--color-danger); }
+.remaining-total.over strong { color:var(--color-danger); }
 @media(max-width:800px) { .outlook-controls { justify-items:center; } }

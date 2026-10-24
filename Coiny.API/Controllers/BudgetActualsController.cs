@@ -9,6 +9,9 @@ namespace Coiny.API.Controllers;
 [ApiController, Authorize, BudgetApiExceptionFilter, Route("api/budgets/actuals")]
 public class BudgetActualsController(BudgetActualsService service) : ControllerBase
 {
+    [HttpGet("/api/budgets/forecast")]
+    public async Task<ActionResult<BudgetForecastResponse>> Forecast([FromQuery] DateOnly? asOf = null, [FromQuery] int months = 3) =>
+        Ok(await service.GetForecastAsync(asOf,months));
     [HttpGet]
     public async Task<ActionResult<BudgetActualsResponse>> Get([FromQuery, Required] DateOnly? month,
         [FromQuery] string view = "unassigned", [FromQuery] string? type = null, [FromQuery] int page = 1, [FromQuery] Guid? allocationKey = null) =>

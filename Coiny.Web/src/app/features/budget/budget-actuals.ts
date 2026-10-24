@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, Input, OnChanges, SimpleChanges, signal } from '@angular/core';
+import { Component, DestroyRef, inject, Input, OnChanges, SimpleChanges, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -8,10 +8,12 @@ import { ToastService } from '../../core/services/toast.service';
 import { BudgetActuals, BudgetActualsItem, BudgetActualsTransaction, BudgetCategoryDefault } from '../../shared/models/budget/budget-actuals';
 import { SelectMenu, SelectOption } from '../../shared/components/select-menu/select-menu';
 import { Modal } from '../../shared/components/modal/modal';
+import { BudgetRunningForecast } from './budget-running-forecast';
+import { getTrendDates } from '../dashboard/trend-range';
 import { BudgetComparisonChart } from './budget-comparison-chart';
 
 @Component({
-  selector: 'app-budget-actuals', imports: [CurrencyPipe, DatePipe, FormsModule, SelectMenu, Modal, BudgetComparisonChart],
+  selector: 'app-budget-actuals', imports: [CurrencyPipe, DatePipe, FormsModule, SelectMenu, Modal, BudgetComparisonChart, BudgetRunningForecast],
   templateUrl: './budget-actuals.html', styleUrl: './budget-actuals.css',
 })
 export class BudgetActualsPanel implements OnChanges {
@@ -23,6 +25,11 @@ export class BudgetActualsPanel implements OnChanges {
   private readonly toasts = inject(ToastService);
   private request?: Subscription;
   private itemRequest?: Subscription;
+  readonly chartView = signal<'allocations' | 'forecast'>('allocations');
+  readonly forecastRefresh = signal(0);
+  get forecastAsOf() { const today=getTrendDates('1D').endDate; return this.periodAsOf ?? (this.month.slice(0,7)===today.slice(0,7) ? today : this.month); }
+  readonly refreshed = output<void>();
+  refresh() { this.refreshed.emit(); this.forecastRefresh.update(v=>v+1); this.load(); }
   readonly selectedItem = signal<BudgetActualsItem | null>(null);
   readonly itemReport = signal<BudgetActuals | null>(null);
   readonly itemLoading = signal(false);
@@ -76,7 +83,7 @@ export class BudgetActualsPanel implements OnChanges {
     this.saving.set(true);
     this.api.saveCategoryDefault(rule.categoryId, this.month, this.categoryChoices.get(rule.categoryId) || null, rule.editVersion)
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
-        next: () => { this.saving.set(false); this.toasts.success('Category default saved from this budget month forward.'); this.load(); },
+        next: () => { this.saving.set(false); this.toasts.success('Category default saved from this budget month forward.'); this.refresh(); },
         error: response => { this.saving.set(false); this.toasts.error(response.error?.detail || 'The default couldn’t save. Reload and try again.'); },
       });
   }
@@ -89,7 +96,7 @@ export class BudgetActualsPanel implements OnChanges {
     this.saving.set(true); this.editError.set('');
     this.api.assignTransaction(entry.id, entry.date.slice(0,7) + '-01', this.assignment === 'default' ? null : this.assignment || null,
       this.assignment === 'default', entry.editVersion, entry.pairedEditVersion).pipe(takeUntilDestroyed(this.destroy)).subscribe({
-        next: () => { this.saving.set(false); this.editing.set(null); this.toasts.success('Budget assignment updated.'); this.load(); },
+        next: () => { this.saving.set(false); this.editing.set(null); this.toasts.success('Budget assignment updated.'); this.refresh(); },
         error: response => { this.saving.set(false); this.editError.set(response.error?.detail || 'The assignment couldn’t save. Reload and try again.'); },
       });
   }

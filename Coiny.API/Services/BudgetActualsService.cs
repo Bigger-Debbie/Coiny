@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Coiny.API.Services;
 
-public class BudgetActualsService(CoinyContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
+public partial class BudgetActualsService(CoinyContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
 {
     private static void ValidateMonth(DateOnly month)
     {
@@ -39,7 +39,6 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
             throw new ArgumentException("Choose a valid view, transaction type, and page.");
         var household = await user.GetCurrentHouseholdIdAsync();
         var plan = incomePeriod?.Plan ?? await Plan(month);
-        if (allocationKey.HasValue) Target(plan, allocationKey);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).DateTime);
         var rangeStart = incomePeriod?.StartDate ?? month;
         var last = incomePeriod?.EndDate ?? new DateOnly(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
@@ -64,6 +63,17 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
         }
         var ids = ledger.SelectMany(t => t.PairedTransactionId.HasValue ? new[] { t.Id, t.PairedTransactionId.Value } : new[] { t.Id }).ToArray();
         var payments = await context.BillPayments.AsNoTracking().Where(p => p.HouseholdId == household && p.TransactionId.HasValue && ids.Contains(p.TransactionId.Value)).ToListAsync();
+        var reportAllocations = plan.Allocations.ToList();
+        // A posted payment may belong to an item introduced in a future plan (or removed
+        // from this one). Keep that valid linked item visible, with zero planned here.
+        foreach (var payment in payments.Where(p => reportAllocations.All(a => a.SourceKey != p.AllocationKey)))
+        {
+            var duePlan = await budgets.GetMonthAsync(new(payment.DueDate.Year,payment.DueDate.Month,1));
+            var definition = duePlan.Allocations.FirstOrDefault(a => a.SourceKey == payment.AllocationKey);
+            if (definition is not null) reportAllocations.Add(new() { SourceKey=definition.SourceKey,Id=definition.Id,Name=definition.Name,AllocationType=definition.AllocationType,IsScheduled=true });
+        }
+        if (allocationKey.HasValue && !reportAllocations.Any(a => a.SourceKey == allocationKey))
+            throw new ArgumentException("Choose an item in this period's budget or linked payments.");
         var overrides = await context.TransactionBudgetAssignments.AsNoTracking().Where(a => a.HouseholdId == household && ids.Contains(a.TransactionId)).ToListAsync();
         var rows = new List<BudgetActualsTransaction>();
         foreach (var t in ledger)
@@ -76,12 +86,12 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
             var rule = rules.Where(r => r.CategoryId == t.CategoryId && r.EffectiveFromMonth <= postingMonth).OrderByDescending(r => r.EffectiveFromMonth).FirstOrDefault();
             if (payment is null && assignment is null && t.Category.CategoryType == CategoryType.Expense && rule is not null)
             { key = rule.AllocationKey; source = key.HasValue ? "Category" : "Unassigned"; }
-            var target = plan.Allocations.SingleOrDefault(a => a.SourceKey == key);
+            var target = (payment is null ? plan.Allocations : reportAllocations).SingleOrDefault(a => a.SourceKey == key);
             if (t.Category.CategoryType == CategoryType.Transfer && target?.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Investments)) target = null;
             rows.Add(new(t.Id, t.EditVersion, t.PairedTransaction?.EditVersion, DateOnly.FromDateTime(t.TransactionDate), t.Description, t.Amount,
                 t.Account.Name, t.Category.Name, t.Category.CategoryType, target?.SourceKey, target?.Name, source, t.Merchant, payment?.DueDate));
         }
-        var items = plan.Allocations.Select(a =>
+        var items = reportAllocations.Select(a =>
         {
             var assigned = rows.Where(t => t.AllocationKey == a.SourceKey).ToList();
             var actual = assigned.Sum(t => t.Amount);
@@ -94,7 +104,7 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
             .OrderByDescending(t => t.Date).ThenByDescending(t => t.Id).ToList();
         var totalPages = Math.Max(1, (visible.Count + 9) / 10); page = Math.Min(page, totalPages);
         bool Contribution(BudgetMonthlyItem item) => item.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
-        var contributionKeys = plan.Allocations.Where(Contribution).Select(a => a.SourceKey).ToHashSet();
+        var contributionKeys = reportAllocations.Where(Contribution).Select(a => a.SourceKey).ToHashSet();
         var plannedPoints = incomePeriod?.PlannedPoints ?? plan.PlannedPoints ?? Enumerable.Range(1, last.Day).Select(day =>
         {
             var date = new DateOnly(month.Year, month.Month, day);
@@ -116,11 +126,17 @@ public class BudgetActualsService(CoinyContext context, ICurrentUserService user
                 ? recorded.Where(t => t.AllocationKey.HasValue && contributionKeys.Contains(t.AllocationKey)).Sum(t => t.Amount) : null;
             return new BudgetComparisonPoint(p.Date,p.PlannedSpending,spending,p.PlannedContributions,contributions);
         }).ToList();
+        var remainingByItem = new Dictionary<Guid,decimal>();
+        points = BudgetAllocationForecast.Apply(plan, rows, points, through, remainingByItem);
+        decimal ForecastContribution(BudgetAllocationType type) => items.Where(i => i.AllocationType == type).Sum(i => i.Actual) +
+            plan.Allocations.Where(a => a.AllocationType == type).Sum(a => remainingByItem.GetValueOrDefault(a.SourceKey!.Value));
         return new()
         {
             Month = month, StartDate = rangeStart, EndDate = last, ThroughDate = through, Planned = plan.Allocated, AssignedActual = items.Sum(a => a.Actual),
             UnassignedExpenses = rows.Where(t => t.AllocationKey is null && t.CategoryType == CategoryType.Expense).Sum(t => t.Amount),
             AwaitingTransaction = items.Sum(a => a.AwaitingTransaction), Items = items, CategoryDefaults = defaults,
+            ForecastSavingsContributions = ForecastContribution(BudgetAllocationType.Savings),
+            ForecastInvestmentContributions = ForecastContribution(BudgetAllocationType.Investments),
             Transactions = visible.Skip((page - 1) * 10).Take(10).ToList(), Page = page, TotalCount = visible.Count, Points = points
         };
     }

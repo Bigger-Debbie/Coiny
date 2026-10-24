@@ -25,6 +25,24 @@ export class BudgetDashboard implements OnChanges {
   private readonly api = inject(BudgetService);
   private readonly destroy = inject(DestroyRef);
   private request?: Subscription;
+  private forecastRequest?: Subscription;
+  readonly expectedRemainder = signal<number | null>(null);
+  readonly remainderLoading = signal(false);
+  readonly remainderError = signal(false);
+  loadRemainder() {
+    this.forecastRequest?.unsubscribe(); this.expectedRemainder.set(null); this.remainderError.set(false);
+    const period = this.period();
+    if (this.mode() !== 'period' || !period?.plan || !period.startDate) { this.remainderLoading.set(false); return; }
+    this.remainderLoading.set(true);
+    this.forecastRequest = this.api.forecast(period.startDate, 0).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+      next: data => {
+        const end = data.points.at(-1);
+        const value = end?.forecast ?? end?.actual ?? null;
+        this.expectedRemainder.set(value); this.remainderError.set(value === null); this.remainderLoading.set(false);
+      },
+      error: () => { this.remainderError.set(true); this.remainderLoading.set(false); },
+    });
+  }
   readonly mode = signal<'period' | 'month'>('period');
   readonly period = signal<BudgetIncomePeriod | null>(null);
   readonly periodLoading = signal(false);
@@ -40,14 +58,16 @@ export class BudgetDashboard implements OnChanges {
   }
   selectMode(mode: 'period' | 'month') {
     this.mode.set(mode);
+    if (mode === 'month') { this.forecastRequest?.unsubscribe(); this.expectedRemainder.set(null); }
     if (mode === 'period') this.loadPeriod();
     else if (this.period()?.startDate && this.period()!.startDate!.slice(0,7) !== this.selectedMonth.slice(0,7))
       this.selectMonth.emit(this.period()!.startDate!.slice(0,7) + '-01');
   }
   loadPeriod(asOf = this.referenceDate) {
+    this.forecastRequest?.unsubscribe(); this.expectedRemainder.set(null);
     this.referenceDate = asOf; this.request?.unsubscribe(); this.periodLoading.set(true); this.periodError.set(false);
     this.request = this.api.incomePeriod(null,asOf).pipe(takeUntilDestroyed(this.destroy)).subscribe({
-      next: period => { this.period.set(period); this.periodLoading.set(false); },
+      next: period => { this.period.set(period); this.periodLoading.set(false); this.loadRemainder(); },
       error: () => { this.periodError.set(true); this.periodLoading.set(false); },
     });
   }

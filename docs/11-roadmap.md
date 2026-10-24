@@ -16,10 +16,13 @@ budgeting change.
 
 ## Other planned areas
 
-- Running-balance forecasting across consecutive income periods, carrying both surpluses and shortfalls forward. Income-period outlooks, planned/actual daily trend lines, allocation comparisons,
-  effective category defaults, and individual assignments are implemented.
+- Account-balance forecasting and explicit paycheck/source matching. The zero-based
+  running remainder across complete household income periods is implemented for
+  this period and 1/3/6/12 months, carrying surpluses and shortfalls forward.
+  Allocation-detail forecasts, comparisons, category defaults, and individual
+  assignments are also implemented.
 - Safe import undo/correction, accounting for edits, transfer links, and bill links.
-- Easier ongoing budget and pay-schedule maintenance.
+- Additional budget-maintenance refinements; direct item editing with effective dates is implemented.
 - Password recovery, password changes, session handling, and login protection.
 - Tested backup/restore and data export.
 - Saved merchant/category rules to speed up CSV review.

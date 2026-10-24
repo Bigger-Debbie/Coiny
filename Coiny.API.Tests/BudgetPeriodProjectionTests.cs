@@ -94,4 +94,22 @@ public class BudgetPeriodProjectionTests
         Assert.Equal(2,Assert.Single(detail.Transactions).Id);
         Assert.Equal(14,report.Points.Count); Assert.Equal(report.Planned,report.Points[^1].PlannedSpending+report.Points[^1].PlannedContributions);
     }
+    [Fact] public async Task Forecast_schedules_goal_at_period_end_then_replaces_it_with_the_linked_actual_in_both_views()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync(); await Publish(db);
+        var actuals=new BudgetActualsService(db.Context(),new User(),db.Service(),db.Clock);
+        var report=await actuals.GetPeriodAsync(new(2026,10,16),"all");
+        Assert.Equal(0,report.Points[^2].ForecastContributions); Assert.Equal(225.80m,report.Points[^1].ForecastContributions);
+        var goal=Assert.Single((await db.Service().GetIncomePeriodAsync(new(2026,10,16))).Contributions);
+        var c=db.Context(); c.Accounts.Add(new() { Id=1,HouseholdId=1,Name="Checking",OpeningBalanceDate=new(2026,9,1) });
+        c.Categories.Add(new() { Id=1,HouseholdId=1,Name="Savings",CategoryType=CategoryType.Expense });
+        c.Transactions.Add(new() { Id=1,HouseholdId=1,AccountId=1,CategoryId=1,Description="Car contribution",Amount=225.80m,TransactionDate=new(2026,10,16) }); await c.SaveChangesAsync();
+        var payments=new BillPaymentService(db.Context(),new User(),db.Service(),db.Clock);
+        await payments.SaveAsync(goal.SourceKey!.Value,goal.Date,new() { IsPaid=true,TransactionId=1 });
+        report=await actuals.GetPeriodAsync(new(2026,10,16),"all");
+        Assert.All(report.Points,p=>Assert.Equal(225.80m,p.ForecastContributions));
+        var monthly=await actuals.GetAsync(new(2026,10,1),"all");
+        Assert.Equal(575,monthly.Points[^1].ForecastContributions); // Car 500 + IRA 75, no duplicate goal payment.
+        Assert.Equal(500,monthly.ForecastSavingsContributions); Assert.Equal(75,monthly.ForecastInvestmentContributions);
+    }
 }

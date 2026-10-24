@@ -5,7 +5,7 @@ h3 { font-size:1.15rem; font-weight:400; margin:0; }
 .scopes button { color:var(--color-text-muted); background:transparent; font-size:.8rem; font-weight:400; padding:.6rem .75rem; }
 .scopes .selected { background:var(--color-primary); color:white; }
 .legend { display:flex; flex-wrap:wrap; gap:1rem; font-size:.8rem; color:var(--color-text-muted); margin:1rem 0; }
-.planned-key::before,.actual-key::before { content:''; display:inline-block; width:1.5rem; margin-right:.4rem; vertical-align:middle; border-top:2px dashed var(--color-accent); }
+.planned-key::before,.actual-key::before,.forecast-key::before { content:''; display:inline-block; width:1.5rem; margin-right:.4rem; vertical-align:middle; border-top:2px dashed var(--color-accent); }
 .actual-key::before { border-top:2px solid var(--color-primary); }
 .chart-area { position:relative; }
 .y-labels { position:absolute; inset:0 auto 0 0; width:3rem; font-size:.75rem; color:var(--color-text-muted); }
@@ -24,3 +24,11 @@ path,line { vector-effect:non-scaling-stroke; fill:none; }
 .dates { display:flex; justify-content:space-between; margin-left:3.5rem; color:var(--color-text-muted); font-size:.75rem; }
 .hint { font-size:.8rem; line-height:1.6; color:var(--color-text-muted); }
 @media(max-width:600px) { .plot { height:15rem; } .scopes button { padding:.55rem; } }
+
+.forecast-key::before { border-top:2px dashed #167b83; }
+.forecast-line { stroke:#167b83; stroke-width:2.5; stroke-dasharray:4 5; }
+.forecast-dot { fill:#167b83; }
+.forecast-summary { color:var(--color-primary); font-size:.9rem; margin:1rem 0 .5rem; }
+.forecast-summary span { color:var(--color-text-muted); }
+
+.zero-line { stroke:var(--color-primary); opacity:.5; stroke-width:1.5; }

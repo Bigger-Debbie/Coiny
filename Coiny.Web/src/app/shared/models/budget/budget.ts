@@ -36,7 +36,7 @@ export interface BudgetIncomePeriod {
 }
 
 export type BudgetPaymentStatus = 'Unpaid' | 'AwaitingTransaction' | 'Linked';
-export interface BillPaymentState { status?: BudgetPaymentStatus; linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
+export interface BillPaymentState { actualPostingDate?: string | null; status?: BudgetPaymentStatus; linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
 export interface BillTransactionCandidate { id: number; date: string; amount: number; description: string; accountName: string; categoryName: string; exactAmount: boolean; categoryType?: 'Income' | 'Expense' | 'Transfer'; transferDirection?: 'In' | 'Out' | null; }
 
 export interface BudgetManagement { revision: BudgetRevision; earliestEffectiveDate: string; }

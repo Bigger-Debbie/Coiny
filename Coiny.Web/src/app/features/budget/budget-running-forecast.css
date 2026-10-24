@@ -1,0 +1,22 @@
+:host { display:block; margin-top:1.25rem; }
+.ranges { display:flex; flex-wrap:wrap; gap:.25rem; padding:.25rem; border-radius:var(--radius-sm); background:#f6f6fa; width:fit-content; }
+.ranges button { background:transparent; color:var(--color-text-muted); font-size:.85rem; padding:.65rem .85rem; }
+.ranges .selected { background:var(--color-primary); color:white; }
+.hint,small { color:var(--color-text-muted); line-height:1.6; font-size:.85rem; } small { display:block; margin-top:.25rem; }
+.forecast-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; }
+.forecast-totals > div { border:1px solid var(--color-border); border-radius:var(--radius-sm); padding:1rem; min-width:0; }
+.forecast-totals span { display:block; color:var(--color-text-muted); font-size:.85rem; margin-bottom:.6rem; }
+.forecast-totals strong { font-size:clamp(1.15rem,2vw,1.6rem); color:var(--color-primary); font-weight:500; overflow-wrap:anywhere; }
+.negative,.forecast-totals .negative { color:var(--color-danger); } .notice { border-left:3px solid #d4a027; padding:.65rem .85rem; font-size:.85rem; line-height:1.6; }
+details { margin-top:1rem; } summary { color:var(--color-primary); cursor:pointer; } .assumptions p { color:var(--color-text-muted); font-size:.85rem; line-height:1.6; }
+.period-scroll { max-height:34rem; overflow:auto; margin-top:.75rem; border:1px solid var(--color-border); border-radius:var(--radius-sm); }
+table { width:100%; border-collapse:collapse; font-size:.85rem; } th,td { padding:.85rem; border-bottom:1px solid var(--color-border); text-align:right; white-space:nowrap; } th:first-child,td:first-child { text-align:left; }
+th { position:sticky; top:0; background:#f5f5fa; color:var(--color-primary); } tbody tr:nth-child(even) { background:#fafafd; }
+@media(max-width:650px) { .forecast-totals { grid-template-columns:1fr; gap:.6rem; } .forecast-totals > div { padding:.85rem; } }
+
+.savings-summary { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.savings-summary .savings-total { border-color:var(--color-success); } .savings-total strong { color:var(--color-success); }
+.savings-summary .shortfall { border-color:var(--color-danger); } .funding-gap { border-color:var(--color-danger); }
+.remainder-comparison { margin-top:.75rem; }
+@media(max-width:1050px) { .savings-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .savings-summary { grid-template-columns:1fr; } }

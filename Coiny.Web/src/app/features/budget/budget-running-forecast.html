@@ -1,0 +1,33 @@
+<div class="ranges" role="group" aria-label="Forecast range">
+  @for (range of ranges; track range.months) { <button type="button" [class.selected]="months() === range.months" [attr.aria-pressed]="months() === range.months" (click)="select(range.months)">{{ range.label }}</button> }
+</div>
+@if (loading()) { <p role="status">Building the forecast across household pay periods…</p> }
+@else if (error()) { <p role="alert">{{ error() }}</p><button type="button" class="button-outline" (click)="load()">Try again</button> }
+@else if (data(); as outlook) {
+  <p class="hint">{{ outlook.startDate | date:'MMM d, yyyy':'UTC' }} – {{ outlook.endDate | date:'MMM d, yyyy':'UTC' }} · Complete household income periods</p>
+  @if (outlook.potentialSavings != null) {
+    <div class="forecast-totals savings-summary" aria-label="Savings estimate for selected range">
+      <div class="savings-total"><span>{{ completed ? 'Savings estimate' : 'Potential savings' }}</span><strong>{{ outlook.potentialSavings | currency }}</strong><small>{{ outlook.forecastSavingsContributions | currency }} contributions @if (outlook.fundingShortfall) { − {{ outlook.fundingShortfall | currency }} shortfall } @else { + {{ outlook.additionalSavings | currency }} remainder }</small></div>
+      <div><span>Planned savings contributions</span><strong>{{ outlook.plannedSavingsContributions | currency }}</strong><small>Forecast contributions {{ outlook.forecastSavingsContributions | currency }}</small></div>
+      <div [class.shortfall]="outlook.fundingShortfall"><span>{{ outlook.fundingShortfall ? 'Funding shortfall' : 'Additional forecast remainder' }}</span><strong [class.negative]="outlook.fundingShortfall">{{ (outlook.fundingShortfall || outlook.additionalSavings) | currency }}</strong><small>After spending and contributions.</small></div>
+      <div><span>Investment contributions</span><strong>{{ outlook.forecastInvestmentContributions | currency }}</strong><small>Planned {{ outlook.plannedInvestmentContributions | currency }} · Separate from savings.</small></div>
+    </div>
+    <p class="hint">Includes earmarked savings goals. The chart below tracks the additional remainder after contributions.</p>
+    @if (outlook.shortfallBeyondSavings) { <p class="notice funding-gap">The funding shortfall exceeds forecast savings contributions by {{ outlook.shortfallBeyondSavings | currency }}.</p> }
+  } @else { <p class="hint">Restart the API to load the savings estimate for this range.</p> }
+  <details class="remainder-totals"><summary>Remainder comparison</summary>
+  <div class="forecast-totals remainder-comparison">
+    <div><span>Planned remainder</span><strong [class.negative]="(end?.planned ?? 0) < 0">{{ end?.planned | currency }}</strong></div>
+    <div><span>{{ completed ? 'Recorded remainder' : 'Forecast remainder' }}</span><strong [class.negative]="forecastRemainder < 0">{{ forecastRemainder | currency }}</strong></div>
+    <div><span>Difference from plan</span><strong [class.negative]="forecastRemainder - (end?.planned ?? 0) < 0">{{ (forecastRemainder - (end?.planned ?? 0)) | currency }}</strong></div>
+  </div>
+  </details>
+  @if (outlook.expectedIncomeAwaitingTransaction) { <p class="notice">{{ outlook.expectedIncomeAwaitingTransaction | currency }} of scheduled income has not been recorded yet. The forecast assumes it arrives on the next day.</p> }
+  <app-budget-comparison-chart [points]="points()" [remainderMode]="true" />
+  <details class="assumptions"><summary>How this estimate works</summary><p>Actuals use posted income, expenses, and assigned contributions. Transfers between household accounts do not create income. Recorded income offsets expected income within each pay period.</p><p>Future periods use the published budget, including dated updates. Remaining allowances and unpaid commitments are estimates; link payments and assign expenses to keep them accurate. Ranges finish at a pay-period boundary, so the final date may extend past the selected number of months.</p></details>
+  <details class="periods"><summary>Pay-period breakdown <small>{{ outlook.periods.length }} periods</small></summary>
+    <div class="period-scroll" tabindex="0" role="region" aria-label="Forecast pay-period breakdown"><table><thead><tr><th>Income period</th><th>Planned income</th><th>Planned allocations</th><th>Planned remainder</th><th>{{ completed ? 'Recorded result' : 'Forecast result' }}</th><th>Running remainder</th></tr></thead><tbody>
+      @for (period of outlook.periods; track period.startDate) { <tr><td>{{ period.startDate | date:'MMM d':'UTC' }} – {{ period.endDate | date:'MMM d, yyyy':'UTC' }}<small>{{ outlook.throughDate && period.endDate <= outlook.throughDate ? 'Recorded' : outlook.throughDate && period.startDate <= outlook.throughDate ? 'Recorded + remaining plan' : 'Upcoming' }}</small></td><td>{{ period.plannedIncome | currency }}</td><td>{{ period.plannedAllocations | currency }}</td><td [class.negative]="period.plannedRemainder < 0">{{ period.plannedRemainder | currency }}</td><td [class.negative]="period.forecastRemainder < 0">{{ period.forecastRemainder | currency }}</td><td [class.negative]="period.cumulativeForecast < 0">{{ period.cumulativeForecast | currency }}</td></tr> }
+    </tbody></table></div>
+  </details>
+}

@@ -7,17 +7,17 @@ SQLite, ASP.NET Core Identity, JWT authentication, and Angular.
 ## Current status
 
 Coiny has a working dashboard, accounts page, and household budget setup wizard.
-It is in active local development; forecasting and the complete authentication
-experience remain future work.
+It is in active local development. Budget forecasts are available through one year;
+password recovery and complete expired-session handling remain future work.
 
 | Area | Implemented | Still planned |
 | --- | --- | --- |
 | Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, personal net-worth settings, local logout, token storage and route guard | Password recovery, complete expired-session handling |
 | Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
-| Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic import and history | Transfer matching UI, account/category management, saved bank mappings |
-| History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and forecasting |
+| Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic multi-account import and transfer matching, import history, and account/category management | Saved bank mappings, XLS/XLSX imports |
+| History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and account-balance forecasts |
 | Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual graphs and allocation comparisons with category defaults and transaction assignments | Goals, forecasting |
+| Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, and comparisons with category defaults and transaction assignments | Savings funds, account-balance forecasts |
 
 ## Get started
 

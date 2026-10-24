@@ -39,6 +39,16 @@ describe('BudgetActualsPanel', () => {
     expect(f.nativeElement.querySelector('tbody').textContent).toContain('Payment for future period');
     expect(f.nativeElement.querySelector('td.over')).toBeNull();
   });
+  it('opens the longer forecast on demand while retaining the allocation detail view',()=>{
+    const f=render(); f.componentInstance.periodAsOf='2026-10-16';
+    http.expectNone(r=>r.url.endsWith('/forecast'));
+    f.nativeElement.querySelectorAll('[aria-label="Budget chart view"] button')[1].click(); f.detectChanges();
+    const request=http.expectOne(r=>r.url.endsWith('/forecast')); expect(request.request.params.get('asOf')).toBe('2026-10-16');
+    request.flush({ startDate:'2026-10-16',endDate:'2027-01-21',throughDate:'2026-10-23',months:3,expectedIncomeAwaitingTransaction:0,periods:[],points:[{date:'2026-10-23',planned:0,actual:0,forecast:0},{date:'2027-01-21',planned:300,actual:null,forecast:200}] }); f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('1 year'); expect(f.nativeElement.textContent).toContain('Running remainder');
+    f.nativeElement.querySelectorAll('[aria-label="Budget chart view"] button')[0].click(); f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Budget outlook'); http.expectNone(r=>r.url.endsWith('/forecast'));
+  });
   it('opens an item transaction breakdown independently of assignment filters and paginates it', () => {
     const f = render(); const c = f.componentInstance;
     (f.nativeElement.querySelector('.item-name') as HTMLButtonElement).click(); f.detectChanges();

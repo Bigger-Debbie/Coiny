@@ -14,6 +14,8 @@ public class BudgetActualsResponse
     public decimal AssignedActual { get; init; }
     public decimal UnassignedExpenses { get; init; }
     public decimal AwaitingTransaction { get; init; }
+    public decimal ForecastSavingsContributions { get; init; }
+    public decimal ForecastInvestmentContributions { get; init; }
     public IReadOnlyList<BudgetActualsItem> Items { get; init; } = [];
     public IReadOnlyList<BudgetCategoryDefault> CategoryDefaults { get; init; } = [];
     public IReadOnlyList<BudgetActualsTransaction> Transactions { get; init; } = [];
@@ -24,7 +26,8 @@ public class BudgetActualsResponse
 }
 
 public record BudgetComparisonPoint(DateOnly Date, decimal PlannedSpending, decimal? ActualSpending,
-    decimal PlannedContributions, decimal? ActualContributions);
+    decimal PlannedContributions, decimal? ActualContributions,
+    decimal? ForecastSpending = null, decimal? ForecastContributions = null);
 
 public record BudgetActualsItem(Guid AllocationKey, string Name, BudgetAllocationType AllocationType,
     decimal Planned, decimal Actual, decimal Remaining, decimal AwaitingTransaction, int TransactionCount,

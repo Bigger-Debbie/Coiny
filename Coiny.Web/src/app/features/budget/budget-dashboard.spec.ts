@@ -31,12 +31,25 @@ describe('BudgetDashboard', () => {
     f.componentRef.setInput('month',plan); f.componentRef.setInput('selectedMonth','2026-10-01'); f.detectChanges();
     const projected = { ...plan, expectedIncome:2500, allocated:2700, unassigned:0, overBudget:200 };
     const period: BudgetIncomePeriod = { asOf:'2026-10-30',startDate:'2026-10-30',endDate:'2026-11-12',nextPayday:'2026-11-13',sourceKey:null,sources:[],bills:[],contributions:[],billsTotal:0,contributionsTotal:0,plan:projected };
-    http.expectOne(r=>r.url.endsWith('/income-period')).flush(period); f.detectChanges();
-    expect(f.componentInstance.mode()).toBe('period'); expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('-$200.00');
+    http.expectOne(r=>r.url.endsWith('/income-period')).flush(period);
+    const forecast = http.expectOne(r=>r.url.endsWith('/forecast'));
+    expect(forecast.request.params.get('months')).toBe('0'); expect(forecast.request.params.get('asOf')).toBe('2026-10-30');
+    forecast.flush({ points:[{ date:'2026-11-12',planned:-200,actual:null,forecast:-350 }] }); f.detectChanges();
+    expect(f.componentInstance.mode()).toBe('period'); expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('-$350.00');
+    expect(f.nativeElement.querySelector('.remaining-total').textContent).toContain('Planned remainder -$200.00');
+    expect(f.nativeElement.querySelector('.remaining-total').classList.contains('over')).toBe(true);
     expect(f.debugElement.query(By.directive(BudgetActualsStub)).componentInstance.periodAsOf).toBe('2026-10-30');
     expect(f.debugElement.query(By.directive(BudgetCalendarStub)).componentInstance.controlledPeriod).toEqual(period);
     f.componentInstance.navigatePeriod(1); const next=http.expectOne(r=>r.url.endsWith('/income-period'));
     expect(next.request.params.get('asOf')).toBe('2026-11-13'); next.flush({ ...period,asOf:'2026-11-13',startDate:'2026-11-13',endDate:'2026-11-26' }); f.detectChanges();
+    http.expectOne(r=>r.url.endsWith('/forecast')).flush({ points:[{ date:'2026-11-26',planned:500,actual:450,forecast:null }] }); f.detectChanges();
+    expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('$450.00');
+    f.debugElement.query(By.directive(BudgetActualsStub)).componentInstance.refreshed.emit();
+    http.expectOne(r=>r.url.endsWith('/forecast')).flush({ points:[{ date:'2026-11-26',planned:500,actual:400,forecast:null }] }); f.detectChanges();
+    expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('$400.00');
+    f.componentInstance.loadRemainder(); http.expectOne(r=>r.url.endsWith('/forecast')).flush({}, { status:500,statusText:'Error' }); f.detectChanges();
+    expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('—');
+    expect(f.nativeElement.querySelector('.remaining-total').textContent).toContain('Forecast couldn’t load');
     f.componentInstance.selectMode('month'); f.detectChanges(); expect(f.componentInstance.displayPlan).toEqual(plan); http.verify();
   });
   it('uses fixed unique budget colors with green reserved for the remainder', () => {

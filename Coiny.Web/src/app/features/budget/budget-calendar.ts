@@ -112,7 +112,9 @@ export class BudgetCalendar implements OnInit, OnChanges {
     if (this.controlledPeriod) {
       this.period.set(this.controlledPeriod); this.loading.set(false); this.error.set(false);
       if (changes['controlledPeriod']?.previousValue?.startDate !== this.controlledPeriod.startDate)
-        this.selectedDay.set(this.controlledPeriod.startDate ?? this.controlledPeriod.asOf);
+        this.selectedDay.set(this.controlledPeriod.startDate && this.controlledPeriod.endDate &&
+          this.today >= this.controlledPeriod.startDate && this.today <= this.controlledPeriod.endDate
+          ? this.today : this.controlledPeriod.startDate ?? this.controlledPeriod.asOf);
       this.loadCalendars(); return;
     }
     if (changes['controlledPeriod']?.previousValue) { this.sourceKey.set(this.source); this.loadPeriod(); }

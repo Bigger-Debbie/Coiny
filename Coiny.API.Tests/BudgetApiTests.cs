@@ -32,6 +32,20 @@ public class BudgetApiTests
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
     [Fact]
+    public async Task Forecast_http_route_supports_long_ranges_validates_horizons_and_requires_authentication()
+    {
+        await using var host=await Api.Create(); var service=host.Database.Service();
+        var draft=await service.StartDraftAsync(new(2026,11,1));
+        var saved=await service.SaveDraftAsync(draft.Id,JsonSerializer.Deserialize<BudgetDraftRequest>(CompleteDraft,Json)!);
+        await service.PublishDraftAsync(saved.Id,saved.EditVersion);
+        var forecast=await host.Client.GetFromJsonAsync<BudgetForecastResponse>("/api/budgets/forecast?asOf=2026-11-13&months=6",Json);
+        Assert.True(forecast!.Periods.Count>5); Assert.True(forecast.EndDate>new DateOnly(2027,5,1));
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.GetAsync("/api/budgets/forecast?months=2")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.GetAsync("/api/budgets/forecast?asOf=bad")).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/api/budgets/forecast")).StatusCode);
+    }
+    [Fact]
     public async Task Published_item_management_reviews_then_publishes_and_rejects_stale_saves()
     {
         await using var host = await Api.Create();

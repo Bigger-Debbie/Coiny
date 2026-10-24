@@ -37,4 +37,30 @@ describe('BudgetComparisonChart', () => {
     c.inspect({ clientX: 390, currentTarget: { getBoundingClientRect: () => ({ left: 0, width: 800 }) } } as unknown as PointerEvent);
     expect(c.activeIndex).toBe(1); c.leave({ pointerType: 'mouse' } as PointerEvent); expect(c.activeIndex).toBeNull();
   });
+  it('continues actuals at the same coordinates with an independently scaled forecast and accessible values',()=>{
+    const f=render(points.map((p,i)=>({ ...p,forecastSpending:i===0 ? null : i===1 ? 250 : 1000,forecastContributions:i===0 ? null : i===1 ? 30 : 50 })));
+    const c=f.componentInstance;
+    expect(c.forecastPath.split(' L')[0]).toBe(`M ${c.plot[1].x} ${c.plot[1].actualY}`);
+    expect(c.plot[2].forecastY!).toBeGreaterThanOrEqual(20); expect(c.plot[2].forecastY!).toBeLessThan(c.plot[2].plannedY);
+    expect(f.nativeElement.querySelector('.forecast-line')).toBeTruthy(); expect(f.nativeElement.querySelector('.forecast-key').textContent).toBe('Forecast allocations');
+    const slider=f.nativeElement.querySelector('[role="slider"]') as HTMLElement;
+    slider.dispatchEvent(new KeyboardEvent('keydown',{ key:'End' })); f.detectChanges();
+    expect(slider.getAttribute('aria-valuetext')).toContain('forecast allocations $1,050.00');
+    expect(f.nativeElement.querySelector('.tooltip').textContent).toContain('Forecast allocations $1,050.00');
+    c.selectScope('Contributions'); expect(c.plot[2].forecast).toBe(50);
+    expect(c.forecastPath.split(' L')[0]).toBe(`M ${c.plot[1].x} ${c.plot[1].actualY}`);
+  });
+  it('hides a forecast with no continuation and never invents one from planned values',()=>{
+    const f=render(); expect(f.nativeElement.querySelector('.forecast-line')).toBeNull();
+    f.componentRef.setInput('points',points.map((p,i)=>({ ...p,forecastSpending:i===1 ? 250 : null,forecastContributions:i===1 ? 30 : null }))); f.detectChanges();
+    expect(f.nativeElement.querySelector('.forecast-line')).toBeNull(); expect(f.nativeElement.querySelector('.forecast-summary')).toBeNull();
+  });
+  it('shows deficits below a visible zero line in the running remainder view',()=>{
+    const f=render(points.map((p,i)=>({ ...p,plannedSpending:i===2 ? -300 : 100,plannedContributions:0,actualSpending:i===2 ? null : -100,actualContributions:i===2 ? null : 0,forecastSpending:i===0 ? null : -100-i*100,forecastContributions:i===0 ? null : 0 })));
+    f.componentRef.setInput('remainderMode',true); f.detectChanges();
+    const c=f.componentInstance; expect(c.ticks.some(t=>t.value<0)).toBe(true); expect(c.ticks.some(t=>t.value===0)).toBe(true);
+    expect(f.nativeElement.querySelector('.zero-line')).toBeTruthy(); expect(f.nativeElement.querySelector('.scopes')).toBeNull();
+    expect(c.plannedPath).not.toContain('NaN'); expect(c.forecastPath).not.toContain('NaN');
+    const zero=c.ticks.find(t=>t.value===0)!.top*2.6; expect(c.plot[2].forecastY!).toBeGreaterThan(zero);
+  });
 });

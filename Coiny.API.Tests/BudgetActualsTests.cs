@@ -100,6 +100,50 @@ public class BudgetActualsTests
         var samePeriod=await Service(db).GetPeriodAsync(new(2026,10,16),"all");
         Assert.Equal(100,Assert.Single(samePeriod.Items,i=>i.Name=="Electric").PriorPeriodActual);
     }
+    [Fact] public async Task Forecast_anchors_to_actuals_replaces_linked_plan_amounts_and_includes_pending_commitments_once()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);
+        await Assign(db,1,keys["Groceries"]);
+        var c=db.Context(); var transaction=await c.Transactions.SingleAsync(t=>t.Id==2); transaction.Amount=120; await c.SaveChangesAsync();
+        var payments=new BillPaymentService(db.Context(),new User(),db.Service(),db.Clock);
+        await payments.SaveAsync(keys["Electric"],new(2026,10,15),new() { IsPaid=true,TransactionId=2 });
+        await payments.SaveAsync(keys["IRA"],new(2026,10,15),new() { IsPaid=true });
+        var report=await Service(db).GetAsync(Month,"all");
+        var anchor=report.Points[15]; Assert.Equal(160,anchor.ActualSpending); Assert.Equal(anchor.ActualSpending,anchor.ForecastSpending);
+        Assert.Equal(anchor.ActualContributions,anchor.ForecastContributions);
+        Assert.All(report.Points.Take(15),p=>Assert.Null(p.ForecastSpending));
+        Assert.Equal(200,report.Points[16].ForecastContributions); // Awaiting transaction, estimated next day.
+        Assert.Equal(420,report.Points[^1].ForecastSpending); // Actual 160 + unused groceries 260; no second electric bill.
+        Assert.Equal(200,report.Points[^1].ForecastContributions);
+        Assert.Null(report.Points[16].ActualSpending);
+        Assert.Equal(report.Points,(await Service(db).GetAsync(Month,allocationKey:keys["Electric"])).Points);
+        Assert.Equal(6,await db.Context().Transactions.CountAsync()); Assert.Empty(await db.Context().AccountBalanceSnapshots.ToListAsync());
+    }
+    [Fact] public async Task Forecast_retains_unpaid_overdue_items_but_does_not_double_count_individually_assigned_actuals()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);
+        await Assign(db,1,keys["Groceries"]);
+        var unpaid=await Service(db).GetAsync(Month,"all");
+        Assert.Equal(500,unpaid.Points[^1].ForecastSpending); // Unassigned electric actual remains actual; overdue bill still needs review.
+        await Assign(db,2,keys["Electric"]);
+        var assigned=await Service(db).GetAsync(Month,"all");
+        Assert.Equal(400,assigned.Points[^1].ForecastSpending);
+        Assert.Equal(200,assigned.Points[^1].ForecastContributions);
+        var future=await Service(db).GetAsync(new(2026,11,1)); Assert.All(future.Points,p=>Assert.Null(p.ForecastSpending));
+        var past=await Service(db).GetAsync(new(2026,9,1)); Assert.All(past.Points,p=>Assert.Null(p.ForecastSpending));
+    }
+    [Fact] public async Task Forecast_respects_removed_allowances_and_does_not_spend_their_unused_historical_budget()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);
+        await Assign(db,1,keys["Groceries"]);
+        var payments=new BillPaymentService(db.Context(),new User(),db.Service(),db.Clock);
+        await payments.SaveAsync(keys["Electric"],new(2026,10,15),new() { IsPaid=true,TransactionId=2 });
+        var management=await db.Service().GetManagementAsync();
+        await db.Service().ChangeItemAsync(new() { ExpectedRevisionId=management.Revision.Id,SourceKey=keys["Groceries"],EffectiveDate=new(2026,10,16),Remove=true },false);
+        var report=await Service(db).GetAsync(Month,"all");
+        Assert.Equal(140,report.Points[^1].ForecastSpending);
+        Assert.Equal(report.Points[15].ActualSpending,report.Points[15].ForecastSpending);
+    }
     [Fact] public async Task Rules_are_effective_dated_stale_writes_rejected_and_future_month_has_no_actuals()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);

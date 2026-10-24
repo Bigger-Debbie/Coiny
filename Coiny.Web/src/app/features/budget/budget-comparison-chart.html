@@ -1,33 +1,39 @@
 <div class="chart-heading">
-  <h3>Monthly progress</h3>
-  <div class="scopes" role="group" aria-label="Chart budget areas">
+  <h3>{{ remainderMode ? 'Running remainder' : 'Budget outlook' }}</h3>
+  @if (!remainderMode) { <div class="scopes" role="group" aria-label="Chart budget areas">
     <button type="button" [class.selected]="scope === 'Spending'" [attr.aria-pressed]="scope === 'Spending'" (click)="selectScope('Spending')">Spending</button>
     <button type="button" [class.selected]="scope === 'Contributions'" [attr.aria-pressed]="scope === 'Contributions'" (click)="selectScope('Contributions')">Contributions</button>
     <button type="button" [class.selected]="scope === 'All'" [attr.aria-pressed]="scope === 'All'" (click)="selectScope('All')">All allocations</button>
-  </div>
+  </div> }
 </div>
-<div class="legend"><span class="planned-key">Planned</span><span class="actual-key">Actual</span><span>{{ label }} · Cumulative amount</span></div>
+<div class="legend"><span class="planned-key">{{ plannedLabel }}</span><span class="actual-key">{{ actualLabel }}</span>@if (forecastPath) { <span class="forecast-key">{{ forecastLabel }}</span> }<span>{{ metricDescription }}</span></div>
 @if (plot.length) {
   <div class="chart-area">
     <div class="y-labels" aria-hidden="true">@for (item of ticks; track item.top) { <span [style.top.%]="item.top">{{ tick(item.value) }}</span> }</div>
-    <div class="plot" role="slider" tabindex="0" [attr.aria-label]="label + ': planned versus actual'" aria-valuemin="0" [attr.aria-valuemax]="plot.length - 1" [attr.aria-valuenow]="activeIndex ?? 0" [attr.aria-valuetext]="accessibleValue"
+    <div class="plot" role="slider" tabindex="0" [attr.aria-label]="plannedLabel + ', ' + actualLabel + ', and ' + forecastLabel" aria-valuemin="0" [attr.aria-valuemax]="plot.length - 1" [attr.aria-valuenow]="activeIndex ?? 0" [attr.aria-valuetext]="accessibleValue"
       (pointermove)="inspect($event)" (pointerdown)="inspect($event)" (pointerleave)="leave($event)" (focus)="focus()" (blur)="blur()" (keydown)="keydown($event)">
       <svg viewBox="0 0 800 260" preserveAspectRatio="none" aria-hidden="true">
-        @for (item of ticks; track item.top) { <line x1="16" x2="784" [attr.y1]="item.top * 2.6" [attr.y2]="item.top * 2.6" class="grid" /> }
+        @for (item of ticks; track item.top) { <line x1="16" x2="784" [attr.y1]="item.top * 2.6" [attr.y2]="item.top * 2.6" class="grid" [class.zero-line]="remainderMode && item.value === 0" /> }
         <path class="planned-line" [attr.d]="plannedPath" />
+        @if (forecastPath) { <path class="forecast-line" [attr.d]="forecastPath" /> }
         @if (actualPath) { <path class="actual-line" [attr.d]="actualPath" /> }
         @if (singleActual; as point) { <circle class="actual-dot" [attr.cx]="point.x" [attr.cy]="point.actualY" r="4" /> }
         @if (active; as point) {
           <line class="guide" [attr.x1]="point.x" [attr.x2]="point.x" y1="20" y2="240" />
           <circle class="planned-dot" [attr.cx]="point.x" [attr.cy]="point.plannedY" r="4" />
+          @if (point.forecastY !== null && point.actualY === null) { <circle class="forecast-dot" [attr.cx]="point.x" [attr.cy]="point.forecastY" r="4" /> }
           @if (point.actualY !== null) { <circle class="actual-dot" [attr.cx]="point.x" [attr.cy]="point.actualY" r="4" /> }
         }
       </svg>
       @if (active; as point) {
-        <div class="tooltip" [style.left]="tooltipLeft" aria-hidden="true"><strong>{{ point.date | date:'MMM d, yyyy':'UTC' }}</strong><span>Planned {{ point.planned | currency }}</span><span>@if (point.actual !== null) { Actual {{ point.actual | currency }} } @else { No actuals yet }</span></div>
+        <div class="tooltip" [style.left]="tooltipLeft" aria-hidden="true"><strong>{{ point.date | date:'MMM d, yyyy':'UTC' }}</strong><span>{{ plannedLabel }} {{ point.planned | currency }}</span><span>@if (point.actual !== null) { {{ actualLabel }} {{ point.actual | currency }} } @else if (point.forecast !== null) { {{ forecastLabel }} {{ point.forecast | currency }} } @else { No actuals yet }</span></div>
       }
     </div>
   </div>
   <div class="dates" aria-hidden="true"><span>{{ plot[0].date | date:'MMM d':'UTC' }}</span><span>{{ middleDate | date:'MMM d':'UTC' }}</span><span>{{ plot[plot.length - 1].date | date:'MMM d':'UTC' }}</span></div>
 } @else { <p class="hint">No daily comparison is available yet. Refresh after restarting the API.</p> }
-<p class="hint">Scheduled items enter the plan on their due dates; monthly allowances are spread evenly across the month. Actuals stop at the recorded-through date.@if (scope !== 'Contributions') { Unassigned expenses are included in actual spending. } Transfers count only when assigned as contributions.</p>
+@if (forecastEnd; as end) { <p class="forecast-summary">{{ forecastLabel }} by {{ end.date | date:'MMM d':'UTC' }}: <strong>{{ end.forecast | currency }}</strong><span> · {{ plannedLabel }} {{ end.planned | currency }}</span></p> }
+@if (remainderMode) { <p class="hint">Starts at $0 for this view. Each pay period adds income and subtracts spending and contributions. Surpluses and shortfalls carry forward. This is money left after planned contributions, not a bank balance or total savings.</p> } @else {
+<p class="hint">Scheduled items enter the plan on their due dates; monthly allowances follow their effective dates. Actuals stop at the recorded-through date. Forecast continues from that point using unpaid scheduled items and remaining allowances. Overdue items and payments awaiting transactions are estimated on the next day. This assumes the remaining allowances are used; it does not predict spending habits.@if (scope !== 'Contributions') { Unassigned expenses are included in actual spending. } Transfers count only when assigned as contributions.</p>
+
+}

@@ -75,6 +75,7 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/draft/{draftId}/preview` | 200 | Preview draft for a month and edit version |
 | POST | `/api/budgets/draft/{draftId}/publish` | 200 | Publish the reviewed draft |
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
+| GET | `/api/budgets/forecast` | 200 | Running household income-period remainder through 1/3/6/12 months |
 | GET | `/api/budgets/actuals/period` | 200 | Income-period planned/actual totals, daily graph, and paginated activity |
 | GET | `/api/budgets/actuals` | 200 | Monthly allocation comparison and paginated activity assignments |
 | PUT | `/api/budgets/actuals/categories/{categoryId}` | 204 | Save an expense category default effective from a month |
@@ -1398,3 +1399,51 @@ membership returns 403. Re-fetch management after every successful save. Changes
 cannot predate today or the latest scheduled published update.
 
 [Documentation index](../README.md#documentation)
+
+
+## Allocation forecast points
+
+Both actuals endpoints include nullable `forecastSpending` and
+`forecastContributions` on daily points. The recorded-through point is shared by
+actual and forecast; future points retain null actuals and receive cumulative
+remaining-plan estimates. Past points have null forecasts. Forecast is absent for
+fully future or completed ranges. Activity filters and item detail pagination do
+not change chart values. See [forecast rules](13-budget-actuals.md#forecast-continuation).
+
+
+## Running forecast API
+
+`GET /api/budgets/forecast?asOf=2026-10-23&months=3` uses the household income
+period containing `asOf` (defaults to today). `months` defaults to 3 and accepts
+only 0 (this period), 1, 3, 6, or 12. The response contains `startDate`, `endDate`,
+nullable `throughDate`, `months`, `expectedIncomeAwaitingTransaction`, daily
+`points`, and `periods`. Ranges always include whole periods and may end after
+the exact calendar-month target.
+
+Daily points contain `date`, signed cumulative `planned`, nullable `actual`, and
+nullable `forecast`. All use a $0 view baseline. Period rows contain `startDate`,
+`endDate`, `plannedIncome`, `plannedAllocations`, `plannedRemainder`,
+`forecastIncome`, `forecastAllocations`, `forecastRemainder`, `cumulativePlanned`,
+and `cumulativeForecast`. Historical rows use recorded results for their forecast
+columns; current rows combine recorded and estimated activity; future rows use
+remaining published commitments and income.
+
+No complete published income period, unsupported horizon, invalid date, unsupported
+calendar overflow, or an income schedule that cannot cover the horizon returns
+400. Authentication and household membership follow the other budget endpoints.
+The endpoint creates no transactions, payments, revisions, or financial snapshots.
+
+Payment state responses include nullable `actualPostingDate`. For paired contribution
+transfers this is the receiving entry’s posting date, matching actuals counting;
+`linkedTransaction` continues to identify the selected linked entry.
+
+
+Running forecast responses also contain `plannedSavingsContributions`,
+`forecastSavingsContributions`, `plannedInvestmentContributions`,
+`forecastInvestmentContributions`, `additionalSavings`, `fundingShortfall`,
+`potentialSavings`, and `shortfallBeyondSavings`. These are range totals, not
+account balances. Potential savings combines forecast savings contributions and
+signed ending remainder, floored at zero. Investments are excluded. Actuals
+responses expose `forecastSavingsContributions` and
+`forecastInvestmentContributions` as the recorded-plus-remaining contribution
+split used in that calculation. No storage changes or financial writes are made.

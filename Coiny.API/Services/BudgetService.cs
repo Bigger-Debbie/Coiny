@@ -262,7 +262,8 @@ public partial class BudgetService(
     }
 
     public Task<BudgetIncomePeriodResponse> GetIncomePeriodAsync(DateOnly? asOf = null, Guid? sourceKey = null) => GetPeriod(asOf, sourceKey);
-    private async Task<BudgetIncomePeriodResponse> GetPeriod(DateOnly? asOf, Guid? sourceKey, List<BudgetRevision>? versions = null)
+    private async Task<BudgetIncomePeriodResponse> GetPeriod(DateOnly? asOf, Guid? sourceKey, List<BudgetRevision>? versions = null,
+        Dictionary<DateOnly, BudgetMonthResponse>? calendarCache = null)
     {
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), ApplicationTimeZone).DateTime);
         var date = asOf ?? today;
@@ -282,7 +283,10 @@ public partial class BudgetService(
         for (var m = Math.Max(0, index - 12); m <= Math.Min(9999 * 12 - 1, index + 12); m++)
         {
             var month = new DateOnly(m / 12 + 1, m % 12 + 1, 1);
-            events.AddRange(ProjectPublishedMonth(published, month, false).Events);
+            BudgetMonthResponse calendar;
+            if (calendarCache is not null && calendarCache.TryGetValue(month, out var cached)) calendar = cached;
+            else { calendar = ProjectPublishedMonth(published, month, false); calendarCache?.Add(month,calendar); }
+            events.AddRange(calendar.Events);
         }
         var paydays = events.Where(e => e.IsIncome && (!sourceKey.HasValue || e.SourceKey == sourceKey))
             .Select(e => e.Date).Distinct().Order().ToList();
@@ -339,11 +343,13 @@ public partial class BudgetService(
         var allocations = parts.SelectMany(p => p.Plan.Allocations.Select(a => new BudgetMonthlyItem {
             SourceKey = a.SourceKey, Id = a.Id, Name = a.Name, AllocationType = a.AllocationType,
             OccurrenceCount = p.Plan.Events.Count(e => !e.IsIncome && e.SourceKey == a.SourceKey && e.Date >= p.From && e.Date <= p.To),
+            DailyAmounts = a.DailyAmounts?.Where(d => d.Key >= p.From && d.Key <= p.To).ToDictionary(d => d.Key,d => d.Value),
             IsScheduled = a.IsScheduled, PlannedAmount = !a.IsScheduled ? AmountBetween(a, p.From.Day, p.To.Day, p.From.Year,p.From.Month) :
                 p.Plan.Events.Where(e => !e.IsIncome && e.SourceKey == a.SourceKey && e.Date >= p.From && e.Date <= p.To).Sum(e => e.Amount),
         })).GroupBy(a => a.SourceKey).Select(g => new BudgetMonthlyItem {
             SourceKey = g.Key, Id = g.Last().Id, Name = g.Last().Name, AllocationType = g.Last().AllocationType,
-            IsScheduled = g.Any(a => a.IsScheduled), PlannedAmount = g.Sum(a => a.PlannedAmount), OccurrenceCount = g.Sum(a => a.OccurrenceCount),
+            IsScheduled = g.Any(a => a.IsScheduled), DailyAmounts = g.SelectMany(a => a.DailyAmounts ?? new Dictionary<DateOnly,decimal>()).GroupBy(d => d.Key).ToDictionary(d => d.Key,d => d.Sum(v => v.Value)),
+            PlannedAmount = g.Sum(a => a.PlannedAmount), OccurrenceCount = g.Sum(a => a.OccurrenceCount),
         }).ToList();
         var protectedGoals = published.SelectMany(r => Protected(r).Where(p => p.Event.IsPeriodSetAside && Applicable(published,p.Event.Date)?.Id == r.Id)).ToList();
         // Generated goal dates always use the canonical household timeline, even in an individual-source view.
@@ -373,7 +379,7 @@ public partial class BudgetService(
             if (!allocations.Any(a => a.SourceKey == saved.SourceKey)) allocations.Add(new() { SourceKey = saved.SourceKey, Id = saved.ItemId, Name = saved.Name, AllocationType = saved.AllocationType });
         }
         allocations = allocations.Select(a => new BudgetMonthlyItem { SourceKey = a.SourceKey, Id = a.Id, Name = a.Name,
-            AllocationType = a.AllocationType, IsScheduled = a.IsScheduled,
+            AllocationType = a.AllocationType, IsScheduled = a.IsScheduled, DailyAmounts = a.DailyAmounts,
             PlannedAmount = householdPaydays.Count > 0 && Contribution(a.AllocationType) && (!a.IsScheduled || events.Any(e => e.SourceKey == a.SourceKey && e.IsPeriodSetAside))
                 ? events.Where(e => !e.IsIncome && e.SourceKey == a.SourceKey).Sum(e => e.Amount) : a.PlannedAmount,
             OccurrenceCount = events.Count(e => !e.IsIncome && e.SourceKey == a.SourceKey) }).ToList();
@@ -419,7 +425,7 @@ public partial class BudgetService(
         var bills = events.Where(e => !e.IsIncome && e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions or BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
         if (bills.Count == 0) return;
         var min = bills.Min(e => e.Date); var max = bills.Max(e => e.Date);
-        var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();
+        var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).ThenInclude(t => t!.PairedTransaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();
         foreach (var bill in bills)
             bill.Payment = payments.Where(p => p.AllocationKey == bill.SourceKey && p.DueDate == bill.Date).Select(BillPaymentResponse.From).SingleOrDefault();
     }

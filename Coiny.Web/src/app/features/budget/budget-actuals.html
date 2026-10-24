@@ -1,11 +1,13 @@
 <section class="panel" aria-label="Planned versus actual allocations" [attr.aria-busy]="loading()">
-  <header><h2>Planned vs. actual</h2><button type="button" class="button-ghost" [disabled]="loading() || saving()" (click)="load()">Refresh</button></header>
+  <header><h2>Planned vs. actual</h2><button type="button" class="button-ghost" [disabled]="loading() || saving()" (click)="refresh()">Refresh</button></header>
   @if (loading() && !report()) { <p role="status">Comparing your plan with recorded activity…</p> }
   @else if (error()) { <p role="alert">{{ error() }}</p><button type="button" class="button-outline" (click)="load()">Try again</button> }
   @else if (report(); as data) {
     @if (loading()) { <p class="hint" role="status">Updating comparison…</p> }
     <p class="hint">@if (data.throughDate) { Recorded through {{ data.throughDate | date:'MMM d, yyyy':'UTC' }}. } @else { This future period shows your plan; actuals will appear as transactions are recorded. } Actuals use posting dates. Linked payments take priority over category defaults and individual assignments.</p>
-    <app-budget-comparison-chart [points]="data.points ?? []" />
+    <div class="chart-views" role="group" aria-label="Budget chart view"><button type="button" class="button-outline" [attr.aria-pressed]="chartView() === 'allocations'" (click)="chartView.set('allocations')">Allocation detail</button><button type="button" class="button-outline" [attr.aria-pressed]="chartView() === 'forecast'" (click)="chartView.set('forecast')">Running forecast</button></div>
+    @if (chartView() === 'allocations') { <app-budget-comparison-chart [points]="data.points ?? []" /> }
+    @else { <app-budget-running-forecast [asOf]="forecastAsOf" [refreshKey]="refreshKey + forecastRefresh()" /> }
     <div class="totals"><div><span>Planned allocations</span><strong>{{ data.planned | currency }}</strong></div><div><span>Recorded against budget</span><strong>{{ data.assignedActual | currency }}</strong></div><div><span>Expenses not assigned</span><strong>{{ data.unassignedExpenses | currency }}</strong></div></div>
     @if (data.awaitingTransaction) { <p class="awaiting">◷ {{ data.awaitingTransaction | currency }} planned in paid items still awaiting transactions. These amounts are separate from actuals.</p> }
     <details class="budget-items" open>

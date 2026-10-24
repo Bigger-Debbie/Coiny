@@ -1,0 +1,14 @@
+/* A little breathing room between supporting copy and the item it explains.
+   Padding adds to existing component spacing without collapsing paragraph margins. */
+p.hint,
+p.transfer-hint {
+  padding-block-start: 0.375rem;
+}
+
+/* Limit this to supporting text below controls or values; inline labels,
+   chart legends, and other small text retain their existing layout. */
+:where(input, select, textarea, app-select-menu) + small,
+strong + small {
+  display: block;
+  padding-block-start: 0.25rem;
+}
