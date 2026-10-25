@@ -207,3 +207,23 @@ The new `TransactionImportSessions` table stores only an idempotency receipt, no
 ### Review grid sizing
 
 The spreadsheet scrolls horizontally inside the review panel; filters and actions remain within the page width. Drag a column-header divider to resize that column within its minimum/maximum width. Focus a divider and use Left/Right arrows (Shift for larger changes), Home, or End for keyboard resizing. Double-click a divider to reset that column; **Reset column widths** resets all columns. Description and Category have wider defaults. Width changes preserve transaction edits, selections, and validation checks. Header and row-selection columns remain pinned while scrolling; Status is unpinned on narrow screens to leave room for data. Widths remain with that file’s in-memory review while navigating between files.
+
+## Household category-rule suggestions
+
+The shared single/multi-file review grid loads merchant/category rules after column
+mapping. Exact merchant rules outrank description-contains rules; longer description
+phrases outrank shorter ones. Conflicting equal-priority rules leave the category
+blank and require review. Rules precede the existing bank-classification fallback
+on initial load. Known transfer rows remain transfers.
+
+Rule-assigned cells show **Suggested by rule**. Manual category edits/bulk choices
+are preserved; Refresh category rules fills only untouched empty cells. A user-cleared
+category remains empty. Editing merchant/description reevaluates a rule-owned
+suggestion; direction changes clear incompatible categories and reevaluate. Rule
+load failures show a notice and permit manual categorization. Row details offer
+**Remember this merchant**, or **Create description rule** when no merchant column
+is populated. The rule editor supports preview and explicit save. This saves rule
+metadata only, then refreshes untouched empty cells in this file. Other already
+reviewed files retain their selections; new files load current rules.
+
+See [merchant/category rules](15-merchant-category-rules.md).

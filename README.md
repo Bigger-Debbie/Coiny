@@ -14,7 +14,7 @@ password recovery and complete expired-session handling remain future work.
 | --- | --- | --- |
 | Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, personal net-worth settings, local logout, token storage and route guard | Password recovery, complete expired-session handling |
 | Households | Create/join setup, member-card modal, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
-| Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic multi-account import and transfer matching, import history, and account/category management | Saved bank mappings, XLS/XLSX imports |
+| Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic multi-account import and transfer matching, import history, and account/category management and household merchant/category rules | Saved bank mappings, XLS/XLSX imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and account-balance forecasts |
 | Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
 | Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, manual and optional daily recurring-expense scans, household alerts with personal unread badges, and review, and comparisons with category defaults and transaction assignments | Savings funds, account-balance forecasts |
@@ -64,6 +64,7 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Account reconciliation](docs/12-account-reconciliation.md) | Statement checks, verified checkpoints, and later-change review flags |
 | [Budget actuals](docs/13-budget-actuals.md) | Posting-month comparisons, category defaults, and transaction assignments |
 | [Recurring detection and alerts](docs/14-recurring-detection.md) | Manual/daily scans, review decisions, household settings, and personal unread status |
+| [Merchant/category rules](docs/15-merchant-category-rules.md) | Rule management, preview examples, and import suggestions |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones
@@ -73,8 +74,7 @@ forecasts, recurring-expense detection, and household alerts are implemented.
 Signup/household setup, account/category management, transaction corrections,
 reconciliation, and multi-account CSV imports are also implemented.
 
-Next areas include savings funds, backup/restore and export, saved categorization
-rules, import correction, and authentication/session improvements. See the
+Next areas include savings funds, backup/restore and export, import correction, and authentication/session improvements. See the
 [roadmap](docs/11-roadmap.md) for the remaining work.
 
 For current development limitations and test status, see the

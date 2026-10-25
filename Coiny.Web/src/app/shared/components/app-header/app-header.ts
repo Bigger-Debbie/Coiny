@@ -1,3 +1,4 @@
+import { MerchantRules } from '../../../features/merchant-rules/merchant-rules';
 import { AlertsService } from '../../../core/services/alerts.service';
 import { HouseholdAlerts } from '../../../features/alerts/household-alerts';
 import { CategoryManagement } from '../../../features/categories/category-management';
@@ -12,7 +13,7 @@ import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings, CategoryManagement],
+  imports: [MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings, CategoryManagement],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })
@@ -55,6 +56,8 @@ export class AppHeader implements OnInit {
       this.menuOpen.set(false);
     }
   }
+  readonly merchantRulesOpen = signal(false);
+  openMerchantRules() { this.prepareModal(); this.merchantRulesOpen.set(true); }
   readonly categoriesOpen = signal(false);
   openCategories() { this.prepareModal(); this.categoriesOpen.set(true); }
   readonly settingsOpen = signal(false);

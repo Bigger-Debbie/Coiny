@@ -77,6 +77,11 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
 | GET | `/api/recurring-expenses/settings` | 200 | Household daily-scan setting and last successful scan date |
 | PUT | `/api/recurring-expenses/settings` | 200 | Save household daily-scan preference with version check |
+| GET | `/api/merchant-rules` | 200 | Household rules, including disabled rules and archived-category status |
+| POST | `/api/merchant-rules` | 200 | Create a merchant/category rule |
+| PUT | `/api/merchant-rules/{id}` | 200 | Update/enable/disable a rule with version checks |
+| DELETE | `/api/merchant-rules/{id}?expectedEditVersion=1` | 204 | Delete a rule without changing transactions |
+| POST | `/api/merchant-rules/preview` | 200 | Preview recent recorded matches without saving |
 | GET | `/api/alerts` | 200 | Active household alerts with current member's read status |
 | GET | `/api/alerts/unread-count` | 200 | Current member's unread count |
 | PUT | `/api/alerts/{id}/read` | 204 | Mark the specified alert version read for this member |
@@ -1528,3 +1533,47 @@ the same validation/version rules as the household settings endpoint. Omitting i
 leaves household detection unchanged. When present, both updates commit together
 or both roll back. The response remains the personal preference object. Settings
 are staged until Save settings; changing either toggle alone makes no write.
+
+## Merchant/category rules
+
+All `/api/merchant-rules` routes require authentication and current household
+membership (401/403). Clients never supply household ids. GET lists household
+rules, including disabled rules and ones targeting archived categories. Responses
+contain `id`, `matchType`, `pattern`, `categoryId`, `categoryName`, `categoryType`,
+`categoryActive`, `isActive`, and `editVersion`.
+
+POST creates, PUT `/api/merchant-rules/{id}` updates, and POST
+`/api/merchant-rules/preview` previews this required payload:
+
+```json
+{
+  "matchType": "MerchantExact",
+  "pattern": "NETFLIX.COM",
+  "categoryId": 7,
+  "isActive": true,
+  "expectedEditVersion": 0
+}
+```
+
+Match types are `MerchantExact` and `DescriptionContains`. Phrases are 3–200
+characters after normalization; whitespace/punctuation-only phrases are invalid.
+Targets must be active Income/Expense categories in the current household.
+An existing rule can be disabled while retaining its archived target. Normalized
+match type/phrase pairs are unique per household, including disabled rules.
+Create uses version 0; updates use the returned edit version and increment it.
+Duplicate phrases and stale updates/deletes return 409. Invalid ids/targets/payloads
+return 400. DELETE requires `expectedEditVersion` in the query string.
+
+Preview returns `transactionsChecked` and `examples`, up to 10 matching entries
+from the latest 1,000 household transactions of the selected category type. Examples
+contain `id`, `date`, `merchant`, `description`, `amount`, and `accountName`.
+Preview never saves a rule or changes transactions. It checks recorded history,
+not the CSV file currently in the browser.
+
+Import review fetches this rule list and matches locally: exact merchant wins;
+otherwise the longest normalized description phrase wins. Conflicting equal-rank
+categories require user selection. Known transfer/excluded rows, archived targets,
+disabled rules, and opposite money directions are skipped. Suggestions feed the
+normal import validation; the server still validates category ownership/activity
+and all row/duplicate/balance constraints before import. No rule is run against
+existing ledger entries. See [rule behavior](15-merchant-category-rules.md).

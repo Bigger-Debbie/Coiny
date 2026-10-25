@@ -1,3 +1,4 @@
+import { MerchantRule } from '../../../core/services/merchant-rules.service';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -17,7 +18,7 @@ describe('Import transaction review', () => {
     line: 2, date: '2026-10-16', description: 'Coffee', amount: 5, direction: 'Out', classification: 'Dining',
     merchant: null, sourceAccount: null, status: 'Posted', excluded: false, exclusionReason: null, errors: [], ...overrides,
   });
-  async function render(rows = [mapped()], bank: { date: string; balance: number } | null = null) {
+  async function render(rows = [mapped()], bank: { date: string; balance: number } | null = null, rules:MerchantRule[] = []) {
     const f = TestBed.createComponent(ImportReview);
     f.componentRef.setInput('mappedRows', rows); f.componentRef.setInput('bankBalance', bank);
     f.componentRef.setInput('account', { id: 1, name: 'Checking', accountType: 'Checking', openingBalanceDate: '2026-10-01' });
@@ -27,8 +28,26 @@ describe('Import transaction review', () => {
       { id: 2, name: 'Salary', categoryType: 'Income', isActive: true },
     ]);
     http.expectOne(r => r.url.endsWith('/transaction-imports')).flush([]);
+    http.expectOne(r=>r.url.endsWith('/merchant-rules')).flush(rules);
     f.detectChanges(); await f.whenStable(); return f;
   }
+  it('suggests categories before bank fallback, preserves overrides on refresh, and exposes remembering the merchant',async()=>{
+    const rule:MerchantRule={id:1,matchType:'MerchantExact',pattern:'Coffee shop',categoryId:1,categoryName:'Dining',categoryType:'Expense',categoryActive:true,isActive:true,editVersion:1};
+    const f=await render([mapped({merchant:'Coffee shop',classification:''})],null,[rule]);const c=f.componentInstance;
+    expect(c.rows()[0].categoryChoice).toBe('c:1');expect(c.rows()[0].ruleSource).toBe('Coffee shop');expect(f.nativeElement.textContent).toContain('Suggested by rule');
+    c.detailLine.set(2);f.detectChanges();expect(f.nativeElement.textContent).toContain('Remember this merchant');
+    c.edit(c.rows()[0],'categoryChoice',null);c.refreshRules();http.expectOne(r=>r.url.endsWith('/merchant-rules')).flush([rule]);
+    expect(c.rows()[0].categoryChoice).toBeNull();expect(c.rows()[0].ruleSource).toBeUndefined();
+    c.edit(c.rows()[0],'categoryChoice','c:1');c.rememberMerchant(c.rows()[0]);expect(c.remember()).toEqual({pattern:'Coffee shop',categoryId:1});
+  });
+  it('leaves conflicting rules for review and rematches rule-owned categories after merchant edits',async()=>{
+    const rule:MerchantRule={id:1,matchType:'MerchantExact',pattern:'Coffee shop',categoryId:1,categoryName:'Dining',categoryType:'Expense',categoryActive:true,isActive:true,editVersion:1};
+    const f=await render([mapped({merchant:'Coffee shop',classification:''})],null,[rule]);const c=f.componentInstance;
+    c.edit(c.rows()[0],'merchant','Other shop');expect(c.rows()[0].categoryChoice).toBeNull();
+    c.rules.set([{...rule,matchType:'DescriptionContains',pattern:'Coffee'}, {...rule,id:2,matchType:'DescriptionContains',pattern:'Coffee',categoryId:3}]);
+    c.refreshRules();http.expectOne(r=>r.url.endsWith('/merchant-rules')).flush(c.rules());
+    expect(c.statusLabel(c.rows()[0])).toBe('Conflicting rules');c.edit(c.rows()[0],'categoryChoice','c:1');expect(c.rows()[0].ruleConflict).toBe(false);
+  });
   it('shows the continue action only after successful checks and hides it after edits', async () => {
     const f=await render();const c=f.componentInstance;
     expect(f.nativeElement.querySelector('.review-next-actions')).toBeNull();

@@ -26,3 +26,6 @@ input[type="checkbox"] { width: auto; margin-top: .2rem; }
 .source-choice { max-width: 34rem; }
 a { text-decoration: none; }
 @media (max-width: 650px) { .fields { grid-template-columns: 1fr; } .page-heading { align-items: flex-start; flex-direction: column; } .panel { padding: 1rem; } }
+
+.rule-tools { display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin:1rem 0; }
+.rule-note { display:block; color:var(--color-text-muted); font-size:.7rem; padding:0 .65rem .25rem; }

@@ -1,10 +1,14 @@
+import { MatchType, MerchantRule, MerchantRulesService } from '../../../core/services/merchant-rules.service';
+import { matchCategoryRule } from '../../merchant-rules/rule-matching';
+import { MerchantRuleEditor } from '../../merchant-rules/merchant-rule-editor';
+import { Modal } from '../../../shared/components/modal/modal';
 import { ColumnResize } from '../../../shared/components/column-resize/column-resize';
 import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, Input, OnChanges, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of, Subscription } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CategoryService } from '../../../core/services/category.service';
 import { TransactionImportService } from '../../../core/services/transaction-import.service';
@@ -16,10 +20,11 @@ import { ImportReviewRow } from './csv-mapping';
 import { ReviewCell } from './review-cell';
 
 interface ReviewRow extends ImportReviewRow {
+  ruleSource?: string; ruleConflict?: boolean; categoryTouched?: boolean;
   selected: boolean; categoryChoice: string | null; counterparty: 'Unknown' | 'External'; allowDuplicate: boolean;
 }
 
-@Component({ selector: 'app-import-review', host: { 'data-review-surface': '' }, imports: [FormsModule, CurrencyPipe, DatePipe, RouterLink, SelectMenu, ReviewCell, ColumnResize],
+@Component({ selector: 'app-import-review', host: { 'data-review-surface': '' }, imports: [MerchantRuleEditor, Modal, FormsModule, CurrencyPipe, DatePipe, RouterLink, SelectMenu, ReviewCell, ColumnResize],
   templateUrl: './import-review.html', styleUrls: ['./import-transactions.css', './import-review.css'] })
 export class ImportReview implements OnChanges {
   readonly columns = [
@@ -48,6 +53,35 @@ export class ImportReview implements OnChanges {
   readonly busyChange = output<boolean>();
   readonly completed = output<void>();
   readonly lockedChange = output<boolean>();
+  private readonly rulesApi=inject(MerchantRulesService);
+  readonly rules=signal<MerchantRule[]>([]);readonly rulesError=signal(false);readonly rulesLoading=signal(false);
+  readonly remember=signal<{pattern:string;categoryId:number;matchType?:MatchType}|null>(null);
+  private loadRequest?:Subscription;private rulesRequest?:Subscription;
+  get rulesSuggestedCount(){return this.rows().filter(r=>r.ruleSource).length;}
+  rememberMerchant(row:ReviewRow){
+    if(row.excluded || !row.categoryChoice?.startsWith('c:'))return;
+    const merchant=row.merchant?.trim();
+    this.remember.set({pattern:(merchant || row.description).slice(0,200),categoryId:Number(row.categoryChoice.slice(2)),...(!merchant?{matchType:'DescriptionContains' as const}:{})});
+  }
+  ruleSaved(){this.remember.set(null);this.toasts.success('Merchant rule saved.');this.refreshRules();}
+  refreshRules(){
+    if(this.busy() || this.locked())return;this.rulesRequest?.unsubscribe();this.rulesLoading.set(true);this.rulesError.set(false);
+    this.rulesRequest=this.rulesApi.list().pipe(takeUntilDestroyed(this.destroy)).subscribe({next:rules=>{this.rules.set(rules);this.applyRules();this.rulesLoading.set(false);this.changed(true);},error:()=>{this.rulesLoading.set(false);this.rulesError.set(true);}});
+  }
+  private applyRules(){
+    this.rows.update(rows=>rows.map(row=>{
+      if(row.categoryChoice || row.categoryTouched || row.excluded)return row;
+      const decision=matchCategoryRule(this.rules(),row);
+      const target=decision.rule && this.categories().find(c=>c.id===decision.rule!.categoryId && c.isActive);
+      return {...row,ruleConflict:decision.conflict,categoryChoice:target?`c:${target.id}`:null,ruleSource:target?decision.rule!.pattern:undefined};
+    }));
+  }
+  private rematch(row:ReviewRow){
+    if(!row.ruleSource && row.categoryChoice || row.categoryTouched)return;
+    row.categoryChoice=null;row.ruleSource=undefined;
+    const decision=matchCategoryRule(this.rules(),row);row.ruleConflict=decision.conflict;
+    if(decision.rule && this.categories().some(c=>c.id===decision.rule!.categoryId && c.isActive)){row.categoryChoice=`c:${decision.rule.categoryId}`;row.ruleSource=decision.rule.pattern;}
+  }
   private readonly categoriesApi = inject(CategoryService);
   private readonly api = inject(TransactionImportService);
   private readonly destroy = inject(DestroyRef);
@@ -77,7 +111,7 @@ export class ImportReview implements OnChanges {
     switch (this.status(row)) {
       case 'excluded': return 'Excluded';
       case 'error': return 'Fix data';
-      case 'review': return !row.categoryChoice ? 'Needs category' : this.duplicate(row) && !row.allowDuplicate ? 'Possible duplicate' : 'Needs review';
+      case 'review': return row.ruleConflict ? 'Conflicting rules' : !row.categoryChoice ? 'Needs category' : this.duplicate(row) && !row.allowDuplicate ? 'Possible duplicate' : 'Needs review';
       default: return this.validation() ? 'Ready' : 'Ready to check';
     }
   }
@@ -90,9 +124,10 @@ export class ImportReview implements OnChanges {
       case 'merchant': row.merchant = value ? String(value) : null; break;
       case 'amount': row.amount = value === null ? null : Number(value); break;
       case 'direction': row.direction = value as 'In' | 'Out'; this.directionChanged(row); return;
-      case 'categoryChoice': row.categoryChoice = value as string | null; break;
+      case 'categoryChoice': row.categoryChoice = value as string | null; row.categoryTouched=true;row.ruleSource=undefined;row.ruleConflict=false;break;
       case 'counterparty': row.counterparty = value as 'Unknown' | 'External'; break;
     }
+    if(field==='merchant' || field==='description')this.rematch(row);
     this.changed(['merchant', 'categoryChoice', 'counterparty'].includes(field));
   }
   search = ''; classification = ''; page = 1;
@@ -134,14 +169,20 @@ export class ImportReview implements OnChanges {
     this.balanceAcknowledged = false; this.validation.set(null); this.result.set(null); this.submissionId = crypto.randomUUID(); this.load();
   }
   load(): void {
-    this.loading.set(true); this.loadError.set(false);
-    forkJoin({ categories: this.categoriesApi.getCategories(), history: this.api.history(this.account.id) })
+    this.loadRequest?.unsubscribe();this.rulesRequest?.unsubscribe();this.loading.set(true); this.loadError.set(false);this.rulesError.set(false);
+    this.loadRequest=forkJoin({ rules:this.rulesApi.list().pipe(catchError(()=>{this.rulesError.set(true);return of([] as MerchantRule[]);})), categories: this.categoriesApi.getCategories(), history: this.api.history(this.account.id) })
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({
         next: data => {
           this.categories.set(data.categories.filter(c => c.isActive)); this.history.set(data.history);
+          this.rules.set(data.rules);
           this.rows.update(rows => rows.map(row => {
+            if(row.categoryChoice || row.categoryTouched)return row;
             const match = this.categories().find(c => c.name.trim().toLowerCase() === row.classification.toLowerCase() &&
               (c.categoryType === 'Transfer' || c.categoryType === (row.direction === 'In' ? 'Income' : 'Expense')));
+            const transfer=match?.categoryType==='Transfer';
+            const decision=transfer?{conflict:false}:matchCategoryRule(data.rules,row);
+            if(decision.conflict)return {...row,categoryChoice:null,ruleConflict:true};
+            if(decision.rule && this.categories().some(c=>c.id===decision.rule!.categoryId))return {...row,categoryChoice:`c:${decision.rule.categoryId}`,ruleSource:decision.rule.pattern};
             return { ...row, categoryChoice: match ? match.categoryType === 'Transfer' ? 'transfer' : `c:${match.id}` : null };
           }));
           this.loading.set(false);
@@ -150,7 +191,7 @@ export class ImportReview implements OnChanges {
       });
   }
   changed(keepDuplicates = false): void { this.reviewInvalidated.emit(); this.balanceAcknowledged = false; this.validation.set(null); if (!keepDuplicates) this.lastChecks.set([]); this.finalConfirmed = false; this.error.set(''); this.notice.set(''); this.submissionId = crypto.randomUUID(); }
-  directionChanged(row: ReviewRow): void { if (row.categoryChoice !== 'transfer') row.categoryChoice = null; this.changed(); }
+  directionChanged(row: ReviewRow): void { if (row.categoryChoice !== 'transfer') {row.categoryChoice = null;row.categoryTouched=false;row.ruleSource=undefined;this.rematch(row);} this.changed(); }
   filterChanged(): void { this.page = 1; this.rows().forEach(row => row.selected = false); }
   selectFiltered(selected: boolean): void { const filtered = new Set(this.filtered); this.rows().forEach(row => { if (filtered.has(row)) row.selected = selected; }); }
   excludeSelected(excluded: boolean): void { this.rows().forEach(row => { if (row.selected) row.excluded = excluded; }); this.changed(true); }
@@ -158,7 +199,7 @@ export class ImportReview implements OnChanges {
     if (!this.bulkChoice) return;
     let assigned = 0, incompatible = 0;
     for (const row of this.rows()) if (row.selected && !row.excluded) {
-      if (this.options(row).some(option => option.value === this.bulkChoice)) { row.categoryChoice = this.bulkChoice; assigned++; }
+      if (this.options(row).some(option => option.value === this.bulkChoice)) { row.categoryChoice = this.bulkChoice; row.categoryTouched=true;row.ruleSource=undefined;row.ruleConflict=false;assigned++; }
       else incompatible++;
     }
     this.changed(true); this.notice.set(`Assigned ${assigned} rows.${incompatible ? ` ${incompatible} rows have the opposite money direction and were left unchanged.` : ''}`);

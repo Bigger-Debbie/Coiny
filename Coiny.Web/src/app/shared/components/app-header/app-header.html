@@ -55,6 +55,7 @@
                         </div>
                         <button class="logout-button" role="menuitem" type="button" (click)="openHousehold()">Household</button>
                         <button class="logout-button" role="menuitem" type="button" (click)="openCategories()">Categories</button>
+                        <button class="logout-button" role="menuitem" type="button" (click)="openMerchantRules()">Merchant rules</button>
                         <button class="logout-button" role="menuitem" type="button" (click)="openAlerts()">Alerts @if(alerts.unread()) {<span class="alert-count">{{ alerts.unread() }}</span>}</button>
                         <button class="logout-button" role="menuitem" type="button" (click)="openSettings()">Settings</button>
                         <button #logoutButton type="button" role="menuitem" class="logout-button" (click)="logout()">Log out</button>
@@ -68,6 +69,7 @@
                 </div>
                 <button class="logout-button" type="button" (click)="openHousehold()">Household</button>
                 <button class="logout-button" type="button" (click)="openCategories()">Categories</button>
+                <button class="logout-button" type="button" (click)="openMerchantRules()">Merchant rules</button>
                 <button class="logout-button" type="button" (click)="openAlerts()">Alerts @if(alerts.unread()) {<span class="alert-count">{{ alerts.unread() }}</span>}</button>
                 <button class="logout-button" type="button" (click)="openSettings()">Settings</button>
                 <button class="logout-button" type="button" (click)="logout()">Log out</button>
@@ -98,3 +100,5 @@
 }
 
 @if(alertsOpen()) {<app-modal title="Alerts" (dismiss)="alertsOpen.set(false)"><app-household-alerts (closed)="alertsOpen.set(false)" /></app-modal>}
+
+@if(merchantRulesOpen()) {<app-modal title="Merchant rules" [busy]="merchantRules.busy()" (dismiss)="merchantRulesOpen.set(false)"><app-merchant-rules #merchantRules /></app-modal>}

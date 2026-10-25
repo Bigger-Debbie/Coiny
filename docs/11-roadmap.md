@@ -28,7 +28,7 @@ budgeting change.
 - Additional budget-maintenance refinements; direct item editing with effective dates is implemented.
 - Password recovery, password changes, session handling, and login protection.
 - Tested backup/restore and data export.
-- Saved merchant/category rules to speed up CSV review.
+- Saved bank column mappings; merchant/category rules are implemented for CSV review.
 
 Statement checkpoints and account reconciliation are implemented; see
 [account reconciliation](12-account-reconciliation.md).

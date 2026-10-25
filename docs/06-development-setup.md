@@ -152,15 +152,15 @@ Current verification baseline after budget actuals and assignment tracking:
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The latest frontend run passed 315 tests, excluding the known starter test; that existing failure
+- The latest frontend run passed 323 tests, excluding the known starter test; that existing failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
 - Existing backend build warnings include nullable properties in `HouseholdMember`.
 - Dashboard, accounts, import-review, budget-calendar, and budget-dashboard CSS exceed their 4 kB warning budgets
-  (about 4.73 kB, 4.65 kB, 4.58 kB, 5.38 kB, and 4.99 kB respectively). The initial bundle is about 591.13 kB against a
+  (about 4.73 kB, 4.65 kB, 4.58 kB, 5.38 kB, and 4.99 kB respectively). The initial bundle is about 608.70 kB against a
   500 kB warning budget; the production build still passes. CSV import, the transaction editor, and reconciliation modal load lazily.
-- The backend suite has 211 passing xUnit tests for budget actuals, account reconciliation, transaction management, bill/contribution payments, batch imports, transfers, recurrence, household-scoped
+- The backend suite has 215 passing xUnit tests for budget actuals, account reconciliation, transaction management, bill/contribution payments, batch imports, transfers, recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).
@@ -205,3 +205,9 @@ Recurring reviews and daily-scan alerts require
 metadata without changing existing financial tables. Back up the database, apply
 migrations, and restart the API. Daily detection defaults off and needs the API to
 remain running; see [recurring detection](14-recurring-detection.md).
+
+Merchant/category rules require `20261025150814_AddMerchantCategoryRules`.
+Back up the database, apply pending migrations, and restart the API before using
+the Merchant rules menu or import suggestions. This adds rule metadata only;
+existing transactions and categories remain unchanged. See
+[merchant/category rules](15-merchant-category-rules.md).

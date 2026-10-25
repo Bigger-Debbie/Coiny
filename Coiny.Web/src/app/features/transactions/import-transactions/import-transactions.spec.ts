@@ -126,7 +126,7 @@ describe('Mapping and review navigation', () => {
     Object.assign(c, { dateFormat: 'MM/DD/YY', amountColumn: 2, positiveMeans: 'In', confirmed: true });
     c.showPreview(); f.detectChanges(); await f.whenStable();
     http.expectOne(r => r.url.endsWith('/categories')).flush([{ id: 1, name: 'Dining', categoryType: 'Expense', isActive: true }]);
-    http.expectOne(r => r.url.endsWith('/transaction-imports')).flush([]);
+    http.expectOne(r => r.url.endsWith('/transaction-imports')).flush([]);http.expectOne(r=>r.url.endsWith('/merchant-rules')).flush([]);
     f.detectChanges(); await f.whenStable();
     const child = f.debugElement.query(By.directive(ImportReview)).componentInstance as ImportReview;
     child.edit(child.rows()[0], 'description', 'Morning coffee'); child.edit(child.rows()[0], 'categoryChoice', 'c:1');

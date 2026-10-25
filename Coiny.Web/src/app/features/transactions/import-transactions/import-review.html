@@ -32,6 +32,8 @@
             <div><label for="review-category-type">Category type</label><app-select-menu inputId="review-category-type" label="New category type" [options]="categoryTypes" [(ngModel)]="categoryType" /></div>
           </div><button class="button-primary" type="button" (click)="saveCategory()">Save Category</button><button class="button-ghost" type="button" (click)="creatingCategory.set(false)">Cancel</button></div>
         }
+        <div class="rule-tools"><small>{{ rulesSuggestedCount }} categories suggested by household rules. Your selections stay unchanged when rules refresh.</small><button type="button" class="button-ghost" [disabled]="busy() || locked() || rulesLoading()" (click)="refreshRules()">{{ rulesLoading()?'Loading rules…':'Refresh category rules' }}</button></div>
+        @if(rulesError()){<p class="hint" role="status">Category rules couldn’t load. You can categorize manually or refresh the rules.</p>}
         <div class="sheet-tools"><small>Drag column dividers to resize · Focus a divider and use arrow keys</small><button class="button-ghost" type="button" (click)="resetColumnWidths()">Reset column widths</button></div>
         <div class="sheet-legend" aria-label="Row statuses"><span>✓ Ready</span><span>◷ Needs review</span><span>! Fix data</span><span>— Excluded</span><small>Click a cell to edit · Enter saves · Escape cancels · Tab moves to the next cell</small></div>
         <div class="sheet-scroll" tabindex="0" role="region" aria-label="Editable transaction review spreadsheet">
@@ -57,7 +59,7 @@
               <td><app-review-cell [id]="'merchant-' + row.line" [label]="'Merchant for file line ' + row.line" [maxlength]="150" [value]="row.merchant" [disabled]="row.excluded" (valueChange)="edit(row, 'merchant', $event)" /></td>
               <td><app-review-cell [id]="'direction-' + row.line" [label]="'Direction for file line ' + row.line" type="select" [options]="directions" [value]="row.direction" [disabled]="row.excluded" (valueChange)="edit(row, 'direction', $event)" /></td>
               <td class="amount-column"><app-review-cell [id]="'amount-' + row.line" [label]="'Amount for file line ' + row.line" type="number" [min]="0.01" [value]="row.amount" [disabled]="row.excluded" (valueChange)="edit(row, 'amount', $event)" /></td>
-              <td><app-review-cell [id]="'category-' + row.line" [label]="'Category for file line ' + row.line" type="select" [options]="options(row)" [value]="row.categoryChoice" [disabled]="row.excluded" (valueChange)="edit(row, 'categoryChoice', $event)" /></td>
+              <td><app-review-cell [id]="'category-' + row.line" [label]="'Category for file line ' + row.line" type="select" [options]="options(row)" [value]="row.categoryChoice" [disabled]="row.excluded" (valueChange)="edit(row, 'categoryChoice', $event)" />@if(row.ruleSource){<small class="rule-note" [attr.title]="'Rule: '+row.ruleSource">Suggested by rule</small>}@if(row.ruleConflict){<small class="rule-note">Conflicting rules · choose category</small>}</td>
               <td>@if (row.categoryChoice === 'transfer') { <app-review-cell [id]="'counterparty-' + row.line" [label]="'Other account for file line ' + row.line" type="select" [options]="counterparties" [value]="row.counterparty" [disabled]="row.excluded" (valueChange)="edit(row, 'counterparty', $event)" /> } @else { <span class="read-only">—</span> }</td>
               <td><span class="read-only" [attr.title]="row.classification">{{ row.classification || '—' }}</span></td>
               <td class="status-column"><button class="status-pill" type="button" [class.ready]="status(row) === 'ready'" [class.warning]="status(row) === 'review'" [class.invalid]="status(row) === 'error'" [attr.aria-expanded]="detailLine() === row.line" aria-controls="row-details" (click)="detailLine.set(detailLine() === row.line ? null : row.line)"><span aria-hidden="true">{{ status(row) === 'ready' ? '✓' : status(row) === 'error' ? '!' : status(row) === 'excluded' ? '—' : '◷' }}</span>{{ statusLabel(row) }}</button></td>
@@ -70,6 +72,9 @@
             <div class="detail-heading"><h3>File line {{ row.line }} · {{ statusLabel(row) }}</h3><button class="button-ghost" type="button" (click)="detailLine.set(null)" aria-label="Close row details">Close</button></div>
             @if (row.excluded) { <p>{{ row.exclusionReason || 'This row will not be imported. Check Include to bring it back.' }}</p> }
             @else {
+              @if(row.ruleSource){<p class="hint">Category suggested by rule: {{ row.ruleSource }}. Click the category cell to override it.</p>}
+              @if(row.ruleConflict){<p class="hint">Equally specific category rules disagree. Choose a category to resolve this row.</p>}
+              @if(row.categoryChoice?.startsWith('c:')){<button type="button" class="button-outline" [disabled]="busy() || locked()" (click)="rememberMerchant(row)">{{ row.merchant ? 'Remember this merchant' : 'Create description rule' }}</button>}
               @for (error of localErrors(row); track $index) { <p class="error">{{ error }}</p> }
               @if (!row.categoryChoice) { <p>Choose an Income/Expense category, or classify this row as Transfer.</p> }
               @for (error of serverErrors(row); track $index) { <p>{{ error }}</p> }
@@ -122,3 +127,5 @@
 @if (history().length) {
   <details class="panel import-history"><summary>Recent imports for {{ account.name }}</summary><div class="table-scroll"><table><thead><tr><th scope="col">Batch</th><th scope="col">File</th><th scope="col">Imported</th><th scope="col">Count</th></tr></thead><tbody>@for (batch of history(); track batch.batchId) { <tr><td>#{{ batch.batchId }}</td><td>{{ batch.filename }}</td><td>{{ batch.completedAt | date:'medium' }}</td><td>{{ batch.importedCount }}</td></tr> }</tbody></table></div></details>
 }
+
+@if(remember();as preset){<app-modal title="Remember this merchant" [busy]="busy()" (dismiss)="remember.set(null)"><app-merchant-rule-editor [preset]="preset" (busyChanged)="busy.set($event);busyChange.emit($event)" (cancelled)="remember.set(null)" (saved)="ruleSaved()" /></app-modal>}

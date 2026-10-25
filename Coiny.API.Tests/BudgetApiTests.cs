@@ -32,6 +32,23 @@ public class BudgetApiTests
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
     [Fact]
+    public async Task Merchant_rule_routes_validate_scope_versions_and_authentication()
+    {
+        await using var host=await Api.Create();var c=host.Database.Context();c.Categories.Add(new Coiny.API.Models.Category {Id=90,HouseholdId=1,Name="Subscriptions",IsActive=true,CategoryType=Coiny.API.Enums.CategoryType.Expense});await c.SaveChangesAsync();
+        var input=new {matchType="MerchantExact",pattern="Netflix.com",categoryId=90,isActive=true,expectedEditVersion=0};
+        var created=await host.Client.PostAsJsonAsync("/api/merchant-rules",input);created.EnsureSuccessStatusCode();
+        var rule=(await created.Content.ReadFromJsonAsync<Coiny.API.DTOs.MerchantRules.MerchantRuleResponse>(Json))!;
+        Assert.Equal(1,rule.EditVersion);(await host.Client.PostAsJsonAsync("/api/merchant-rules/preview",input)).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Conflict,(await host.Client.PutAsJsonAsync($"/api/merchant-rules/{rule.Id}",input)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PostAsJsonAsync("/api/merchant-rules",new {})).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");host.Client.DefaultRequestHeaders.Add("Test-Household","2");
+        Assert.Empty((await host.Client.GetFromJsonAsync<Coiny.API.DTOs.MerchantRules.MerchantRuleResponse[]>("/api/merchant-rules",Json))!);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.DeleteAsync($"/api/merchant-rules/{rule.Id}?expectedEditVersion=1")).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");host.Client.DefaultRequestHeaders.Add("Test-Household","1");
+        (await host.Client.DeleteAsync($"/api/merchant-rules/{rule.Id}?expectedEditVersion=1")).EnsureSuccessStatusCode();
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/api/merchant-rules")).StatusCode);
+    }
+    [Fact]
     public async Task Automatic_recurring_settings_and_alerts_enforce_access_validation_and_read_versions()
     {
         await using var host=await Api.Create();
@@ -340,6 +357,7 @@ public class BudgetApiTests
             });
             builder.Services.AddScoped<Coiny.API.Data.CoinyContext>(_=>db.Context());
             builder.Services.AddScoped<UserPreferencesService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),services.GetRequiredService<ICurrentUserService>()));
+            builder.Services.AddScoped<MerchantRulesService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),services.GetRequiredService<ICurrentUserService>()));
             builder.Services.AddScoped<RecurringAutomationService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),new BudgetScheduleService(),db.Clock));
             builder.Services.AddScoped<HouseholdAlertsService>(services=> {
                 var household=services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;

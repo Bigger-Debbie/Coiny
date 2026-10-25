@@ -32,6 +32,7 @@ public static class ApplicationServceExtensions
         services.AddScoped<IBudgetService, BudgetService>();
         services.AddScoped<BillPaymentService>();
         services.AddScoped<BudgetActualsService>();
+        services.AddScoped<MerchantRulesService>();
         services.AddScoped<RecurringExpenseService>();
         services.AddScoped<RecurringAutomationService>();
         services.AddScoped<HouseholdAlertsService>();
