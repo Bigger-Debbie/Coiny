@@ -35,7 +35,15 @@ export class BudgetItemEditor implements OnInit {
     this.busy.set(true); this.error.set('');
     this.api.management().pipe(takeUntilDestroyed(this.destroy)).subscribe({ next:data=>{
       this.management.set(data); this.busy.set(false);
-      if (this.selection?.add) this.open(null,this.selection.isIncome,this.selection.type);
+      if (this.selection?.add) {
+        this.open(null,this.selection.isIncome,this.selection.type);
+        const prefill=this.selection.prefill;
+        if (prefill) {
+          this.form.patchValue({ name:prefill.name.slice(0,100),amount:prefill.amount });
+          const start=prefill.nextExpected < data.earliestEffectiveDate ? data.earliestEffectiveDate : prefill.nextExpected;
+          this.schedule?.patchValue({ frequency:prefill.frequency,startDate:start,dayOfMonth:Number(prefill.nextExpected.slice(8,10)) });
+        }
+      }
       else if (this.selection?.sourceKey) {
         const item=(this.selection.isIncome ? data.revision.incomeSources : data.revision.allocations).find(i=>i.sourceKey===this.selection!.sourceKey);
         if (item) this.open(item,this.selection.isIncome);

@@ -1,3 +1,4 @@
+import { RecurringExpenses } from './recurring-expenses';
 import { BudgetItemEditor } from './budget-item-editor';
 import { BudgetService } from '../../core/services/budget.service';
 import { getTrendDates } from '../dashboard/trend-range';
@@ -18,7 +19,7 @@ const groups: { type: AllocationType; label: string; color: string }[] = [
   { type: 'Investments', label: 'Investing', color: '#d4a027' },
 ];
 @Component({
-  selector: 'app-budget-dashboard', imports: [CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
+  selector: 'app-budget-dashboard', imports: [RecurringExpenses, CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
   templateUrl: './budget-dashboard.html', styleUrl: './budget-dashboard.css',
 })
 export class BudgetDashboard implements OnChanges {

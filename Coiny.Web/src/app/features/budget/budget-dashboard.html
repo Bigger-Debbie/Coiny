@@ -81,5 +81,6 @@
       <app-budget-calendar [controlledPeriod]="mode() === 'period' ? period() : null" [month]="mode() === 'period' ? month! : plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" (paymentChanged)="refreshActuals()" />
     }
   }
+<app-recurring-expenses (budgetChanged)="itemSaved()" />
 @if (itemEditor(); as editor) { <app-budget-item-editor [selection]="editor.selection" (dismiss)="itemEditor.set(null)" (saved)="itemSaved()" /> }
 </section>

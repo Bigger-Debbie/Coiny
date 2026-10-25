@@ -17,7 +17,7 @@ password recovery and complete expired-session handling remain future work.
 | Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic multi-account import and transfer matching, import history, and account/category management | Saved bank mappings, XLS/XLSX imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and account-balance forecasts |
 | Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, and comparisons with category defaults and transaction assignments | Savings funds, account-balance forecasts |
+| Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, manual and optional daily recurring-expense scans, household alerts with personal unread badges, and review, and comparisons with category defaults and transaction assignments | Savings funds, account-balance forecasts |
 
 ## Get started
 
@@ -60,21 +60,22 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
 | [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
 | [CSV transaction import](docs/10-csv-transaction-import.md) | Agreed import workflow, parsing foundation, and delivery sequence |
-| [Product roadmap](docs/11-roadmap.md) | Remaining work, including recurring transactions and subscriptions |
+| [Product roadmap](docs/11-roadmap.md) | Remaining work and improvements to existing features |
 | [Account reconciliation](docs/12-account-reconciliation.md) | Statement checks, verified checkpoints, and later-change review flags |
 | [Budget actuals](docs/13-budget-actuals.md) | Posting-month comparisons, category defaults, and transaction assignments |
+| [Recurring detection and alerts](docs/14-recurring-detection.md) | Manual/daily scans, review decisions, household settings, and personal unread status |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones
 
-The dashboard, login screen, profile menu/local logout, and accounts page with
-interactive income/expense category breakdown are implemented. Household budgeting
-now has models, recurrence, a draft/preview/publish API, and a resumable frontend
-setup wizard and published budget dashboard with dated item management directly from the breakdown. The calendar highlights
-the current income period and scheduled items. Next are richer budget editing
-and reporting.
-Signup and create/join household setup are implemented. Transaction corrections and CSV imports are implemented. Account/category management,
-password recovery, and complete expired-session handling remain future work.
+Household budgeting, dated item editing, planned/actual comparisons, pay-period
+forecasts, recurring-expense detection, and household alerts are implemented.
+Signup/household setup, account/category management, transaction corrections,
+reconciliation, and multi-account CSV imports are also implemented.
+
+Next areas include savings funds, backup/restore and export, saved categorization
+rules, import correction, and authentication/session improvements. See the
+[roadmap](docs/11-roadmap.md) for the remaining work.
 
 For current development limitations and test status, see the
 [setup guide](docs/06-development-setup.md#verification).

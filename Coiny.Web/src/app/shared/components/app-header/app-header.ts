@@ -1,3 +1,5 @@
+import { AlertsService } from '../../../core/services/alerts.service';
+import { HouseholdAlerts } from '../../../features/alerts/household-alerts';
 import { CategoryManagement } from '../../../features/categories/category-management';
 import { ChangeDetectorRef, Component, computed, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -10,12 +12,15 @@ import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings, CategoryManagement],
+  imports: [HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings, CategoryManagement],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })
 export class AppHeader implements OnInit {
   readonly auth = inject(AuthService);
+  readonly alerts = inject(AlertsService);
+  readonly alertsOpen = signal(false);
+  openAlerts() { this.prepareModal(); this.alertsOpen.set(true); }
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly changeDetector = inject(ChangeDetectorRef);
@@ -63,8 +68,10 @@ export class AppHeader implements OnInit {
   @ViewChild('logoutButton') private logoutButton?: ElementRef<HTMLButtonElement>;
 
   ngOnInit(): void {
+    this.destroyRef.onDestroy(()=>this.alerts.stop());
     this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => { if (event instanceof NavigationEnd) this.closeMobile(); });
     this.auth.getCurrentUser().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => this.alerts.start(),
       error: () => { /* Keep the menu and logout available when profile loading fails. */ },
     });
   }
@@ -126,6 +133,6 @@ export class AppHeader implements OnInit {
 
   async logout(): Promise<void> {
     this.menuOpen.set(false); this.closeMobile();
-    if (await this.router.navigate(['/login'], { replaceUrl: true })) this.auth.logout();
+    if (await this.router.navigate(['/login'], { replaceUrl: true })) { this.alerts.stop(); this.auth.logout(); }
   }
 }

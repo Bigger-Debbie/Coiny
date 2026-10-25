@@ -2,7 +2,10 @@
 
 ## Recurring transactions and subscriptions
 
-Detect likely recurring expenses from repeated merchants, similar amounts, and weekly/monthly/yearly patterns. Compare suggestions with the household budget and flag possible subscriptions or recurring bills that are not accounted for. Let users add a budget item, link an existing bill, or dismiss a suggestion. Allow variable utility amounts. Suggestions require user review; do not automatically create bills or double-count planned spending.
+Manual scans, daily opt-in household scanning, persistent alerts, and personal
+unread badges are implemented; see [recurring detection](14-recurring-detection.md).
+Future improvements include recognizing changing bank reference strings and
+patterns with missing cycles while keeping suggestions reviewable.
 
 ## Savings funds and component goals
 

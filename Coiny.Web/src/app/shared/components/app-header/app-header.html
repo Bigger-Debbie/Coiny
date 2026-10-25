@@ -4,8 +4,9 @@
             <img src="/assets/icons/favicon.svg" alt="Coiny Logo" class="brand-logo">
             <span class="brand-name">COINY</span>
         </a>
-        <button #mobileToggle class="mobile-toggle" type="button" [attr.aria-label]="mobileOpen() ? 'Close navigation' : 'Open navigation'" [attr.aria-expanded]="mobileOpen()" aria-controls="main-navigation" (click)="toggleMobile()" (focusout)="onNavigationFocusOut($event)" (keydown.arrowdown)="openMobile($event)">
+        <button #mobileToggle class="mobile-toggle" type="button" [attr.aria-label]="(mobileOpen() ? 'Close navigation' : 'Open navigation') + (alerts.unread() ? ', ' + alerts.unread() + ' unread alerts' : '')" [attr.aria-expanded]="mobileOpen()" aria-controls="main-navigation" (click)="toggleMobile()" (focusout)="onNavigationFocusOut($event)" (keydown.arrowdown)="openMobile($event)">
             <svg viewBox="0 0 24 24" aria-hidden="true">@if (mobileOpen()) { <path d="M5 5l14 14M19 5L5 19" /> } @else { <path d="M3 5h18M3 12h18M3 19h18" /> }</svg>
+            @if(alerts.unread()) {<span class="alert-badge" [attr.aria-label]="alerts.unread() + ' unread alerts'">{{ alerts.unread()>99 ? '99+' : alerts.unread() }}</span>}
         </button>
         <nav #navigationRoot id="main-navigation" class="navigation" [class.mobile-open]="mobileOpen()" aria-label="Main navigation" (focusout)="onNavigationFocusOut($event)">
             <a class="navigation-link" routerLink="/dashboard" routerLinkActive="active"
@@ -35,10 +36,11 @@
                 </app-icon><span class="navigation-label">Budget</span>
             </a>
             <div class="user" #profileRoot (focusout)="onFocusOut($event)">
-                <button #avatarButton class="avatar-button" type="button" aria-label="Profile menu"
+                <button #avatarButton class="avatar-button" type="button" [attr.aria-label]="alerts.unread() ? 'Profile menu, ' + alerts.unread() + ' unread alerts' : 'Profile menu'"
                     aria-haspopup="menu" [attr.aria-expanded]="menuOpen()" aria-controls="profile-menu"
                     (click)="toggleMenu()" (keydown)="onAvatarKeydown($event)">
                     {{ initial() }}
+                    @if(alerts.unread()) {<span class="alert-badge" [attr.aria-label]="alerts.unread() + ' unread alerts'">{{ alerts.unread()>99 ? '99+' : alerts.unread() }}</span>}
                 </button>
                 @if (menuOpen()) {
                     <div id="profile-menu" class="profile-menu" role="menu" aria-label="Your account" (keydown)="onMenuKeydown($event)">
@@ -53,6 +55,7 @@
                         </div>
                         <button class="logout-button" role="menuitem" type="button" (click)="openHousehold()">Household</button>
                         <button class="logout-button" role="menuitem" type="button" (click)="openCategories()">Categories</button>
+                        <button class="logout-button" role="menuitem" type="button" (click)="openAlerts()">Alerts @if(alerts.unread()) {<span class="alert-count">{{ alerts.unread() }}</span>}</button>
                         <button class="logout-button" role="menuitem" type="button" (click)="openSettings()">Settings</button>
                         <button #logoutButton type="button" role="menuitem" class="logout-button" (click)="logout()">Log out</button>
                     </div>
@@ -65,6 +68,7 @@
                 </div>
                 <button class="logout-button" type="button" (click)="openHousehold()">Household</button>
                 <button class="logout-button" type="button" (click)="openCategories()">Categories</button>
+                <button class="logout-button" type="button" (click)="openAlerts()">Alerts @if(alerts.unread()) {<span class="alert-count">{{ alerts.unread() }}</span>}</button>
                 <button class="logout-button" type="button" (click)="openSettings()">Settings</button>
                 <button class="logout-button" type="button" (click)="logout()">Log out</button>
             </div>
@@ -92,3 +96,5 @@
     <app-category-management #categories />
   </app-modal>
 }
+
+@if(alertsOpen()) {<app-modal title="Alerts" (dismiss)="alertsOpen.set(false)"><app-household-alerts (closed)="alertsOpen.set(false)" /></app-modal>}

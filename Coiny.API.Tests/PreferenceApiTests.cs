@@ -33,6 +33,7 @@ public class PreferenceApiTests
         builder.Services.AddControllers().AddApplicationPart(typeof(UserPreferencesController).Assembly).AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => {}); builder.Services.AddAuthorization(); builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<CoinyContext>(_ => db.Context()); builder.Services.AddScoped<ICurrentUserService, User>(); builder.Services.AddScoped<UserPreferencesService>(); builder.Services.AddScoped<ICategoryService, CategoryService>();
+        builder.Services.AddScoped<RecurringAutomationService>(services=>new(services.GetRequiredService<CoinyContext>(),new BudgetScheduleService(),db.Clock));
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync(); using var client = app.GetTestClient();
         const string path = "/api/users/me/preferences";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(path)).StatusCode);

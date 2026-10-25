@@ -75,6 +75,13 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/draft/{draftId}/preview` | 200 | Preview draft for a month and edit version |
 | POST | `/api/budgets/draft/{draftId}/publish` | 200 | Publish the reviewed draft |
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
+| GET | `/api/recurring-expenses/settings` | 200 | Household daily-scan setting and last successful scan date |
+| PUT | `/api/recurring-expenses/settings` | 200 | Save household daily-scan preference with version check |
+| GET | `/api/alerts` | 200 | Active household alerts with current member's read status |
+| GET | `/api/alerts/unread-count` | 200 | Current member's unread count |
+| PUT | `/api/alerts/{id}/read` | 204 | Mark the specified alert version read for this member |
+| POST | `/api/recurring-expenses/scan` | 200 | On-demand household recurring-expense suggestions |
+| PUT | `/api/recurring-expenses/review` | 204 | Dismiss, match, or reset a recurring review |
 | GET | `/api/budgets/forecast` | 200 | Running household income-period remainder through 1/3/6/12 months |
 | GET | `/api/budgets/actuals/period` | 200 | Income-period planned/actual totals, daily graph, and paginated activity |
 | GET | `/api/budgets/actuals` | 200 | Monthly allocation comparison and paginated activity assignments |
@@ -1447,3 +1454,77 @@ signed ending remainder, floored at zero. Investments are excluded. Actuals
 responses expose `forecastSavingsContributions` and
 `forecastInvestmentContributions` as the recorded-plus-remaining contribution
 split used in that calculation. No storage changes or financial writes are made.
+
+## Recurring expense detection
+
+`POST {{baseUrl}}/recurring-expenses/scan` with `{}` scans the last 30 months of
+recorded positive household expenses through today (America/New_York). The scan
+is read-only. Income, transfers, refunds, and future transactions are excluded.
+The response contains `fromDate`, `throughDate`, `transactionsScanned`,
+`suggestions`, and `budgetItems` (`key`, `name`). Each suggestion has `key`,
+`merchant`, `frequency`, `typicalAmount`, `minimumAmount`, `maximumAmount`,
+`lastSeen`, `nextExpected`, `transactionCount`, `status` (`NeedsReview`, `Covered`,
+`Dismissed`), nullable `allocationKey` and `suggestedAllocationKey`, `reviewed`, and
+up to 12 `transactions` (`id`, `date`, `amount`, `accountName`, `description`).
+A suggested budget name requires confirmation. A confirmed match or a supporting
+payment link to a current scheduled item makes a pattern Covered.
+
+`PUT {{baseUrl}}/recurring-expenses/review` accepts:
+
+```json
+{ "key": "<64-character pattern key from the scan>", "action": "Match", "allocationKey": "<current budget source key>" }
+```
+
+Actions are `Match`, `Dismiss`, and `Reset`. Only Match requires `allocationKey`;
+other actions use null. The server rescans to validate that the pattern still
+exists and the target is a current scheduled housing/bill/subscription item.
+Reviews are household-scoped and do not create transaction assignments, payment
+links, or budget items. Reset removes a saved review, while independent existing
+payment evidence can still mark a pattern Covered. Invalid patterns/actions/targets
+return 400; conflicting saves return 409; missing authentication returns 401;
+missing household access returns 403. Scan returns 200; review returns 204.
+
+See [detection and review rules](14-recurring-detection.md). Automatic scanning and
+alerts are opt-in; see the settings and alerts endpoints below.
+
+## Daily scan settings and household alerts
+
+`GET {{baseUrl}}/recurring-expenses/settings` returns
+`{ "enabled": false, "lastScanDate": null, "editVersion": 0 }` when unset.
+`PUT` to the same path requires both `enabled` and `expectedEditVersion`:
+
+```json
+{ "enabled": true, "expectedEditVersion": 0 }
+```
+
+It returns the saved setting with the incremented edit version. This is a shared
+household preference accessible to household members; it defaults off. Automatic
+scans also advance its edit version. A stale version returns 409. Missing/invalid
+fields return 400. Settings access requires authentication (401) and household
+membership (403).
+
+`GET {{baseUrl}}/alerts?page=1` returns `unreadCount`, `total`, `page`, and `items`.
+Pages contain 20 active alerts ordered by update date/id descending. Items contain
+`id`, `merchant`, `frequency`, `typicalAmount`, `nextExpected`, `updatedAt` (UTC),
+`unread`, and `version`. `GET {{baseUrl}}/alerts/unread-count` returns
+`{ "unreadCount": 3 }`. These reads do not mark alerts read.
+
+`PUT {{baseUrl}}/alerts/4/read` with `{ "version": 1 }` marks that version read
+for the authenticated member and returns 204. A valid older version does not clear
+a newer one. Unknown/foreign/resolved ids and invalid versions/pages return 400;
+conflicting receipt writes return 409. Missing fields return 400; missing auth or
+household access returns 401/403. The service never accepts a user id or household
+id from the client.
+
+Only automatic scans create alerts; manual pattern reviews can resolve them.
+The worker checks every 15 minutes and records one successful scan per enabled
+household per New York calendar day. It needs a running API and the additive alert
+migration; no SMTP/text provider is used. See [automation rules](14-recurring-detection.md#optional-automatic-scans-and-alerts).
+
+The settings modal can save its personal and household toggles atomically through
+`PUT /api/users/me/preferences`. In addition to required `includeMortgageInNetWorth`,
+it optionally accepts `recurringDetection: { enabled, expectedEditVersion }` with
+the same validation/version rules as the household settings endpoint. Omitting it
+leaves household detection unchanged. When present, both updates commit together
+or both roll back. The response remains the personal preference object. Settings
+are staged until Save settings; changing either toggle alone makes no write.

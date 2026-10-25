@@ -42,4 +42,4 @@ export interface BillTransactionCandidate { id: number; date: string; amount: nu
 export interface BudgetManagement { revision: BudgetRevision; earliestEffectiveDate: string; }
 export interface BudgetItemChange { expectedRevisionId: number; effectiveDate: string; isIncome: boolean; sourceKey: string | null; remove: boolean; income?: BudgetIncome; allocation?: BudgetAllocation; }
 export interface BudgetItemReview { before: BudgetMonth; after: BudgetMonth; protectedPayments: number; effectiveDate: string; beforePeriod: BudgetIncomePeriod; afterPeriod: BudgetIncomePeriod; }
-export interface BudgetItemSelection { sourceKey?: string | null; isIncome: boolean; type?: AllocationType; add?: boolean; }
+export interface BudgetItemSelection { sourceKey?: string | null; isIncome: boolean; type?: AllocationType; add?: boolean; prefill?: { name: string; amount: number; frequency: BudgetSchedule['frequency']; nextExpected: string }; }

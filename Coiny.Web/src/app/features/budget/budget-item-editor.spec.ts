@@ -22,6 +22,15 @@ describe('Budget item management',()=>{
     const f=TestBed.createComponent(BudgetItemEditor); f.componentRef.setInput('selection',selection); f.detectChanges();
     http.expectOne(r=>r.url.endsWith('/management')).flush(management); f.detectChanges(); return f;
   }
+  it('prefills a recurring suggestion without bypassing effective dates or review',()=>{
+    const f=render({isIncome:false,type:'Subscriptions',add:true,prefill:{name:'Netflix',amount:20,frequency:'Monthly',nextExpected:'2026-10-16'}});
+    const c=f.componentInstance;
+    expect(c.form.value.name).toBe('Netflix'); expect(c.form.value.amount).toBe(20);
+    expect(c.schedule?.value).toMatchObject({startDate:'2026-10-23',dayOfMonth:16,frequency:'Monthly'});
+    c.reviewChange(); const request=http.expectOne(r=>r.url.endsWith('/items/preview'));
+    expect(request.request.body.allocation).toMatchObject({name:'Netflix',amount:20,allocationType:'Subscriptions'});
+    http.expectNone(r=>r.url.endsWith('/items')); request.flush(review);
+  });
   it('opens details and requires a reviewed change before publication',()=>{
     const f=render(); const c=f.componentInstance; const saved=vi.fn(); c.saved.subscribe(saved);
     expect(c.mode()).toBe('details'); expect(f.nativeElement.textContent).toContain('Edit item');

@@ -1,0 +1,25 @@
+<section id="recurring-activity" class="panel" aria-label="Recurring activity">
+  <header><div><h2>Recurring activity</h2><p>Find repeated charges that may need a place in your budget.</p></div><button type="button" class="button-primary" [disabled]="busy()" (click)="scan()">{{ busy() ? 'Scanning…' : data() ? 'Scan again' : 'Scan transactions' }}</button></header>
+  @if(error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if(data(); as scan) {
+    <p class="hint">{{ pending }} to review · {{ scan.transactionsScanned }} expenses checked · {{ scan.fromDate | date:'MMM d, yyyy':'UTC' }} – {{ scan.throughDate | date:'MMM d, yyyy':'UTC' }}</p>
+    <label class="reviewed-toggle"><input type="checkbox" role="switch" [ngModel]="showReviewed()" (ngModelChange)="showReviewed.set($event)" />Show covered and dismissed</label>
+    <div class="suggestions" tabindex="0" role="region" aria-label="Recurring expense suggestions" [attr.aria-busy]="busy()">
+      @for(s of visible; track s.key) {
+        <article><div class="suggestion-heading"><div><strong>{{ s.merchant }}</strong><small>{{ frequency(s.frequency) }} · {{ s.transactionCount }} charges</small></div><div class="amount"><strong>{{ s.typicalAmount | currency }}</strong><small>Typical charge</small></div></div>
+          <p class="hint">Last seen {{ s.lastSeen | date:'MMM d, yyyy':'UTC' }} · Next estimated {{ s.nextExpected | date:'MMM d, yyyy':'UTC' }}@if(s.minimumAmount !== s.maximumAmount) { · Range {{ s.minimumAmount | currency }}–{{ s.maximumAmount | currency }} }</p>
+          @if(s.status==='Covered') { <p class="covered">✓ Covered by {{ budgetName(s.allocationKey) }}</p> }
+          @else if(s.status==='Dismissed') { <p class="hint">Dismissed</p> }
+          @else {
+            @if(s.suggestedAllocationKey) { <p class="hint">Possible budget match: {{ budgetName(s.suggestedAllocationKey) }}. Confirm below.</p> }
+            <div class="actions"><button type="button" class="button-outline" [disabled]="busy()" (click)="add(s)">Add to budget</button><button type="button" class="button-ghost" [disabled]="busy()" (click)="review(s,'Dismiss')">Dismiss</button></div>
+            @if(scan.budgetItems.length) { <div class="match"><label [for]="'recurring-'+s.key">Already in your budget?</label><select [id]="'recurring-'+s.key" [(ngModel)]="choices[s.key]" [disabled]="busy()"><option value="">Choose an existing bill or subscription</option>@for(item of scan.budgetItems; track item.key) { <option [value]="item.key">{{ item.name }}</option> }</select><button type="button" class="button-outline" [disabled]="busy() || !choices[s.key]" (click)="review(s,'Match')">Confirm match</button></div> }
+          }
+          <details><summary>View supporting transactions</summary><p class="hint">Most recent {{ s.transactions.length }} charges. Confirming a budget match does not mark bills paid or link individual transactions.</p>@for(t of s.transactions; track t.id) { <div class="evidence"><span>{{ t.date | date:'MMM d, yyyy':'UTC' }} · {{ t.accountName }}<small>{{ t.description }}</small></span><strong>{{ t.amount | currency }}</strong></div> }</details>
+          @if(s.reviewed) { <button type="button" class="button-ghost" [disabled]="busy()" (click)="review(s,'Reset')">Clear review</button> }
+        </article>
+      } @empty { <p>{{ scan.suggestions.length ? 'Nothing needs review. Enable the toggle to see covered or dismissed patterns.' : 'No clear recurring patterns yet. Import more history and scan again.' }}</p> }
+    </div>
+  } @else { <p class="hint">Run a scan after importing your transactions. Coiny looks for at least three charges with a consistent weekly, fortnightly, monthly, six-monthly, or yearly cadence. Suggestions need your review.</p> }
+</section>
+@if(editor(); as selection) { <app-budget-item-editor [selection]="selection" (dismiss)="editor.set(null)" (saved)="saved()" /> }

@@ -1,3 +1,5 @@
+import { AlertsService } from '../../../core/services/alerts.service';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -25,6 +27,7 @@ describe('AppHeader profile menu', () => {
     });
     TestBed.configureTestingModule({ imports: [AppHeader], providers: [
       provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
+      {provide:AlertsService,useValue:{unread:signal(0),start:vi.fn(),stop:vi.fn()}},
     ] });
     navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     http = TestBed.inject(HttpTestingController);
@@ -33,7 +36,7 @@ describe('AppHeader profile menu', () => {
     fixture = TestBed.createComponent(AppHeader);
     fixture.detectChanges();
   });
-  afterEach(() => { http.verify(); vi.unstubAllGlobals(); });
+  afterEach(() => { http.match(r=>r.url.endsWith('/recurring-expenses/settings') && r.method==='GET').filter(r=>!r.cancelled).forEach(r=>r.flush({enabled:false,lastScanDate:null,editVersion:0})); http.verify(); vi.unstubAllGlobals(); });
   function loadProfile(firstName: string | null = 'Alex') {
     http.expectOne(r => r.url.endsWith('/auth/me')).flush({ ...profile, firstName });
     fixture.detectChanges();
@@ -41,12 +44,20 @@ describe('AppHeader profile menu', () => {
   function avatar(): HTMLButtonElement { return fixture.nativeElement.querySelector('.avatar-button'); }
   function open() { avatar().click(); fixture.detectChanges(); }
 
+  it('shows a blue unread count on the avatar and mobile toggle and names it accessibly',()=>{
+    loadProfile();const alerts=TestBed.inject(AlertsService);alerts.unread.set(3);fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.alert-badge')).toHaveLength(2);
+    expect(avatar().getAttribute('aria-label')).toBe('Profile menu, 3 unread alerts');
+    open();expect(fixture.nativeElement.querySelector('[role="menu"]').textContent).toContain('Alerts 3');
+    expect(alerts.start).toHaveBeenCalledOnce();
+  });
   it('opens Settings from the avatar menu and closes after saving preferences', async () => {
     loadProfile(); open();
     const settings = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].find((item: unknown) => (item as HTMLElement).textContent?.trim() === 'Settings') as HTMLButtonElement;
     settings.click(); fixture.detectChanges(); await fixture.whenStable();
     expect(fixture.componentInstance.menuOpen()).toBe(false);
     http.expectOne(r => r.url.endsWith('/users/me/preferences')).flush({ includeMortgageInNetWorth: true }); fixture.detectChanges(); await fixture.whenStable();
+    http.expectOne(r=>r.url.endsWith('/recurring-expenses/settings')).flush({enabled:false,lastScanDate:null,editVersion:0}); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Settings');
     const toggle = fixture.nativeElement.querySelector('[role="switch"]') as HTMLInputElement; toggle.click(); fixture.detectChanges();
     fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -139,6 +150,7 @@ describe('AppHeader profile menu', () => {
     const settings=Array.from(fixture.nativeElement.querySelectorAll('.mobile-profile button') as NodeListOf<HTMLButtonElement>).find(b=>b.textContent?.trim()==='Settings')!;
     settings.click();fixture.detectChanges();await fixture.whenStable();
     expect(c.mobileOpen()).toBe(false);http.expectOne(r=>r.url.endsWith('/users/me/preferences')).flush({includeMortgageInNetWorth:true});fixture.detectChanges();await fixture.whenStable();
+    http.expectOne(r=>r.url.endsWith('/recurring-expenses/settings')).flush({enabled:false,lastScanDate:null,editVersion:0}); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Settings');
     fixture.nativeElement.querySelector('[aria-label="Close dialog"]').click();fixture.detectChanges();expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.mobile-toggle'));
   });

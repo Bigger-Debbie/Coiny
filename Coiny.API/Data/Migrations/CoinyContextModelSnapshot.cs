@@ -506,6 +506,75 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("Households");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.HouseholdAlert", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Frequency")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Merchant")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("NextExpected")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PatternKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("TypicalAmount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "PatternKey")
+                        .IsUnique();
+
+                    b.ToTable("HouseholdAlerts");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.HouseholdAlertRead", b =>
+                {
+                    b.Property<int>("AlertId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("AlertId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("HouseholdAlertReads");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.HouseholdBudget", b =>
                 {
                     b.Property<int>("Id")
@@ -602,6 +671,36 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("HouseholdMembers");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.HouseholdRecurringSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EditVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateOnly?>("LastScanDate")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId")
+                        .IsUnique();
+
+                    b.ToTable("HouseholdRecurringSettings");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.Institution", b =>
                 {
                     b.Property<int>("Id")
@@ -631,6 +730,40 @@ namespace Coiny.API.Data.Migrations
                     b.HasIndex("HouseholdId");
 
                     b.ToTable("Institutions");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.RecurringExpenseReview", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("AllocationKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("Dismissed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PatternKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ReviewedAmount")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "PatternKey")
+                        .IsUnique();
+
+                    b.ToTable("RecurringExpenseReviews");
                 });
 
             modelBuilder.Entity("Coiny.API.Models.Transaction", b =>
@@ -1150,6 +1283,36 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("Household");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.HouseholdAlert", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.HouseholdAlertRead", b =>
+                {
+                    b.HasOne("Coiny.API.Models.HouseholdAlert", "Alert")
+                        .WithMany()
+                        .HasForeignKey("AlertId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Alert");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.HouseholdBudget", b =>
                 {
                     b.HasOne("Coiny.API.Models.Household", "Household")
@@ -1197,12 +1360,34 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.HouseholdRecurringSetting", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.Institution", b =>
                 {
                     b.HasOne("Coiny.API.Models.Household", "Household")
                         .WithMany("Institutions")
                         .HasForeignKey("HouseholdId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.RecurringExpenseReview", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Household");

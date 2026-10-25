@@ -12,7 +12,7 @@ export class UserPreferencesService {
   readonly changed = this.events.asObservable();
   private readonly url = `${environemnt.apiUrl}/users/me/preferences`;
   get() { return this.http.get<UserPreferences>(this.url); }
-  save(preferences: UserPreferences) {
+  save(preferences: UserPreferences & { recurringDetection?: {enabled:boolean;expectedEditVersion:number} }) {
     return this.http.put<UserPreferences>(this.url, preferences).pipe(tap(result => {
       this.auth.updateNetWorthPreference(result.includeMortgageInNetWorth); this.events.next();
     }));

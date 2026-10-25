@@ -32,6 +32,50 @@ public class BudgetApiTests
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
     [Fact]
+    public async Task Automatic_recurring_settings_and_alerts_enforce_access_validation_and_read_versions()
+    {
+        await using var host=await Api.Create();
+        var settings=await host.Client.GetFromJsonAsync<RecurringSettingResponse>("/api/recurring-expenses/settings",Json);Assert.False(settings!.Enabled);
+        (await host.Client.PutAsJsonAsync("/api/recurring-expenses/settings",new {enabled=true,expectedEditVersion=0})).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Conflict,(await host.Client.PutAsJsonAsync("/api/recurring-expenses/settings",new {enabled=false,expectedEditVersion=0})).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PutAsJsonAsync("/api/recurring-expenses/settings",new {})).StatusCode);
+        var c=host.Database.Context();c.Users.Add(new Coiny.API.Models.ApplicationUser {Id="test",UserName="test"});
+        var alert=new Coiny.API.Models.HouseholdAlert {HouseholdId=1,PatternKey=new string('A',64),Merchant="Netflix",Frequency="Monthly",TypicalAmount=20,NextExpected=new(2026,11,16)};
+        c.Add(alert);await c.SaveChangesAsync();
+        var staleSave=await host.Client.PutAsJsonAsync("/api/users/me/preferences",new {includeMortgageInNetWorth=false,recurringDetection=new {enabled=false,expectedEditVersion=0}});
+        Assert.Equal(HttpStatusCode.Conflict,staleSave.StatusCode);
+        Assert.True((await host.Client.GetFromJsonAsync<UserPreferences>("/api/users/me/preferences",Json))!.IncludeMortgageInNetWorth);
+        (await host.Client.PutAsJsonAsync("/api/users/me/preferences",new {includeMortgageInNetWorth=false,recurringDetection=new {enabled=false,expectedEditVersion=1}})).EnsureSuccessStatusCode();
+        Assert.False((await host.Client.GetFromJsonAsync<UserPreferences>("/api/users/me/preferences",Json))!.IncludeMortgageInNetWorth);
+        Assert.False((await host.Client.GetFromJsonAsync<RecurringSettingResponse>("/api/recurring-expenses/settings",Json))!.Enabled);
+        var list=await host.Client.GetFromJsonAsync<AlertsResponse>("/api/alerts",Json);Assert.Equal(1,list!.UnreadCount);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PutAsJsonAsync($"/api/alerts/{alert.Id}/read",new {version=2})).StatusCode);
+        (await host.Client.PutAsJsonAsync($"/api/alerts/{alert.Id}/read",new {version=1})).EnsureSuccessStatusCode();
+        Assert.Equal(0,(await host.Client.GetFromJsonAsync<AlertsResponse>("/api/alerts",Json))!.UnreadCount);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.GetAsync("/api/alerts?page=0")).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");host.Client.DefaultRequestHeaders.Add("Test-Household","2");
+        Assert.Empty((await host.Client.GetFromJsonAsync<AlertsResponse>("/api/alerts",Json))!.Items);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PutAsJsonAsync($"/api/alerts/{alert.Id}/read",new {version=1})).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");host.Client.DefaultRequestHeaders.Add("Test-Household","none");
+        Assert.Equal(HttpStatusCode.Forbidden,(await host.Client.GetAsync("/api/recurring-expenses/settings")).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/api/alerts/unread-count")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/api/recurring-expenses/settings")).StatusCode);
+    }
+    [Fact]
+    public async Task Recurring_routes_require_auth_validate_reviews_and_allow_scan_without_published_budget()
+    {
+        await using var host=await Api.Create();
+        (await host.Client.PostAsJsonAsync("/api/recurring-expenses/scan",new {})).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PutAsJsonAsync("/api/recurring-expenses/review",new { key="bad",action="Dismiss" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PutAsJsonAsync("/api/recurring-expenses/review",new { key=new string('A',64),action="Unknown" })).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household"); host.Client.DefaultRequestHeaders.Add("Test-Household","none");
+        Assert.Equal(HttpStatusCode.Forbidden,(await host.Client.PostAsJsonAsync("/api/recurring-expenses/scan",new {})).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.PostAsJsonAsync("/api/recurring-expenses/scan",new {})).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.PutAsJsonAsync("/api/recurring-expenses/review",new {})).StatusCode);
+    }
+    [Fact]
     public async Task Forecast_http_route_supports_long_ranges_validates_horizons_and_requires_authentication()
     {
         await using var host=await Api.Create(); var service=host.Database.Service();
@@ -284,6 +328,23 @@ public class BudgetApiTests
                 var household = services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
                 ICurrentUserService user = household == "none" ? new MissingHousehold() : new HouseholdUser(int.Parse(household));
                 return new(db.Context(), user, services.GetRequiredService<IBudgetService>(), db.Clock);
+            });
+            builder.Services.AddScoped<RecurringExpenseService>(services => {
+                var household = services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
+                ICurrentUserService user = household == "none" ? new MissingHousehold() : new HouseholdUser(int.Parse(household));
+                return new(db.Context(), user, services.GetRequiredService<IBudgetService>(), db.Clock);
+            });
+            builder.Services.AddScoped<ICurrentUserService>(services=> {
+                var household=services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
+                return household=="none" ? new MissingHousehold() : new HouseholdUser(int.Parse(household));
+            });
+            builder.Services.AddScoped<Coiny.API.Data.CoinyContext>(_=>db.Context());
+            builder.Services.AddScoped<UserPreferencesService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),services.GetRequiredService<ICurrentUserService>()));
+            builder.Services.AddScoped<RecurringAutomationService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),new BudgetScheduleService(),db.Clock));
+            builder.Services.AddScoped<HouseholdAlertsService>(services=> {
+                var household=services.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext!.User.FindFirstValue("household")!;
+                ICurrentUserService user=household=="none"?new MissingHousehold():new HouseholdUser(int.Parse(household));
+                return new(db.Context(),user);
             });
             var app = builder.Build();
             app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
