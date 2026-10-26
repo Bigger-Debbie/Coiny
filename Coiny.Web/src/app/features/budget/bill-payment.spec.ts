@@ -19,7 +19,7 @@ describe('BillPayment', () => {
     const f = render(); const c = f.componentInstance; const saved = vi.fn(); c.saved.subscribe(saved);
     c.paidOn = '2026-10-15'; c.note = 'Paid online'; c.save();
     const request = http.expectOne(r => r.url.endsWith('/2026-10-17/payment'));
-    expect(request.request.method).toBe('PUT'); expect(request.request.body).toEqual({ isPaid: true, paidOn: '2026-10-15', note: 'Paid online', transactionId: null });
+    expect(request.request.method).toBe('PUT'); expect(request.request.body).toEqual({ isPaid: true, paidOn: '2026-10-15', note: 'Paid online', transactionId: null, transactionIds: [] });
     request.flush(request.request.body); expect(saved).toHaveBeenCalledOnce();
   });
   it('linking marks paid by default, but unlinking keeps its date and status', () => {
@@ -29,6 +29,18 @@ describe('BillPayment', () => {
     c.choose(entry); expect(c.isPaid).toBe(true); expect(c.paidOn).toBe('2026-10-15'); expect(c.transactionId).toBe(7);
     c.transactionId = null; expect(c.isPaid).toBe(true); c.save();
     const request = http.expectOne(r => r.url.endsWith('/payment')); expect(request.request.body.transactionId).toBeNull(); request.flush(request.request.body);
+  });
+  it('adds two charges, prevents repeated selections and removes just one link', () => {
+    const f = render(); const c = f.componentInstance;
+    const first = { id: 7, date: '2026-10-15', amount: 70, description: 'Electric', accountName: 'Checking', categoryName: 'Utilities', exactAmount: false };
+    const second = { ...first, id: 8, amount: 30, description: 'Water' };
+    c.choose(first); c.choose(second); c.choose(first); f.changeDetectorRef.markForCheck(); f.detectChanges();
+    expect(c.selected.length).toBe(2); expect(c.linkedTotal).toBe(100);
+    expect(f.nativeElement.textContent).toContain('Add another transaction');
+    c.save(); const request = http.expectOne(r => r.url.endsWith('/payment'));
+    expect(request.request.body.transactionIds).toEqual([7,8]); request.flush(request.request.body);
+    c.remove(7); expect(c.transactionId).toBe(8); expect(c.linkedTotal).toBe(30);
+    expect(c.isPaid).toBe(true);
   });
   it('marking unpaid detaches the linked transaction and retains errors for correction', () => {
     const f = render({ isPaid: true, paidOn: '2026-10-15', note: null, transactionId: 7 }); const c = f.componentInstance;
@@ -57,7 +69,7 @@ describe('BillPayment', () => {
     expect(f.nativeElement.textContent).toContain('Paid · Awaiting transaction');
     f.nativeElement.querySelector('.candidate').click(); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Paid · Linked'); expect(f.componentInstance.paidOn).toBe('2026-10-14');
-    const unlink = [...f.nativeElement.querySelectorAll('button')].find((b: any) => b.textContent.includes('Unlink transaction')) as HTMLButtonElement;
+    const unlink = [...f.nativeElement.querySelectorAll('button')].find((b: any) => b.textContent.trim() === 'Unlink') as HTMLButtonElement;
     unlink.click(); f.detectChanges(); expect(f.nativeElement.textContent).toContain('Paid · Awaiting transaction');
     expect(f.componentInstance.isPaid).toBe(true);
   });

@@ -36,6 +36,50 @@ public class BillPaymentTests
         await c.SaveChangesAsync();
     }
     [Fact]
+    public async Task Deleting_one_charge_preserves_remaining_link_and_paid_status()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var key = await Plan(db); await Ledger(db);
+        var c = db.Context();
+        c.Transactions.Add(new Transaction { Id = 4, HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 25, TransactionDate = new(2026,10,16), Description = "Second charge" });
+        await c.SaveChangesAsync();
+        await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionIds = [1,4] });
+        await c.Transactions.Where(t => t.Id == 1).ExecuteDeleteAsync();
+        var payment = Assert.Single((await db.Service().GetMonthAsync(new(2026,10,1))).Events, e => !e.IsIncome).Payment!;
+        Assert.Equal("Linked", payment.Status); Assert.Equal(4, payment.TransactionId);
+        await c.Transactions.Where(t => t.Id == 4).ExecuteDeleteAsync();
+        payment = Assert.Single((await db.Service().GetMonthAsync(new(2026,10,1))).Events, e => !e.IsIncome).Payment!;
+        Assert.Equal("AwaitingTransaction", payment.Status); Assert.True(payment.IsPaid);
+    }
+
+    [Fact]
+    public async Task Multiple_charges_count_once_on_their_posting_dates_and_can_be_unlinked_individually()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync();
+        var key = await Plan(db); await Ledger(db);
+        var c = db.Context();
+        c.Transactions.Add(new Transaction { Id = 4, HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 25, TransactionDate = new(2026,10,16), Description = "Second utility charge" });
+        await c.SaveChangesAsync();
+        var paid = await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionIds = [1,4] });
+        Assert.Equal(125, paid.LinkedTransactions.Sum(t => t.Amount));
+        Assert.Equal(new[] { 1,4 }, paid.TransactionIds);
+        var month = await db.Service().GetMonthAsync(new(2026,10,1));
+        Assert.Equal(2, Assert.Single(month.Events, e => !e.IsIncome).Payment!.LinkedTransactions.Count);
+        var actuals = new BudgetActualsService(db.Context(), new User(1), db.Service(), db.Clock);
+        var report = await actuals.GetAsync(new(2026,10,1), "all");
+        Assert.Equal(125, Assert.Single(report.Items).Actual);
+        await Assert.ThrowsAsync<BudgetConflictException>(() => Service(db).SaveAsync(key, Due.AddMonths(1), new() { IsPaid = true, TransactionId = 4 }));
+        Assert.DoesNotContain(await Service(db).CandidatesAsync(key, Due.AddMonths(1), null), t => t.Id == 4);
+        paid = await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionIds = [4] });
+        Assert.Equal(4, Assert.Single(paid.LinkedTransactions).Id);
+        Assert.Equal(25, Assert.Single((await actuals.GetAsync(new(2026,10,1), "all")).Items).Actual);
+        paid = await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionIds = [] });
+        Assert.Equal("AwaitingTransaction", paid.Status);
+        Assert.Empty(paid.LinkedTransactions);
+        Assert.Equal(4, await c.Transactions.CountAsync());
+        Assert.Empty(await c.AccountBalanceSnapshots.ToListAsync());
+    }
+
+    [Fact]
     public async Task Deliberately_unassigned_transaction_can_be_linked_but_active_assignments_still_block()
     {
         await using var db = await BudgetTestDatabase.CreateAsync();
@@ -60,7 +104,10 @@ public class BillPaymentTests
     {
         await using var db = await BudgetTestDatabase.CreateAsync();
         var key = await Plan(db); await Ledger(db);
-        await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionId = 1 });
+        var extraContext = db.Context();
+        extraContext.Transactions.Add(new Transaction { Id = 4, HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 25, TransactionDate = new(2026,10,16), Description = "Second charge" });
+        await extraContext.SaveChangesAsync();
+        await Service(db).SaveAsync(key, Due, new() { IsPaid = true, TransactionIds = [1,4] });
         var budget = db.Service(); var draft = await budget.StartDraftAsync(future ? new(2026,11,1) : new(2026,10,1));
         var allocations = draft.Allocations.ToList();
         if (move) allocations[0].AllocationType = BudgetAllocationType.Subscriptions;
@@ -74,7 +121,8 @@ public class BillPaymentTests
         var payment = await db.Context().BillPayments.SingleAsync();
         Assert.Equal(keep ? (int?)1 : null, payment.TransactionId);
         Assert.True(payment.IsPaid);
-        Assert.Equal(3, await db.Context().Transactions.CountAsync());
+        Assert.Equal(4, await db.Context().Transactions.CountAsync());
+        Assert.Equal(keep ? 1 : 0, await db.Context().Set<BillPaymentTransaction>().CountAsync());
         if (!keep) {
             var next = await budget.StartDraftAsync();
             var replacement = new BudgetAllocationInput { Name = "Replacement", Amount = 100, AllocationType = BudgetAllocationType.Subscriptions,

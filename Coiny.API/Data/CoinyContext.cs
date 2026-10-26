@@ -8,6 +8,7 @@ public class CoinyContext : IdentityDbContext<ApplicationUser>
 {
     public CoinyContext(DbContextOptions<CoinyContext> options) : base(options) { }
 
+    public DbSet<SavedCsvMapping> SavedCsvMappings => Set<SavedCsvMapping>();
     public DbSet<MerchantCategoryRule> MerchantCategoryRules => Set<MerchantCategoryRule>();
     public DbSet<HouseholdRecurringSetting> HouseholdRecurringSettings => Set<HouseholdRecurringSetting>();
     public DbSet<HouseholdAlert> HouseholdAlerts => Set<HouseholdAlert>();

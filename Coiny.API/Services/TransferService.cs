@@ -183,8 +183,8 @@ public class TransferService(CoinyContext context, ICurrentUserService currentUs
         if (first.AccountId == second.AccountId || first.Amount != second.Amount ||
             first.TransferDirection == second.TransferDirection)
             throw new ArgumentException("Transfers require equal amounts, opposite directions, and different accounts.");
-        if ((await context.BillPayments.AnyAsync(p => p.TransactionId == first.Id) || await context.TransactionBudgetAssignments.AnyAsync(a => a.TransactionId == first.Id)) &&
-            (await context.BillPayments.AnyAsync(p => p.TransactionId == second.Id) || await context.TransactionBudgetAssignments.AnyAsync(a => a.TransactionId == second.Id)))
+        if ((await context.BillPayments.AnyAsync(p => (p.TransactionId == first.Id || p.Links.Any(l => l.TransactionId == first.Id))) || await context.TransactionBudgetAssignments.AnyAsync(a => a.TransactionId == first.Id)) &&
+            (await context.BillPayments.AnyAsync(p => (p.TransactionId == second.Id || p.Links.Any(l => l.TransactionId == second.Id))) || await context.TransactionBudgetAssignments.AnyAsync(a => a.TransactionId == second.Id)))
             throw new TransferConflictException("These entries are assigned to different scheduled payments. Unlink one budget payment before linking the transfer.");
         Pair(first, second);
         await context.SaveChangesAsync();

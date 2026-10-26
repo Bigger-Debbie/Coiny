@@ -112,13 +112,20 @@ describe('BudgetCalendar', () => {
     expect(f.nativeElement.querySelector('.day-details .paid-bill').textContent).toContain('View payment');
     expect(f.nativeElement.querySelector('[aria-label^="2026-10-15"] .markers').textContent).toContain('✓');
   });
-  it('hides only completed linked payments when show completed is off', () => {
+  it('hides only completed linked payments when show completed is clicked off', async () => {
     const f = render(); const c = f.componentInstance;
     const linked = { ...bill, payment: { isPaid: true, paidOn: '2026-10-16', note: null, transactionId: 42 } };
     const awaiting = { ...bill, payment: { isPaid: true, paidOn: '2026-10-16', note: null, transactionId: null } };
+    c.period.set({ ...period, bills:[linked,awaiting,bill] }); f.detectChanges(); await f.whenStable();
     expect(c.visiblePayments([linked, awaiting, bill])).toHaveLength(3);
-    c.showCompleted.set(false);
+    const toggle = f.nativeElement.querySelector('.completed-toggle input') as HTMLInputElement;
+    expect(toggle.checked).toBe(true); toggle.click(); f.detectChanges(); await f.whenStable();
+    expect(toggle.checked).toBe(false); expect(c.showCompleted()).toBe(false);
     expect(c.visiblePayments([linked, awaiting, bill])).toEqual([awaiting, bill]);
+    expect(f.nativeElement.querySelectorAll('.period-events .paid-bill')).toHaveLength(0);
+    expect(f.nativeElement.querySelectorAll('.period-events .event-row')).toHaveLength(2);
+    toggle.click(); f.detectChanges(); await f.whenStable();
+    expect(toggle.checked).toBe(true); expect(f.nativeElement.querySelectorAll('.period-events .event-row')).toHaveLength(3);
   });
   it('shows the current-period bill total and highlights its dates on a Monday-first calendar', () => {
     const f = render();

@@ -1,3 +1,4 @@
+import { SavedCsvMapping } from '../../../core/services/csv-mappings.service';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -33,8 +34,19 @@ describe('Import transaction mapping screen', () => {
       { id: 2, name: 'Checking', accountType: 'Checking', openingBalanceDate: '2026-10-01', isActive: true },
       { id: 3, name: 'Closed', isActive: false },
     ]);
+    http.expectOne(r=>r.url.endsWith('/csv-mappings')).flush([]);
     f.detectChanges(); await f.whenStable(); return f;
   }
+  it('loads a saved format before file selection, remaps moved headers, and resets confirmations',async()=>{
+    const f=await render();const c=f.componentInstance;
+    const profile:SavedCsvMapping={id:1,name:'Bank checking',accountType:'Checking',institutionId:null,editVersion:1,settings:{headers:['Date','Description','Amount'],mapping:{dateColumn:0,descriptionColumn:1,dateFormat:'MM/DD/YY',amount:{mode:'signed',column:2,positiveMeans:'In'}},encoding:'utf-8',delimiter:',',headerLine:1,balanceOrder:null}};
+    c.profiles.set([profile]);c.profileId=1;c.selectProfile();c.confirmed=true;c.balanceConfirmed=true;c.sourceAccount='old';await c.applyProfile();
+    const file=new File([''],'bank.csv');Object.defineProperty(file,'arrayBuffer',{value:async()=>new TextEncoder().encode('Amount,Description,Date\n-20,PRIVATE DESCRIPTION,10/16/26').buffer});
+    await c.chooseFile({target:{files:[file]}} as unknown as Event);
+    expect(c.dateColumn).toBe(2);expect(c.amountColumn).toBe(0);expect(c.dateFormat).toBe('MM/DD/YY');expect(c.confirmed).toBe(false);expect(c.balanceConfirmed).toBe(false);expect(c.sourceAccount).toBeNull();
+    c.profileName='Reusable checking';c.saveProfile();const req=http.expectOne(r=>r.method==='POST' && r.url.endsWith('/csv-mappings'));expect(req.request.body.settings.headers).toEqual(['Amount','Description','Date']);expect(JSON.stringify(req.request.body)).not.toContain('PRIVATE DESCRIPTION');expect(req.request.body.expectedEditVersion).toBe(0);req.flush({...profile,id:2,name:'Reusable checking'});
+    expect(c.profileId).toBe(2);http.expectNone(r=>r.url.endsWith('/transaction-imports'));
+  });
   it('maps a final posted bank balance only after explicit order/meaning confirmation', async () => {
     const f = await render(); const c = f.componentInstance;
     c.source = 'Date,Description,Amount,Balance,Status\n10/16/2026,Pending,-5,995,Pending\n10/15/2026,Coffee,-10,1000,Posted'; c.parse();
@@ -120,7 +132,7 @@ describe('Mapping and review navigation', () => {
     vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
     const http = TestBed.inject(HttpTestingController);
     const f = TestBed.createComponent(ImportTransactions); f.detectChanges();
-    http.expectOne(r => r.url.endsWith('/accounts')).flush([{ id: 1, name: 'Checking', openingBalanceDate: '2026-10-01', isActive: true }]);
+    http.expectOne(r => r.url.endsWith('/accounts')).flush([{ id: 1, name: 'Checking', openingBalanceDate: '2026-10-01', isActive: true }]);http.expectOne(r=>r.url.endsWith('/csv-mappings')).flush([]);
     f.detectChanges(); await f.whenStable(); const c = f.componentInstance;
     c.source = 'Date,Description,Amount\n10/16/26,Coffee,-5'; c.filename = 'bank.csv'; c.parse();
     Object.assign(c, { dateFormat: 'MM/DD/YY', amountColumn: 2, positiveMeans: 'In', confirmed: true });

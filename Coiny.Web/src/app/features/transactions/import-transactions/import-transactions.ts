@@ -1,4 +1,6 @@
-import { notificationSignal } from '../../../core/services/toast.service';
+import { CsvMappingsService, SavedCsvMapping } from '../../../core/services/csv-mappings.service';
+import { rebindCsvMapping } from './saved-csv-mapping';
+import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, effect, DestroyRef, HostListener, inject, Input, OnInit, output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -20,12 +22,53 @@ export class ImportTransactions implements OnInit {
   @Input() sessionFile: File | null = null;
   @Input() sessionAccountId = 0;
   readonly sessionBusy = output<boolean>();
-  constructor() { effect(() => { this.sessionBusy.emit(this.reading() || this.importBusy() || this.loading()); }); }
+  constructor() { effect(() => { this.sessionBusy.emit(this.reading() || this.importBusy() || this.loading() || this.profileBusy()); }); }
   readonly reviewed = output<TransactionImportRequest>();
   readonly reviewInvalidated = output<void>();
   @ViewChild(ImportReview) private review?: ImportReview;
   recheckReview() { this.review?.changed(true); }
 
+  private readonly profilesApi=inject(CsvMappingsService);
+  private readonly toasts=inject(ToastService);
+  readonly profiles=signal<SavedCsvMapping[]>([]);readonly profilesError=signal(false);readonly profileBusy=signal(false);
+  profileId=0;profileName='';private pendingProfile:SavedCsvMapping|null=null;
+  get compatibleProfiles(){const a=this.selectedAccount;return a?this.profiles().filter(p=>p.accountType===a.accountType && (p.institutionId===null || p.institutionId===a.institutionId)):[];}
+  get profileOptions():SelectOption[]{return [{value:0,label:'Choose a saved mapping'},...this.compatibleProfiles.map(p=>({value:p.id,label:p.name}))];}
+  get selectedProfile(){return this.compatibleProfiles.find(p=>p.id===Number(this.profileId));}
+  selectProfile(){this.profileName=this.selectedProfile?.name??'';}
+  loadProfiles(){this.profilesError.set(false);this.profilesApi.list().pipe(takeUntilDestroyed(this.destroy)).subscribe({next:rows=>this.profiles.set(rows),error:()=>this.profilesError.set(true)});}
+  async applyProfile(){
+    const p=this.selectedProfile;if(!p || this.importBusy() || this.importLocked() || this.profileBusy())return;
+    if(this.preview().length && !window.confirm('Load this saved mapping? The current transaction review will be discarded.'))return;
+    this.pendingProfile=p;this.encoding=p.settings.encoding;this.delimiter=p.settings.delimiter;this.headerLine=p.settings.headerLine;this.invalidate();this.error.set('');
+    if(this.file)await this.readFile();else{this.document.set(null);this.toasts.success('Mapping selected. Choose a CSV file to apply it.');}
+  }
+  private restoreProfile(p:SavedCsvMapping){
+    const m=rebindCsvMapping(p.settings,this.document()!.headers);
+    this.dateColumn=m.dateColumn;this.descriptionColumn=m.descriptionColumn;this.dateFormat=m.dateFormat;this.decimalSeparator=m.decimalSeparator??'.';
+    this.statusColumn=m.statusColumn??null;this.classificationColumn=m.classificationColumn??null;this.balanceColumn=m.balanceColumn??null;
+    this.merchantColumn=m.merchantColumn??null;this.accountColumn=m.accountColumn??null;this.excludedStatuses=[...(m.excludedStatuses??[])];
+    this.amountMode=m.amount.mode;this.debitColumn=m.amount.mode==='split'?m.amount.debitColumn:null;this.creditColumn=m.amount.mode==='split'?m.amount.creditColumn:null;
+    this.amountColumn=m.amount.mode!=='split'?m.amount.column:null;this.positiveMeans=m.amount.mode==='signed'?m.amount.positiveMeans:null;
+    this.directionColumn=m.amount.mode==='indicator'?m.amount.directionColumn:null;this.indicatorDirections=m.amount.mode==='indicator'?{...m.amount.directions}:Object.create(null);
+    this.balanceOrder=p.settings.balanceOrder;this.confirmed=false;this.balanceConfirmed=false;this.sourceAccount=null;
+    this.toasts.success('Saved mapping loaded. Confirm the account, dates, money direction, and any bank balance before previewing.');
+  }
+  saveProfile(update=false){
+    if(this.profileBusy() || this.importBusy() || this.importLocked() || this.reading())return;
+    try {
+      if(!this.selectedAccount || !this.document())throw new CsvError('Choose an account and parse a CSV first.');
+      const mapping=this.currentMapping();mapCsv(this.document()!,mapping,this.selectedAccount.openingBalanceDate);
+      const name=this.profileName.trim();if(!name || name.length>100)throw new CsvError('Name this mapping using up to 100 characters.');
+      const p=update?this.selectedProfile:null;if(update && !p)throw new CsvError('Choose the saved mapping to update.');
+      this.profileBusy.set(true);this.error.set('');
+      this.profilesApi.save(p?.id??null,{name,accountType:this.selectedAccount.accountType,institutionId:this.selectedAccount.institutionId??null,expectedEditVersion:p?.editVersion??0,
+        settings:{headers:[...this.document()!.headers],mapping,encoding:this.encoding,delimiter:this.document()!.delimiter,headerLine:this.headerLine,balanceOrder:this.balanceOrder}}).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:saved=>{
+          this.profiles.update(rows=>[...rows.filter(row=>row.id!==saved.id),saved].sort((a,b)=>a.name.localeCompare(b.name)));this.profileId=saved.id;this.profileName=saved.name;this.profileBusy.set(false);this.toasts.success('CSV mapping saved.');
+        },error:e=>{this.profileBusy.set(false);this.error.set(e.error?.detail||'The mapping couldn’t save. Reload saved mappings and try again.');}});
+    }catch(e){this.error.set(e instanceof Error?e.message:'Check the mapping settings.');}
+  }
+  deleteProfile(){const p=this.selectedProfile;if(!p || this.profileBusy() || !window.confirm('Delete this saved mapping? Your current columns and transactions will stay unchanged.'))return;this.profileBusy.set(true);this.profilesApi.delete(p).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:()=>{this.profiles.update(rows=>rows.filter(row=>row.id!==p.id));this.profileId=0;this.profileName='';this.profileBusy.set(false);this.toasts.success('Saved mapping deleted.');},error:e=>{this.profileBusy.set(false);this.error.set(e.error?.detail||'The mapping couldn’t delete. Reload saved mappings and try again.');}});}
   private readonly accountsApi = inject(AccountService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -97,6 +140,7 @@ export class ImportTransactions implements OnInit {
 
   ngOnInit(): void {
     this.destroy.onDestroy(() => this.readVersion++);
+    this.loadProfiles();
     if (this.sessionMode) { this.accountId = this.sessionAccountId; this.file = this.sessionFile ?? undefined; this.loadAccounts(); if (this.file) void this.readFile(); return; }
     this.loadAccounts();
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroy)).subscribe(params => {
@@ -138,6 +182,8 @@ export class ImportTransactions implements OnInit {
       this.filename = this.file.name;
       this.source = new TextDecoder(this.encoding, { fatal: true }).decode(buffer);
       this.parse();
+      const profile=this.pendingProfile;this.pendingProfile=null;
+      if(profile && this.document()){if(!this.compatibleProfiles.some(p=>p.id===profile.id))throw new CsvError('The selected mapping is not compatible with this account. Choose another mapping or match columns manually.');this.restoreProfile(profile);}
     } catch (error) {
       if (version === this.readVersion) this.error.set(error instanceof CsvError ? error.message : 'This file couldn’t be read. Try another text encoding or export it as CSV again.');
     } finally { if (version === this.readVersion) this.reading.set(false); }
@@ -166,18 +212,10 @@ export class ImportTransactions implements OnInit {
     this.excludedStatuses = excluded ? [...this.excludedStatuses, status] : this.excludedStatuses.filter(value => value !== status);
     this.invalidate();
   }
-  showPreview(): void {
-    if (this.importBusy() || this.importLocked()) return;
-    if (this.preview().length) { void this.navigateStep('review'); return; }
-    this.error.set('');
-    try {
-      const account = this.selectedAccount;
-      if (!account) throw new CsvError('Choose the Coiny account these transactions belong to.');
-      if (!this.document()) throw new CsvError('Choose and parse a CSV file first.');
-      if (!this.dateFormat) throw new CsvError('Choose the date format used in the file.');
-      if (this.amountMode === 'signed' && !this.positiveMeans) throw new CsvError('Confirm whether positive amounts mean money in or money out.');
-      if (!this.confirmed) throw new CsvError('Confirm the account, date format, and money direction before previewing.');
-      const mapping: CsvMapping = {
+  private currentMapping():CsvMapping {
+    if(!this.dateFormat)throw new CsvError('Choose a date format before saving the mapping.');
+    if(this.amountMode==='signed' && !this.positiveMeans)throw new CsvError('Choose what positive amounts mean before saving.');
+    return {
         dateColumn: this.dateColumn!, descriptionColumn: this.descriptionColumn!, dateFormat: this.dateFormat,
         amount: this.amountMode === 'split' ? { mode: 'split', debitColumn: this.debitColumn!, creditColumn: this.creditColumn! } :
           this.amountMode === 'indicator' ? { mode: 'indicator', column: this.amountColumn!, directionColumn: this.directionColumn!, directions: this.indicatorDirections } :
@@ -187,6 +225,19 @@ export class ImportTransactions implements OnInit {
         balanceColumn: this.supportsBalanceCheck ? this.balanceColumn ?? undefined : undefined,
         merchantColumn: this.merchantColumn ?? undefined, accountColumn: this.accountColumn ?? undefined,
       };
+  }
+  showPreview(): void {
+    if (this.importBusy() || this.importLocked() || this.profileBusy()) return;
+    if (this.preview().length) { void this.navigateStep('review'); return; }
+    this.error.set('');
+    try {
+      const account = this.selectedAccount;
+      if (!account) throw new CsvError('Choose the Coiny account these transactions belong to.');
+      if (!this.document()) throw new CsvError('Choose and parse a CSV file first.');
+      if (!this.dateFormat) throw new CsvError('Choose the date format used in the file.');
+      if (this.amountMode === 'signed' && !this.positiveMeans) throw new CsvError('Confirm whether positive amounts mean money in or money out.');
+      if (!this.confirmed) throw new CsvError('Confirm the account, date format, and money direction before previewing.');
+      const mapping = this.currentMapping();
       let rows = mapCsv(this.document()!, mapping, account.openingBalanceDate);
       if (new Set(rows.map(row => row.sourceAccount)).size > 1 && this.accountColumn !== null) {
         if (this.sourceAccount === null) throw new CsvError('This file contains multiple accounts. Choose which source account belongs to the selected Coiny account.');
@@ -201,14 +252,14 @@ export class ImportTransactions implements OnInit {
       void this.navigateStep('review');
     } catch (error) { this.error.set(error instanceof Error ? error.message : 'Check the column mappings.'); }
   }
-  restart(): void { this.bankBalance.set(null); this.balanceConfirmed = false; this.preview.set([]); this.document.set(null); this.source = ''; this.file = undefined; this.filename = ''; this.importLocked.set(false); this.importCompleted.set(false); this.error.set(''); this.confirmed = false; void this.navigateStep('mapping', true); }
+  restart(): void { this.bankBalance.set(null); this.balanceConfirmed = false; this.preview.set([]); this.document.set(null); this.source = ''; this.file = undefined;this.pendingProfile=null; this.filename = ''; this.importLocked.set(false); this.importCompleted.set(false); this.error.set(''); this.confirmed = false; void this.navigateStep('mapping', true); }
   canLeave(): boolean {
-    return !this.reading() && !this.importBusy() && (this.importCompleted() || !this.source || window.confirm(this.importLocked()
+    return !this.reading() && !this.importBusy() && !this.profileBusy() && (this.importCompleted() || !this.source || window.confirm(this.importLocked()
       ? 'The import result is not confirmed. Retry this batch before leaving to avoid starting it again. Leave anyway?'
       : 'Leave transaction import? Your file and unsaved review will be discarded.'));
   }
   @HostListener('window:beforeunload', ['$event']) beforeUnload(event: BeforeUnloadEvent): void {
-    if (!this.importCompleted() && (this.source || this.reading() || this.importBusy())) { event.preventDefault(); event.returnValue = ''; }
+    if (!this.importCompleted() && (this.source || this.reading() || this.importBusy() || this.profileBusy())) { event.preventDefault(); event.returnValue = ''; }
   }
   private distinct(column: number | null): string[] { return column === null ? [] : [...new Set(this.document()?.rows.map(row => row.values[column]?.trim() ?? '') ?? [])].sort(); }
 }

@@ -53,6 +53,18 @@ public class BudgetActualsTests
         var pairVersion = entry.PairedTransactionId is int pair ? (int?)(await db.Context().Transactions.AsNoTracking().SingleAsync(t => t.Id == pair)).EditVersion : null;
         await Service(db).SaveAssignmentAsync(id, new() { Month = month ?? Month, AllocationKey = key, UseCategoryDefault = reset, ExpectedEditVersion = entry.EditVersion, ExpectedPairedEditVersion = pairVersion });
     }
+    [Fact] public async Task Split_bill_payments_use_each_posting_month_and_future_charge_only_once()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);
+        var payments = new BillPaymentService(db.Context(), new User(), db.Service(), db.Clock);
+        await payments.SaveAsync(keys["Electric"], new(2026,10,15), new() { IsPaid = true, TransactionIds = [4,2,3] });
+        var october = await Service(db).GetAsync(Month, "all");
+        Assert.Equal(100, Assert.Single(october.Items, i => i.Name == "Electric").Actual);
+        // 140 recorded expenses + 300 remaining allowance + known future 99 utility; no second planned utility charge.
+        Assert.Equal(539, october.Points.Last().ForecastSpending);
+        var september = await Service(db).GetAsync(new(2026,9,1), "all");
+        Assert.Equal(60, Assert.Single(september.Items, i => i.Name == "Electric").Actual);
+    }
     [Fact] public async Task Defaults_payment_links_and_overrides_have_one_assignment_per_transaction_and_pending_is_separate()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);

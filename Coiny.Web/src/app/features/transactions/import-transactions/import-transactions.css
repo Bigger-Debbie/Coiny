@@ -29,3 +29,5 @@ a { text-decoration: none; }
 
 .rule-tools { display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap; margin:1rem 0; }
 .rule-note { display:block; color:var(--color-text-muted); font-size:.7rem; padding:0 .65rem .25rem; }
+
+.saved-mapping-tools {display:flex;align-items:flex-end;gap:.75rem;flex-wrap:wrap;margin:1rem 0;} .saved-mapping-tools > div {flex:1 1 16rem;min-width:0;} .save-mapping {margin-bottom:1.25rem;}

@@ -49,6 +49,14 @@ export class BudgetDashboard implements OnChanges {
   readonly periodLoading = signal(false);
   readonly periodError = signal(false);
   readonly today = getTrendDates('1D').endDate;
+  get unlinkedReserve() {
+    const period = this.period();
+    return this.mode() === 'period' && this.expectedRemainder() !== null && period?.endDate && period.endDate > this.today
+      ? period.awaitingTransactionTotal ?? 0 : 0;
+  }
+  closeReserveHelp(help: HTMLDetailsElement, event: Event): void {
+    if (event.target instanceof Node && !help.contains(event.target)) help.open = false;
+  }
   private referenceDate?: string;
   get displayPlan() { return this.mode() === 'period' ? this.period()?.plan ?? null : this.month; }
   ngOnChanges(changes: SimpleChanges) {

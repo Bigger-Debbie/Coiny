@@ -25,16 +25,25 @@ public class BillPaymentService(CoinyContext context, ICurrentUserService user, 
         var occurrence = await Occurrence(key, date);
         var contribution = occurrence.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
         if (request.Note?.Length > 500) throw new ArgumentException("Notes must be at most 500 characters.");
-        if (!request.IsPaid && request.TransactionId.HasValue) throw new ArgumentException("Detach the transaction when marking an occurrence unpaid.");
+        var selected = request.TransactionIds ?? (request.TransactionId is int legacyId ? new[] { legacyId } : []);
+        if (selected.Length > 50 || selected.Distinct().Count() != selected.Length || selected.Any(id => id <= 0))
+            throw new ArgumentException("Choose up to 50 different transactions.");
+        if (request.TransactionIds is not null && request.TransactionId is int primary && !selected.Contains(primary))
+            throw new ArgumentException("The primary transaction must be included in the selected transactions.");
+        var entries = new List<Transaction>();
+        if (!request.IsPaid && selected.Length > 0) throw new ArgumentException("Detach the transaction when marking an occurrence unpaid.");
         var paidOn = request.PaidOn;
-        if (request.TransactionId.HasValue)
+        foreach (var selectedId in selected)
         {
-            var entry = await context.Transactions.Include(t => t.Category).SingleOrDefaultAsync(t => t.Id == request.TransactionId && t.HouseholdId == householdId);
+            var entry = await context.Transactions.Include(t => t.Category).Include(t => t.PairedTransaction).SingleOrDefaultAsync(t => t.Id == selectedId && t.HouseholdId == householdId);
             if (entry is null || !(entry.Category.CategoryType == CategoryType.Expense || contribution && entry.Category.CategoryType == CategoryType.Transfer))
                 throw new ArgumentException(contribution ? "Choose an expense or transfer transaction from your household." : "Choose an expense transaction from your household.");
+            if (entry.PairedTransactionId is int paired && selected.Contains(paired))
+                throw new ArgumentException("Choose only one side of each transfer.");
+            entries.Add(entry);
             if (await context.TransactionBudgetAssignments.AnyAsync(a => a.AllocationKey != null && (a.TransactionId == entry.Id || a.TransactionId == entry.PairedTransactionId)))
                 throw new BudgetConflictException("Remove this movement's individual budget assignment before linking it to a scheduled payment.");
-            if (await context.BillPayments.AnyAsync(p => (p.TransactionId == entry.Id || entry.PairedTransactionId.HasValue && p.TransactionId == entry.PairedTransactionId) &&
+            if (await context.BillPayments.AnyAsync(p => (p.TransactionId == entry.Id || entry.PairedTransactionId.HasValue && p.TransactionId == entry.PairedTransactionId || p.Links.Any(l => l.TransactionId == entry.Id || l.TransactionId == entry.PairedTransactionId)) &&
                 !(p.HouseholdId == householdId && p.AllocationKey == key && p.DueDate == date)))
                 throw new BudgetConflictException("This transaction or its linked transfer is already assigned to another bill or contribution.");
             // Linking replaces a deliberate unassigned preference for either side of this movement.
@@ -45,10 +54,15 @@ public class BillPaymentService(CoinyContext context, ICurrentUserService user, 
         }
         if (request.IsPaid && (paidOn ?? Today) > Today || paidOn == DateOnly.MinValue)
             throw new ArgumentException("Payment date must be a valid date on or before today.");
-        var payment = await context.BillPayments.Include(p => p.Transaction).SingleOrDefaultAsync(p => p.HouseholdId == householdId && p.AllocationKey == key && p.DueDate == date);
+        var payment = await context.BillPayments.Include(p => p.Transaction).ThenInclude(t => t!.PairedTransaction).Include(p => p.Links).ThenInclude(l => l.Transaction).ThenInclude(t => t.PairedTransaction).SingleOrDefaultAsync(p => p.HouseholdId == householdId && p.AllocationKey == key && p.DueDate == date);
         if (payment is null) { payment = new() { HouseholdId = householdId, AllocationKey = key, DueDate = date }; context.BillPayments.Add(payment); }
         payment.IsPaid = request.IsPaid; payment.PaidOn = request.IsPaid ? paidOn ?? Today : null;
-        payment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(); payment.TransactionId = request.TransactionId;
+        payment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(); payment.TransactionId = selected.Cast<int?>().FirstOrDefault();
+        payment.Transaction = entries.FirstOrDefault();
+        var additional = selected.Skip(1).ToHashSet();
+        foreach (var link in payment.Links.Where(l => !additional.Contains(l.TransactionId)).ToList()) payment.Links.Remove(link);
+        foreach (var entry in entries.Skip(1).Where(t => !payment.Links.Any(l => l.TransactionId == t.Id)))
+            payment.Links.Add(new() { TransactionId = entry.Id, Transaction = entry });
         try { await context.SaveChangesAsync(); await dbTransaction.CommitAsync(); }
         catch (DbUpdateException) { throw new BudgetConflictException("This scheduled item or transaction changed. Reload it before saving again."); }
         return BillPaymentResponse.From(payment);
@@ -61,7 +75,7 @@ public class BillPaymentService(CoinyContext context, ICurrentUserService user, 
         var query = context.Transactions.AsNoTracking().Where(t => t.HouseholdId == householdId &&
             (t.Category.CategoryType == CategoryType.Expense || contribution && t.Category.CategoryType == CategoryType.Transfer) &&
             !context.TransactionBudgetAssignments.Any(a => a.AllocationKey != null && (a.TransactionId == t.Id || a.TransactionId == t.PairedTransactionId)) &&
-            !context.BillPayments.Any(p => (p.TransactionId == t.Id || t.PairedTransactionId.HasValue && p.TransactionId == t.PairedTransactionId) &&
+            !context.BillPayments.Any(p => (p.TransactionId == t.Id || t.PairedTransactionId.HasValue && p.TransactionId == t.PairedTransactionId || p.Links.Any(l => l.TransactionId == t.Id || l.TransactionId == t.PairedTransactionId)) &&
                 !(p.HouseholdId == householdId && p.AllocationKey == key && p.DueDate == date)));
         if (string.IsNullOrWhiteSpace(search))
         {

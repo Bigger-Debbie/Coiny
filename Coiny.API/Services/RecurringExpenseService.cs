@@ -21,7 +21,9 @@ public class RecurringExpenseService(CoinyContext context, ICurrentUserService u
             .GroupBy(a=>a.SourceKey!.Value).Select(g=>new RecurringBudgetTarget(g.Key,g.Last().Name)).ToArray();
         var active=targets.Select(t=>t.Key).ToHashSet();
         var reviews=await context.RecurringExpenseReviews.AsNoTracking().Where(r=>r.HouseholdId==household).ToDictionaryAsync(r=>r.PatternKey);
-        var payments=await context.BillPayments.AsNoTracking().Where(p=>p.HouseholdId==household && p.IsPaid && p.TransactionId!=null).Select(p=>new { p.TransactionId,p.AllocationKey }).ToListAsync();
+        var paymentRows = await context.BillPayments.AsNoTracking().Include(p => p.Links).Where(p => p.HouseholdId == household && p.IsPaid).ToListAsync();
+        var payments = paymentRows.SelectMany(p => p.Links.Select(l => new { TransactionId = (int?)l.TransactionId, p.AllocationKey })
+            .Concat(p.TransactionId is null ? [] : new[] { new { p.TransactionId, p.AllocationKey } })).ToList();
         var suggestions=patterns.Select(p=> {
             reviews.TryGetValue(p.Key,out var review);
             var linked=payments.Where(b=>p.Transactions.Any(t=>t.Id==b.TransactionId) && active.Contains(b.AllocationKey)).Select(b=>(Guid?)b.AllocationKey).Distinct().ToArray();

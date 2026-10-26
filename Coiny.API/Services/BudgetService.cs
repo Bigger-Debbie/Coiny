@@ -173,7 +173,8 @@ public partial class BudgetService(
     private async Task ReleaseObsoletePaymentLinks(int householdId)
     {
         var payments = await context.BillPayments.Include(p => p.Transaction).ThenInclude(t => t!.Category)
-            .Where(p => p.HouseholdId == householdId && p.TransactionId != null).ToListAsync();
+            .Include(p => p.Links).ThenInclude(l => l.Transaction).ThenInclude(t => t.Category)
+            .Where(p => p.HouseholdId == householdId && (p.TransactionId != null || p.Links.Any())).ToListAsync();
         foreach (var monthGroup in payments.GroupBy(p => new DateOnly(p.DueDate.Year, p.DueDate.Month, 1)))
         {
             var events = (await GetMonthAsync(monthGroup.Key)).Events;
@@ -183,9 +184,9 @@ public partial class BudgetService(
                     e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions or BudgetAllocationType.Savings or BudgetAllocationType.Investments);
                 occurrence ??= (await GetIncomePeriodAsync(payment.DueDate)).Contributions.FirstOrDefault(e => e.IsPeriodSetAside && e.SourceKey == payment.AllocationKey && e.Date == payment.DueDate);
                 var contribution = occurrence?.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
-                if (occurrence is null || payment.Transaction!.Category.CategoryType != CategoryType.Expense &&
-                    !(contribution && payment.Transaction.Category.CategoryType == CategoryType.Transfer))
-                    payment.TransactionId = null;
+                bool Valid(Transaction t) => occurrence is not null && (t.Category.CategoryType == CategoryType.Expense || contribution && t.Category.CategoryType == CategoryType.Transfer);
+                if (payment.Transaction is not null && !Valid(payment.Transaction)) { payment.TransactionId = null; payment.Transaction = null; }
+                foreach (var link in payment.Links.Where(l => !Valid(l.Transaction)).ToList()) payment.Links.Remove(link);
             }
         }
     }
@@ -425,7 +426,7 @@ public partial class BudgetService(
         var bills = events.Where(e => !e.IsIncome && e.AllocationType is BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions or BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
         if (bills.Count == 0) return;
         var min = bills.Min(e => e.Date); var max = bills.Max(e => e.Date);
-        var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).ThenInclude(t => t!.PairedTransaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();
+        var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).ThenInclude(t => t!.PairedTransaction).Include(p => p.Links).ThenInclude(l => l.Transaction).ThenInclude(t => t.PairedTransaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();
         foreach (var bill in bills)
             bill.Payment = payments.Where(p => p.AllocationKey == bill.SourceKey && p.DueDate == bill.Date).Select(BillPaymentResponse.From).SingleOrDefault();
     }

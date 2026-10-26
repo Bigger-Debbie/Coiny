@@ -18,6 +18,14 @@ p { line-height:1.6; }
 .totals .allocations-total { border-color:var(--color-danger); }
 .totals .allocations-total strong { color:var(--color-danger); }
 .totals .over strong,.warning { color:var(--color-danger); }
+.totals .unlinked-reserve { color:#855600; font-style:normal; }
+.remaining-total { position:relative; }
+.remainder-heading { font-size:.85rem; color:var(--color-text-muted); margin-bottom:.75rem; }
+.reserve-help { display:inline; margin-left:.35rem; }
+.reserve-help summary { display:inline-flex; align-items:center; justify-content:center; width:1.1rem; height:1.1rem; border:1px solid currentColor; border-radius:50%; color:var(--color-primary); cursor:pointer; font-weight:600; list-style:none; }
+.reserve-help summary::-webkit-details-marker { display:none; }
+.reserve-help summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.reserve-explanation { position:absolute; z-index:5; top:3.5rem; left:1rem; right:1rem; padding:.85rem 1rem; border-radius:var(--radius-sm); background:var(--color-primary); color:white; box-shadow:var(--shadow-card); line-height:1.5; font-weight:400; }
 .outlook-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem; align-items:start; }
 .detail-panels { position:relative; min-height:0; align-self:stretch; }
 .breakdown { position:absolute; inset:0; display:flex; flex-direction:column; }

@@ -77,6 +77,10 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/month` | 200 | Published monthly plan and calendar events |
 | GET | `/api/recurring-expenses/settings` | 200 | Household daily-scan setting and last successful scan date |
 | PUT | `/api/recurring-expenses/settings` | 200 | Save household daily-scan preference with version check |
+| GET | `/api/csv-mappings` | 200 | Household saved CSV mapping profiles |
+| POST | `/api/csv-mappings` | 200 | Create a named mapping profile |
+| PUT | `/api/csv-mappings/{id}` | 200 | Update a profile with version checks |
+| DELETE | `/api/csv-mappings/{id}?expectedEditVersion=1` | 204 | Delete profile metadata only |
 | GET | `/api/merchant-rules` | 200 | Household rules, including disabled rules and archived-category status |
 | POST | `/api/merchant-rules` | 200 | Create a merchant/category rule |
 | PUT | `/api/merchant-rules/{id}` | 200 | Update/enable/disable a rule with version checks |
@@ -1577,3 +1581,65 @@ disabled rules, and opposite money directions are skipped. Suggestions feed the
 normal import validation; the server still validates category ownership/activity
 and all row/duplicate/balance constraints before import. No rule is run against
 existing ledger entries. See [rule behavior](15-merchant-category-rules.md).
+
+## Saved CSV mappings
+
+`GET {{baseUrl}}/csv-mappings` lists all profiles in the current household. POST
+creates and PUT `/csv-mappings/{id}` updates. Both return `id`, `name`, `accountType`,
+nullable `institutionId`, `settings`, and `editVersion`. Sample create payload:
+
+```json
+{
+  "name": "Community Bank checking",
+  "accountType": "Checking",
+  "institutionId": null,
+  "expectedEditVersion": 0,
+  "settings": {
+    "headers": ["Date", "Description", "Amount"],
+    "encoding": "utf-8",
+    "delimiter": ",",
+    "headerLine": 1,
+    "balanceOrder": null,
+    "mapping": {
+      "dateColumn": 0,
+      "descriptionColumn": 1,
+      "dateFormat": "MM/DD/YY",
+      "decimalSeparator": ".",
+      "excludedStatuses": [],
+      "amount": { "mode": "signed", "column": 2, "positiveMeans": "In" }
+    }
+  }
+}
+```
+
+Column indexes are zero-based in the saved header list. Amount modes are `signed`
+(`column`, `positiveMeans` In/Out), `split` (`debitColumn`, `creditColumn`), and
+`indicator` (`column`, `directionColumn`, `directions` mapping bank codes to In/Out).
+Optional mapping indexes: `statusColumn`, `classificationColumn`, `balanceColumn`,
+`merchantColumn`, `accountColumn`. Optional `balanceOrder` is NewestFirst/OldestFirst.
+Profiles store no source-account selection, transaction rows, filename, import
+confirmation, or balance acknowledgment. Unknown payload fields are not persisted.
+
+Validation requires a nonblank name of up to 100 characters, a valid account type,
+a household-owned institution if specified, 2–100 header labels of at most 200
+characters, valid distinct mapped indexes, nonblank mapped labels, supported date
+formats and amount direction, decimal separator dot/comma, supported encoding
+(utf-8/windows-1252/utf-16le), separator comma/semicolon/tab, header line 1–100, and
+up to 50 excluded status values and indicator codes (100 characters each).
+Normalized names are unique per household. The service caps households at 100
+profiles. Updates/deletes require the current version; create uses 0. Conflicting
+names or stale saves/deletes return 409. Invalid/foreign ids or institutions and
+invalid payloads return 400; missing authentication/household returns 401/403.
+DELETE requires `expectedEditVersion` in the query and returns 204.
+
+The browser filters profiles by account type and institution and rebinds columns
+by header name before use. Neither saved mappings nor their endpoints import or
+modify transactions. Existing import validation remains authoritative. Apply
+`20261025190224_AddSavedCsvMappings` and restart the API before using these routes.
+See [saved mapping behavior](16-saved-csv-mappings.md).
+
+### Multiple transactions for a scheduled payment
+
+Bill/contribution payment PUT accepts optional `transactionIds` (up to 50 unique IDs), replacing the complete linked set. An empty array detaches all links while retaining manual paid status. Legacy `transactionId` requests remain supported; if both fields are supplied, the single ID must belong to the array. Responses include `transactionIds` and `linkedTransactions`, each with its canonical `actualPostingDate`; legacy single fields describe the first surviving link. Each movement may belong to only one scheduled occurrence or individual assignment. Select only one side of a paired transfer.
+
+Actuals sum all linked transactions on their posting dates, including charges split across months. Forecasts include known future linked amounts once and do not add the settled occurrence's planned amount again. Removing an item releases every associated link. Deleting a transaction removes its link while retaining other links and the independent paid status. Links never create ledger entries or modify balances.

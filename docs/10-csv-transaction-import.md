@@ -227,3 +227,21 @@ metadata only, then refreshes untouched empty cells in this file. Other already
 reviewed files retain their selections; new files load current rules.
 
 See [merchant/category rules](15-merchant-category-rules.md).
+
+## Saved CSV mapping profiles
+
+The Account and file card offers household saved mappings compatible with the
+selected account type and institution. Load one before selecting a file to reuse
+its encoding/separator/header-line settings, or load it after upload to re-read
+and match the headers. The Match your columns card contains a collapsible save
+section for naming a new profile or updating the selected profile. Delete and
+reload controls are available beside the picker.
+
+Columns are rebound by trimmed, whitespace-collapsed, case-insensitive header name,
+so reordered uniquely named columns work. Missing mapped headers require manual
+mapping. Mapped duplicate header names are accepted only when the entire normalized
+ordered header list is unchanged. New unmapped columns can be ignored. Account,
+source-account selection, sign/date review, and bank-balance confirmation are never
+restored as confirmed. Profile loading never imports anything or skips row review.
+
+See [saved mappings](16-saved-csv-mappings.md) for storage and validation details.

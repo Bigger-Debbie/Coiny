@@ -28,9 +28,9 @@ internal static class BudgetAllocationForecast
             {
                 if (occurrence.Payment is { IsPaid: true, TransactionId: not null } paid)
                 {
-                    if (paid.LinkedTransaction is { } linked)
+                    foreach (var linked in paid.LinkedTransactions.Count > 0 ? paid.LinkedTransactions : paid.LinkedTransaction is {} single ? new[] { single } : Array.Empty<BillTransactionSummary>())
                     {
-                        var postingDate = paid.ActualPostingDate ?? linked.Date;
+                        var postingDate = linked.ActualPostingDate ?? paid.ActualPostingDate ?? linked.Date;
                         if (postingDate > through && target.ContainsKey(postingDate)) target[postingDate] += linked.Amount;
                     }
                     continue;

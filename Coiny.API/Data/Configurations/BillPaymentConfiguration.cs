@@ -7,7 +7,7 @@ public class BillPaymentConfiguration : IEntityTypeConfiguration<BillPayment>
     public void Configure(EntityTypeBuilder<BillPayment> builder)
     {
         builder.HasIndex(p => new { p.HouseholdId, p.AllocationKey, p.DueDate }).IsUnique();
-        // First pass: one ledger entry pays one bill occurrence.
+        // Legacy primary ledger reference; additional entries are stored in BillPaymentTransaction.
         builder.HasIndex(p => p.TransactionId).IsUnique();
         builder.Property(p => p.Note).HasMaxLength(500);
         builder.HasOne(p => p.Household).WithMany().HasForeignKey(p => p.HouseholdId).OnDelete(DeleteBehavior.Restrict);

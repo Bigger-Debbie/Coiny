@@ -152,7 +152,7 @@ Current verification baseline after budget actuals and assignment tracking:
   conflicts, unsaved navigation, publication, and future-only published plans.
 - Budget dashboard tests cover grouped allocations, unassigned/over-budget
   presentation, separate payroll details, month navigation, retries, and stale responses.
-- The latest frontend run passed 323 tests, excluding the known starter test; that existing failure
+- The latest frontend run passed 326 tests, excluding the known starter test; that existing failure
   is the known starter test described below.
 - The full frontend suite has a known starter test failure in `app.spec.ts`:
   it still expects the generated “Hello, Coiny.Web” heading.
@@ -160,7 +160,7 @@ Current verification baseline after budget actuals and assignment tracking:
 - Dashboard, accounts, import-review, budget-calendar, and budget-dashboard CSS exceed their 4 kB warning budgets
   (about 4.73 kB, 4.65 kB, 4.58 kB, 5.38 kB, and 4.99 kB respectively). The initial bundle is about 608.70 kB against a
   500 kB warning budget; the production build still passes. CSV import, the transaction editor, and reconciliation modal load lazily.
-- The backend suite has 215 passing xUnit tests for budget actuals, account reconciliation, transaction management, bill/contribution payments, batch imports, transfers, recurrence, household-scoped
+- The backend suite has 219 passing xUnit tests for budget actuals, account reconciliation, transaction management, bill/contribution payments, batch imports, transfers, recurrence, household-scoped
   draft/publication workflows, optimistic conflicts, atomic rollback, and
   migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
   See the [backend test guide](../Coiny.API.Tests/README.md).
@@ -211,3 +211,9 @@ Back up the database, apply pending migrations, and restart the API before using
 the Merchant rules menu or import suggestions. This adds rule metadata only;
 existing transactions and categories remain unchanged. See
 [merchant/category rules](15-merchant-category-rules.md).
+
+Saved CSV mapping profiles require `20261025190224_AddSavedCsvMappings`. It adds
+metadata storage without rewriting ledger/budget data. Back up the database,
+apply migrations, and restart the API. See [saved CSV mappings](16-saved-csv-mappings.md).
+
+Split bill payments require the additive `AddMultipleBillTransactions` migration. It adds an empty additional-link table and preserves all existing payments and transaction rows. Restart the API after applying migrations.

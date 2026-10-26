@@ -26,7 +26,13 @@
         <div class="panel income-total"><span>{{ mode() === 'period' ? 'Income this period' : 'Take-home income' }}</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
         <div class="panel allocations-total"><span>{{ mode() === 'period' ? 'Allocations this period' : 'Planned allocations' }}</span><strong>{{ plan.allocated | currency }}</strong></div>
         <div class="panel remaining-total" [class.over]="mode() === 'period' ? (expectedRemainder() ?? 0) < 0 : plan.overBudget > 0">
-          <span>{{ mode() === 'period' ? 'Expected remaining' : 'Monthly remainder' }}</span>
+          <div class="remainder-heading">{{ mode() === 'period' ? 'Expected remaining' : 'Monthly remainder' }}@if (unlinkedReserve > 0) {
+            <em class="unlinked-reserve"> ({{ unlinkedReserve | currency }} awaiting transaction links)</em>
+            <details class="reserve-help" #reserveHelp (keydown.escape)="reserveHelp.open = false; $event.stopPropagation()" (document:click)="closeReserveHelp(reserveHelp, $event)">
+              <summary aria-label="Why unlinked payments affect the expected remainder" (click)="$event.preventDefault(); reserveHelp.open = !reserveHelp.open">?</summary>
+              <div class="reserve-explanation">Marked-paid bills and contributions still reserve their planned amounts until linked. Their transactions may already count as spending.</div>
+            </details>
+          }</div>
           @if (mode() === 'period') {
             @if (expectedRemainder() !== null) { <strong>{{ expectedRemainder() | currency }}</strong> }
             @else { <strong aria-label="Forecast unavailable">—</strong> }

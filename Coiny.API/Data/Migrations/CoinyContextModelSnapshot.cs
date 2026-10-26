@@ -259,6 +259,28 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("BillPayments");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.BillPaymentTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BillPaymentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TransactionId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillPaymentId");
+
+                    b.HasIndex("TransactionId")
+                        .IsUnique();
+
+                    b.ToTable("BillPaymentTransaction");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.BudgetAllocation", b =>
                 {
                     b.Property<int>("Id")
@@ -813,6 +835,52 @@ namespace Coiny.API.Data.Migrations
                     b.ToTable("RecurringExpenseReviews");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.SavedCsvMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AccountType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EditVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("InstitutionId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SettingsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("HouseholdId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("SavedCsvMappings");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -1196,6 +1264,25 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("Transaction");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.BillPaymentTransaction", b =>
+                {
+                    b.HasOne("Coiny.API.Models.BillPayment", "BillPayment")
+                        .WithMany("Links")
+                        .HasForeignKey("BillPaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Transaction", "Transaction")
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BillPayment");
+
+                    b.Navigation("Transaction");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.BudgetAllocation", b =>
                 {
                     b.HasOne("Coiny.API.Models.BudgetRevision", "BudgetRevision")
@@ -1459,6 +1546,24 @@ namespace Coiny.API.Data.Migrations
                     b.Navigation("Household");
                 });
 
+            modelBuilder.Entity("Coiny.API.Models.SavedCsvMapping", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Household");
+
+                    b.Navigation("Institution");
+                });
+
             modelBuilder.Entity("Coiny.API.Models.Transaction", b =>
                 {
                     b.HasOne("Coiny.API.Models.Account", "Account")
@@ -1610,6 +1715,11 @@ namespace Coiny.API.Data.Migrations
             modelBuilder.Entity("Coiny.API.Models.ApplicationUser", b =>
                 {
                     b.Navigation("HouseholdMemebers");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.BillPayment", b =>
+                {
+                    b.Navigation("Links");
                 });
 
             modelBuilder.Entity("Coiny.API.Models.BudgetRevision", b =>

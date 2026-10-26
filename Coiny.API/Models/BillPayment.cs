@@ -13,4 +13,5 @@ public class BillPayment : BaseEntity
     public string? Note { get; set; }
     public int? TransactionId { get; set; }
     public Transaction? Transaction { get; set; }
+    public ICollection<BillPaymentTransaction> Links { get; set; } = new List<BillPaymentTransaction>();
 }

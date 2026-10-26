@@ -9,16 +9,25 @@ public class BillPaymentRequest
     public DateOnly? PaidOn { get; set; }
     [MaxLength(500)] public string? Note { get; set; }
     public int? TransactionId { get; set; }
+    [MaxLength(50)] public int[]? TransactionIds { get; set; }
 }
 public record BillPaymentResponse(bool IsPaid, DateOnly? PaidOn, string? Note, int? TransactionId, BillTransactionSummary? LinkedTransaction = null, DateOnly? ActualPostingDate = null)
 {
     public string Status => !IsPaid ? "Unpaid" : TransactionId.HasValue ? "Linked" : "AwaitingTransaction";
-    public static BillPaymentResponse From(BillPayment p) => new(p.IsPaid, p.PaidOn, p.Note, p.TransactionId,
-        p.Transaction is null ? null : new(p.Transaction.Id, DateOnly.FromDateTime(p.Transaction.TransactionDate), p.Transaction.Amount, p.Transaction.Description),
-        p.Transaction is null ? null : DateOnly.FromDateTime(p.Transaction.TransferDirection == TransferDirection.Out && p.Transaction.PairedTransaction is not null
-            ? p.Transaction.PairedTransaction.TransactionDate : p.Transaction.TransactionDate));
+    public IReadOnlyList<BillTransactionSummary> LinkedTransactions { get; init; } = [];
+    public IReadOnlyList<int> TransactionIds => LinkedTransactions.Select(t => t.Id).ToArray();
+    public static BillPaymentResponse From(BillPayment p)
+    {
+        var entries = (p.Transaction is null ? Enumerable.Empty<Transaction>() : new[] { p.Transaction })
+            .Concat(p.Links.Select(l => l.Transaction)).DistinctBy(t => t.Id)
+            .Select(t => new BillTransactionSummary(t.Id, DateOnly.FromDateTime(t.TransactionDate), t.Amount, t.Description,
+                DateOnly.FromDateTime(t.TransferDirection == TransferDirection.Out && t.PairedTransaction is not null
+                    ? t.PairedTransaction.TransactionDate : t.TransactionDate))).ToArray();
+        var first = entries.FirstOrDefault();
+        return new(p.IsPaid, p.PaidOn, p.Note, first?.Id ?? p.TransactionId, first, first?.ActualPostingDate) { LinkedTransactions = entries };
+    }
 }
 public record BillTransactionCandidate(int Id, DateOnly Date, decimal Amount, string Description, string AccountName, string CategoryName, bool ExactAmount,
     CategoryType CategoryType = CategoryType.Expense, TransferDirection? TransferDirection = null);
 
-public record BillTransactionSummary(int Id, DateOnly Date, decimal Amount, string Description);
+public record BillTransactionSummary(int Id, DateOnly Date, decimal Amount, string Description, DateOnly? ActualPostingDate = null);

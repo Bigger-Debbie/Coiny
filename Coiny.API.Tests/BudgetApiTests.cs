@@ -32,6 +32,22 @@ public class BudgetApiTests
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
     [Fact]
+    public async Task Saved_csv_mapping_routes_validate_payload_scope_versions_and_authentication()
+    {
+        await using var host=await Api.Create();
+        var input=new Coiny.API.DTOs.CsvMappings.SaveCsvMappingRequest {Name="Checking export",AccountType=Coiny.API.Enums.AccountType.Checking,
+            Settings=new(){Headers=["Date","Description","Amount"],Mapping=new(){DateColumn=0,DescriptionColumn=1,DateFormat="MM/DD/YY",Amount=new(){Mode="signed",Column=2,PositiveMeans="In"}}}};
+        var result=await host.Client.PostAsJsonAsync("/api/csv-mappings",input,Json);result.EnsureSuccessStatusCode();
+        var saved=(await result.Content.ReadFromJsonAsync<Coiny.API.DTOs.CsvMappings.SavedCsvMappingResponse>(Json))!;Assert.Equal(1,saved.EditVersion);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PostAsJsonAsync("/api/csv-mappings",new{})).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict,(await host.Client.PutAsJsonAsync($"/api/csv-mappings/{saved.Id}",input,Json)).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");host.Client.DefaultRequestHeaders.Add("Test-Household","2");
+        Assert.Empty((await host.Client.GetFromJsonAsync<Coiny.API.DTOs.CsvMappings.SavedCsvMappingResponse[]>("/api/csv-mappings",Json))!);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.DeleteAsync($"/api/csv-mappings/{saved.Id}?expectedEditVersion=1")).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");host.Client.DefaultRequestHeaders.Add("Test-Household","1");(await host.Client.DeleteAsync($"/api/csv-mappings/{saved.Id}?expectedEditVersion=1")).EnsureSuccessStatusCode();
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.GetAsync("/api/csv-mappings")).StatusCode);
+    }
+    [Fact]
     public async Task Merchant_rule_routes_validate_scope_versions_and_authentication()
     {
         await using var host=await Api.Create();var c=host.Database.Context();c.Categories.Add(new Coiny.API.Models.Category {Id=90,HouseholdId=1,Name="Subscriptions",IsActive=true,CategoryType=Coiny.API.Enums.CategoryType.Expense});await c.SaveChangesAsync();
@@ -357,6 +373,7 @@ public class BudgetApiTests
             });
             builder.Services.AddScoped<Coiny.API.Data.CoinyContext>(_=>db.Context());
             builder.Services.AddScoped<UserPreferencesService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),services.GetRequiredService<ICurrentUserService>()));
+            builder.Services.AddScoped<SavedCsvMappingsService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),services.GetRequiredService<ICurrentUserService>()));
             builder.Services.AddScoped<MerchantRulesService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),services.GetRequiredService<ICurrentUserService>()));
             builder.Services.AddScoped<RecurringAutomationService>(services=>new(services.GetRequiredService<Coiny.API.Data.CoinyContext>(),new BudgetScheduleService(),db.Clock));
             builder.Services.AddScoped<HouseholdAlertsService>(services=> {

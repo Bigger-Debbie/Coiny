@@ -12,9 +12,12 @@
   @else if (!accounts().length) { <p>Add an account before importing its transaction history.</p><a class="button button-primary" routerLink="/accounts" [queryParams]="{create: 'account'}">+ Add Account</a> }
   @else {
     @if (!importCompleted() && step() === 'mapping') {
-    <fieldset class="import-settings" [disabled]="reading() || importBusy() || importLocked()">
+    <fieldset class="import-settings" [disabled]="reading() || importBusy() || importLocked() || profileBusy()">
     <section class="panel" aria-labelledby="file-heading">
       <h2 id="file-heading">Account and file</h2>
+      <div class="saved-mapping-tools"><div><label for="saved-csv-mapping">Saved CSV mapping</label><app-select-menu inputId="saved-csv-mapping" label="Saved CSV mapping" [options]="profileOptions" [(ngModel)]="profileId" (ngModelChange)="selectProfile()" /></div><button type="button" class="button-outline" [disabled]="!selectedProfile" (click)="applyProfile()">Load mapping</button><button type="button" class="button-ghost" (click)="loadProfiles()">Reload mappings</button>@if(selectedProfile){<button type="button" class="button-ghost" (click)="deleteProfile()">Delete mapping</button>}</div>
+      <p class="hint">Shared household mappings for this account type and institution. Load one before choosing a file to reuse its encoding/header options, or after upload to match its columns.</p>
+      @if(profilesError()){<p class="hint" role="status">Saved mappings couldn’t load. You can still match columns manually or reload mappings.</p>}
       <div class="fields">
         <div><label for="import-account">Destination account in Coiny</label><app-select-menu inputId="import-account" label="Destination account" [options]="accountOptions" [disabled]="sessionMode" [(ngModel)]="accountId" (ngModelChange)="invalidate()" /></div>
         <div><label for="csv-file">Bank CSV export</label><input [hidden]="sessionMode" id="csv-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" [disabled]="reading()" (change)="chooseFile($event)" /><small>{{ filename ? 'Current file: ' + filename + '. ' : '' }}Up to 2,000 rows and 2 MB.</small></div>
@@ -32,6 +35,7 @@
     @if (document(); as csv) {
       <section class="panel" aria-labelledby="mapping-heading">
         <h2 id="mapping-heading">Match your columns</h2>
+        <details class="save-mapping"><summary>Save these column settings for next time</summary><div class="saved-mapping-tools"><div><label for="csv-mapping-name">Mapping name</label><input id="csv-mapping-name" maxlength="100" [(ngModel)]="profileName" placeholder="e.g. Community Bank checking" /></div><button type="button" class="button-outline" (click)="saveProfile()">Save as new mapping</button>@if(selectedProfile){<button type="button" class="button-outline" (click)="saveProfile(true)">Update selected mapping</button>}</div><p class="hint">Saves the header layout, column choices, date/number formats, amount direction, posting-status exclusions, and file options. CSV rows, source account selections, and confirmations are not saved.</p></details>
         <p class="hint">{{ filename }} · {{ csv.rows.length }} rows · {{ csv.headers.length }} columns. Suggestions are based on headers; you can change every mapping.</p>
         <div class="fields">
           <div><label for="map-date">Transaction date column</label><app-select-menu inputId="map-date" label="Transaction date column" [options]="columns" [(ngModel)]="dateColumn" (ngModelChange)="invalidate()" /></div>

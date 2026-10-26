@@ -62,7 +62,7 @@ public partial class BudgetActualsService(CoinyContext context, ICurrentUserServ
                         (t.PairedTransactionId == null || t.TransferDirection == TransferDirection.In))).ToListAsync();
         }
         var ids = ledger.SelectMany(t => t.PairedTransactionId.HasValue ? new[] { t.Id, t.PairedTransactionId.Value } : new[] { t.Id }).ToArray();
-        var payments = await context.BillPayments.AsNoTracking().Where(p => p.HouseholdId == household && p.TransactionId.HasValue && ids.Contains(p.TransactionId.Value)).ToListAsync();
+        var payments = await context.BillPayments.AsNoTracking().Include(p => p.Links).Where(p => p.HouseholdId == household && (p.TransactionId.HasValue && ids.Contains(p.TransactionId.Value) || p.Links.Any(l => ids.Contains(l.TransactionId)))).ToListAsync();
         var reportAllocations = plan.Allocations.ToList();
         // A posted payment may belong to an item introduced in a future plan (or removed
         // from this one). Keep that valid linked item visible, with zero planned here.
@@ -78,7 +78,7 @@ public partial class BudgetActualsService(CoinyContext context, ICurrentUserServ
         var rows = new List<BudgetActualsTransaction>();
         foreach (var t in ledger)
         {
-            var payment = payments.SingleOrDefault(p => p.TransactionId == t.Id || t.PairedTransactionId.HasValue && p.TransactionId == t.PairedTransactionId);
+            var payment = payments.SingleOrDefault(p => p.TransactionId == t.Id || t.PairedTransactionId.HasValue && p.TransactionId == t.PairedTransactionId || p.Links.Any(l => l.TransactionId == t.Id || l.TransactionId == t.PairedTransactionId));
             var assignment = overrides.SingleOrDefault(a => a.TransactionId == t.Id || a.TransactionId == t.PairedTransactionId);
             var source = payment is not null ? "Payment" : assignment is not null ? "Override" : "Unassigned";
             Guid? key = payment?.AllocationKey ?? assignment?.AllocationKey;
@@ -172,7 +172,7 @@ public partial class BudgetActualsService(CoinyContext context, ICurrentUserServ
         var posting = DateOnly.FromDateTime(pair is not null && entry.TransferDirection == TransferDirection.Out ? pair.TransactionDate : entry.TransactionDate);
         if (posting.Year != month.Year || posting.Month != month.Month) throw new ArgumentException("Choose the transaction's posting month.");
         var ids = pair is null ? new[] { entry.Id } : new[] { entry.Id, pair.Id };
-        if (await context.BillPayments.AnyAsync(p => p.TransactionId.HasValue && ids.Contains(p.TransactionId.Value)))
+        if (await context.BillPayments.AnyAsync(p => p.TransactionId.HasValue && ids.Contains(p.TransactionId.Value) || p.Links.Any(l => ids.Contains(l.TransactionId))))
             throw new BudgetConflictException("This movement is assigned by a linked payment. Update that link from the budget calendar.");
         var assignment = await context.TransactionBudgetAssignments.SingleOrDefaultAsync(a => ids.Contains(a.TransactionId));
         if (request.UseCategoryDefault) { if (assignment is not null) context.TransactionBudgetAssignments.Remove(assignment); }
