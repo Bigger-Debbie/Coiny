@@ -53,7 +53,10 @@ export class EditTransaction implements OnInit {
     return [{ value: 0, label: 'Select category' }, ...this.categories.filter(c => c.categoryType === this.request?.categoryType && (c.isActive || c.id === this.details?.transaction.categoryId)).map(c => ({ value: c.id, label: c.name }))];
   }
   get openingDate() { return this.accounts.find(a => a.id === this.request?.accountId)?.openingBalanceDate ?? null; }
-  get dirty() { return !!this.request && JSON.stringify(this.request) !== this.original; }
+  private values(request: UpdateTransactionRequest) {
+    return { ...request, description: request.description?.trim() ?? '', merchant: request.merchant?.trim() || null, notes: request.notes?.trim() || null };
+  }
+  get dirty() { return !!this.request && !!this.original && JSON.stringify(this.values(this.request)) !== JSON.stringify(this.values(JSON.parse(this.original))); }
   @HostListener('window:beforeunload', ['$event']) beforeUnload(event: BeforeUnloadEvent) { if (this.busy() || this.dirty) event.preventDefault(); }
   ngOnInit() { this.load(); }
   load() {
@@ -99,14 +102,14 @@ export class EditTransaction implements OnInit {
   }
   save(form: NgForm) {
     const r = this.request;
-    if (!r || this.busy() || this.stale()) return;
+    if (!r || !this.editing() || !this.dirty || this.busy() || this.stale()) return;
     if (form.invalid || !r.date || (this.openingDate && r.date < this.openingDate) || !r.description.trim() ||
         !Number.isFinite(r.amount) || r.amount <= 0 || Math.abs(r.amount * 100 - Math.round(r.amount * 100)) > .000001 ||
         (r.categoryType !== 'Transfer' && !this.categories.some(c => c.id === r.categoryId && c.categoryType === r.categoryType))) {
       this.error.set('Check the account, category, date, description, and amount with up to two decimal places.'); return;
     }
     this.busy.set(true); this.error.set('');
-    this.api.update(this.transactionId, { ...r, description: r.description.trim() }).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+    this.api.update(this.transactionId, this.values(r)).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next: () => { this.busy.set(false); this.changed.emit('updated'); }, error: response => this.fail(response),
     });
   }

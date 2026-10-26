@@ -1,3 +1,4 @@
+import type { ImportHistory } from './features/transactions/import-history/import-history';
 import type { ImportSession } from './features/transactions/import-session/import-session';
 import { Routes } from '@angular/router';
 import { Login } from './features/auth/login/login';
@@ -22,6 +23,7 @@ export const routes: Routes = [
         canActivateChild: [householdGuard],
         children: [
         { path: 'accounts/import-session', redirectTo: ({ queryParams }) => '/accounts/import?' + new URLSearchParams(queryParams).toString() },
+        { path: 'accounts/import-history', loadComponent: () => import('./features/transactions/import-history/import-history').then(m => m.ImportHistory), canDeactivate: [(component: ImportHistory) => component.canLeave()] },
         { path: 'accounts/import', loadComponent: () => import('./features/transactions/import-session/import-session').then(m => m.ImportSession), canDeactivate: [(component: ImportSession) => component.canLeave()] },
         { path: 'accounts/new', redirectTo: ({ queryParams }) => '/accounts?' + new URLSearchParams({ ...queryParams, create: 'account' }).toString() },
         { path: 'household', loadComponent: () => import('./features/households/household-dialog').then(m => m.HouseholdDialog) },

@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, DeferBlockState } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router, ActivatedRoute, convertToParamMap } from '@angular/router';
@@ -9,6 +9,7 @@ import { CreateAccount } from './create-account/create-account';
 import { CreateTransaction } from '../transactions/create-transaction/create-transaction';
 import { CreateCategory } from './create-category/create-category';
 import { Component, Input } from '@angular/core';
+import { ToastService } from '../../core/services/toast.service';
 import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown';
 
 @Component({ selector: 'app-category-breakdown', template: '' })
@@ -68,6 +69,16 @@ describe('Accounts', () => {
     expect(request.request.params.has('search')).toBe(false); request.flush({ items: [], totalCount: 0, page: 1, pageSize: 10 });
     expect(c.reconciliationDraft()).toEqual({ date: '2026-09-30', balance: 900 }); expect(c.hasFilters()).toBe(false);
     c.selectAccount('2'); flushTrend(); flushPage(); expect(c.statementPeriod()).toBeNull(); expect(c.reconciliationDraft()).toBeNull();
+  });
+  it('closing unchanged transaction details on Accounts does not announce an update or refresh balances', async () => {
+    const f=render();flushTrend();flushPage();const c=f.componentInstance;
+    const changed=vi.spyOn(c,'transactionChanged');const success=vi.spyOn(TestBed.inject(ToastService),'success');
+    c.editingId.set(7);f.detectChanges();const blocks=await f.getDeferBlocks();await blocks[0].render(DeferBlockState.Complete);f.detectChanges();
+    http.expectOne(r=>r.url.endsWith('/transactions/7')).flush({transaction:{id:7,editVersion:0,accountId:1,categoryId:1,accountName:'Checking',accountType:'Checking',categoryType:'Expense',categoryName:'Groceries',amount:25,transactionDate:'2026-10-16',description:'Dinner',merchant:'Cafe',notes:null,isCleared:true},pairedEditVersion:null,bill:null});
+    http.expectOne(r=>r.url.endsWith('/accounts')).flush(accounts);http.expectOne(r=>r.url.endsWith('/categories')).flush([{id:1,name:'Groceries',categoryType:'Expense',isActive:true}]);
+    f.detectChanges();await f.whenStable();f.nativeElement.querySelector('dialog [aria-label="Close dialog"]').click();f.detectChanges();
+    expect(c.editingId()).toBeNull();expect(changed).not.toHaveBeenCalled();expect(success).not.toHaveBeenCalled();
+    http.expectNone(r=>r.method==='PUT' || r.method==='POST' || r.method==='DELETE');http.expectNone(r=>r.url.endsWith('/accounts'));
   });
   it('refreshes balances, trends, and category summaries after a transaction change', () => {
     const f = render(); flushTrend(); flushPage(); const c = f.componentInstance;

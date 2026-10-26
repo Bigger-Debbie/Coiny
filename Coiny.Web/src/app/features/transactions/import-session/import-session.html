@@ -50,6 +50,6 @@
     </section>
   }
   @if (stage()==='done' && result(); as done) {
-    <section class="panel"><h2>Your accounts are up to date</h2><p>{{ done.linkedPairs }} transfer pairs linked. No extra transfer entries were created.</p><div class="summary-list">@for (file of done.files; track file.accountId) { <article><div><strong>{{ accountName(file.accountId) }}</strong><small>{{ file.importedCount }} transactions · {{ file.filename }}</small></div><strong>{{ file.balanceAfter | currency }}</strong></article> }</div><div class="actions"><a class="button button-primary" routerLink="/accounts">View accounts</a></div></section>
+    <section class="panel"><h2>Your accounts are up to date</h2><p>{{ done.linkedPairs }} transfer pairs linked. No extra transfer entries were created.</p><div class="summary-list">@for (file of done.files; track file.accountId) { <article><div><strong>{{ accountName(file.accountId) }}</strong><small>{{ file.importedCount }} transactions · {{ file.filename }}</small></div><strong>{{ file.balanceAfter | currency }}</strong></article> }</div><div class="actions"><a class="button button-outline" routerLink="/accounts/import-history">Review import history</a><a class="button button-primary" routerLink="/accounts">View accounts</a></div></section>
   }
 </div>

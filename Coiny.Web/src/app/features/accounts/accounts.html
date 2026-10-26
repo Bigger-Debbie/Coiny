@@ -85,6 +85,7 @@
           </button>
         </div>
         <div class="pane-actions">
+          <a class="button button-outline" routerLink="/accounts/import-history" [queryParams]="selectedId() ? {accountId: selectedId()} : null">Import history</a>
           <a class="button button-outline" routerLink="/accounts/import" [queryParams]="selectedId() ? {accountId: selectedId()} : null">Import CSV</a>
           <button class="button-outline" type="button" (click)="openModal('category')">＋ Add Category</button>
           <button class="button-primary" type="button" (click)="openModal('transaction')">＋ Add Transaction</button>

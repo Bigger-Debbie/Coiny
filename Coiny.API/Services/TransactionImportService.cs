@@ -14,7 +14,7 @@ namespace Coiny.API.Services;
 
 public sealed class ImportValidationException(TransactionImportValidation validation) : Exception("Review the flagged rows before importing.")
 { public TransactionImportValidation Validation { get; } = validation; }
-public sealed class ImportConflictException() : Exception("This submission ID was already used for different data. Start a new reviewed batch.");
+public sealed class ImportConflictException(string message = "This submission ID was already used for different data. Start a new reviewed batch.") : Exception(message);
 
 public class TransactionImportService(CoinyContext context, ICurrentUserService user,
     IAccountBalanceSnapshotService snapshots, IAccountBalanceService balances, TimeProvider clock) : ITransactionImportService
@@ -78,6 +78,7 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
         try
         {
             await context.SaveChangesAsync();
+            await ImportBaseline.Capture(context,new[] {batch.Id});
             // Rebuild once from the earliest imported date, rather than once per row.
             await snapshots.RecalculateFromAsync(request.AccountId, request.Rows.Min(r => r.Date!.Value));
             await context.SaveChangesAsync();
@@ -102,7 +103,7 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
         return await context.TransactionImportBatches.AsNoTracking()
             .Where(b => b.HouseholdId == householdId && (!accountId.HasValue || b.AccountId == accountId))
             .OrderByDescending(b => b.Id).Take(50)
-            .Select(b => new TransactionImportResponse(b.Id, b.SubmissionId, b.AccountId, b.Filename, b.ImportedCount, DateTime.SpecifyKind(b.CreatedAt, DateTimeKind.Utc), b.BalanceAfter)).ToListAsync();
+            .Select(b => new TransactionImportResponse(b.Id, b.SubmissionId, b.AccountId, b.Filename, b.ImportedCount, DateTime.SpecifyKind(b.CreatedAt, DateTimeKind.Utc), b.BalanceAfter,b.UndoneCount,b.LastUndoneAt) {AccountName=b.Account.Name}).ToListAsync();
     }
 
     private async Task<TransactionImportValidation> ValidateRows(TransactionImportRequest request, int householdId)
@@ -212,6 +213,6 @@ public class TransactionImportService(CoinyContext context, ICurrentUserService 
     private readonly record struct EntryKey(DateOnly Date, decimal Amount, TransferDirection Direction, string Description);
     private static EntryKey? Key(TransactionImportRow row) => row.Date is DateOnly date && row.Amount is decimal amount && row.Direction is TransferDirection direction && Enum.IsDefined(direction)
         ? new(date, amount, direction, Normalize(row.Description ?? "")) : null;
-    private static TransactionImportResponse Response(TransactionImportBatch batch) => new(batch.Id, batch.SubmissionId, batch.AccountId, batch.Filename, batch.ImportedCount, DateTime.SpecifyKind(batch.CreatedAt, DateTimeKind.Utc), batch.BalanceAfter);
-    private static TransactionImportResponse Replay(TransactionImportBatch batch, string hash) => batch.PayloadHash == hash ? Response(batch) : throw new ImportConflictException();
+    private static TransactionImportResponse Response(TransactionImportBatch batch) => new(batch.Id, batch.SubmissionId, batch.AccountId, batch.Filename, batch.ImportedCount, DateTime.SpecifyKind(batch.CreatedAt, DateTimeKind.Utc), batch.BalanceAfter,batch.UndoneCount,batch.LastUndoneAt);
+    private static TransactionImportResponse Replay(TransactionImportBatch batch, string hash) => batch.UndoneCount > 0 ? throw new ImportConflictException("This import was undone. Use a new reviewed submission to import again.") : batch.PayloadHash == hash ? Response(batch) : throw new ImportConflictException();
 }

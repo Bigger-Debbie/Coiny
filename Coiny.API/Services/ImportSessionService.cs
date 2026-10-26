@@ -56,7 +56,10 @@ public class ImportSessionService(CoinyContext context, ICurrentUserService user
         var previous = await context.TransactionImportSessions.AsNoTracking().SingleOrDefaultAsync(s => s.HouseholdId == household && s.SubmissionId == request.SubmissionId);
         if (previous is not null) {
             if (previous.PayloadHash != hash) throw new ImportConflictException();
-            return JsonSerializer.Deserialize<ImportSessionResult>(previous.ResultJson)!;
+            var replay=JsonSerializer.Deserialize<ImportSessionResult>(previous.ResultJson)!;
+            var replayIds=replay.Files.Select(f=>f.BatchId).ToArray();
+            if (await context.TransactionImportBatches.AnyAsync(b=>replayIds.Contains(b.Id) && b.UndoneCount>0)) throw new ImportConflictException("This import was undone. Use a new reviewed session to import again.");
+            return replay;
         }
         var submissions = request.Files.Select(f => f.SubmissionId).ToArray();
         if (await context.TransactionImportBatches.AnyAsync(b => b.HouseholdId == household && submissions.Contains(b.SubmissionId)))
@@ -75,6 +78,7 @@ public class ImportSessionService(CoinyContext context, ICurrentUserService user
                 ExpectedFirstEditVersion = link.First.TransactionId.HasValue ? link.First.ExpectedEditVersion : first.EditVersion,
                 ExpectedSecondEditVersion = link.Second.TransactionId.HasValue ? link.Second.ExpectedEditVersion : second.EditVersion });
         }
+        await ImportBaseline.Capture(context,results.Select(f=>f.BatchId).ToArray());
         var result = new ImportSessionResult(request.SubmissionId,results,request.Links.Count);
         context.TransactionImportSessions.Add(new() { HouseholdId = household,SubmissionId=request.SubmissionId,PayloadHash=hash,ResultJson=JsonSerializer.Serialize(result),CreatedAt=clock.GetUtcNow().UtcDateTime });
         await context.SaveChangesAsync(); await unit.CommitAsync(); return result;

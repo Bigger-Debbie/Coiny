@@ -1020,6 +1020,13 @@ namespace Coiny.API.Data.Migrations
                     b.Property<int>("ImportedCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("LastUndoneAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalStateJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PayloadHash")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1027,6 +1034,9 @@ namespace Coiny.API.Data.Migrations
 
                     b.Property<Guid>("SubmissionId")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("UndoneCount")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -1068,6 +1078,51 @@ namespace Coiny.API.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("TransactionImportSessions");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.TransactionImportUndo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ActorUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BatchIdsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DetailJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("HouseholdId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HouseholdId", "OperationId")
+                        .IsUnique();
+
+                    b.ToTable("TransactionImportUndo");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1644,6 +1699,17 @@ namespace Coiny.API.Data.Migrations
                 });
 
             modelBuilder.Entity("Coiny.API.Models.TransactionImportSession", b =>
+                {
+                    b.HasOne("Coiny.API.Models.Household", "Household")
+                        .WithMany()
+                        .HasForeignKey("HouseholdId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Household");
+                });
+
+            modelBuilder.Entity("Coiny.API.Models.TransactionImportUndo", b =>
                 {
                     b.HasOne("Coiny.API.Models.Household", "Household")
                         .WithMany()

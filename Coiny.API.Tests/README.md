@@ -92,3 +92,5 @@ single-count transfer contributions, invalid/foreign assignments, version confli
 and HTTP access/binding contracts.
 
 `BudgetAvailableCashTests` verifies the account-based outlook, card liability signs, no double counting of posted expenses/income, savings selection, future-period continuity, and household account eligibility. The HTTP suite covers the authenticated calculation route.
+
+`ImportUndoTests` verifies rollback, idempotent retries, stale-preview rejection, imported versus pre-existing transfer handling, old/edited row acknowledgments, payment/assignment cleanup, checkpoint preservation/invalidation, and balance history recalculation. HTTP import tests also exercise authenticated review and undo.

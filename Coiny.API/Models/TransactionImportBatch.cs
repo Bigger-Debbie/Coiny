@@ -11,5 +11,8 @@ public class TransactionImportBatch : BaseEntity
     public string Filename { get; set; } = "";
     public string CreatedByUserId { get; set; } = "";
     public int ImportedCount { get; set; }
+    public string OriginalStateJson { get; set; } = "";
+    public int UndoneCount { get; set; }
+    public DateTime? LastUndoneAt { get; set; }
     public decimal BalanceAfter { get; set; }
 }

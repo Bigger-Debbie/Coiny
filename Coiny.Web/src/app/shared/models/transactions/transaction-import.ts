@@ -13,6 +13,7 @@ export interface TransactionImportRequest {
 export interface ImportRowCheck { rowId: number; errors: string[]; duplicateTransactionIds: number[]; duplicateRowIds: number[]; }
 export interface TransactionImportValidation { rows: ImportRowCheck[]; canImport: boolean; currentBalance: number; projectedBalance: number | null; balanceComparison?: BankBalanceComparison | null; }
 export interface TransactionImportResult {
+  accountName?: string | null; undoneCount?: number; lastUndoneAt?: string | null;
   batchId: number; submissionId: string; accountId: number; filename: string;
   importedCount: number; completedAt: string; balanceAfter: number;
 }

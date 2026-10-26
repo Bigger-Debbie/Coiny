@@ -62,7 +62,7 @@
           <div><label for="edit-notes">Notes</label><textarea id="edit-notes" name="notes" maxlength="1000" rows="2" [(ngModel)]="r.notes"></textarea></div>
           <label class="check"><input name="cleared" type="checkbox" [(ngModel)]="r.isCleared" /> Cleared</label>
         </fieldset>
-        <div class="actions"><button class="delete-link button-ghost" type="button" [disabled]="busy() || stale()" (click)="deleting.set(true)">Delete transaction</button><button class="button-outline" type="button" [disabled]="busy()" (click)="cancelEditing()">Cancel</button><button class="button-primary" type="submit" [disabled]="busy() || stale()">{{ busy() ? 'Saving…' : 'Save changes' }}</button></div>
+        <div class="actions"><button class="delete-link button-ghost" type="button" [disabled]="busy() || stale()" (click)="deleting.set(true)">Delete transaction</button><button class="button-outline" type="button" [disabled]="busy()" (click)="cancelEditing()">Cancel</button><button class="button-primary" type="submit" [disabled]="busy() || stale() || !dirty">{{ busy() ? 'Saving…' : 'Save changes' }}</button></div>
       </form>
     }
   }

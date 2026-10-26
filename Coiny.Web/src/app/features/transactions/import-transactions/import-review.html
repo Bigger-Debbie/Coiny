@@ -125,7 +125,7 @@
   }
 </section>
 @if (history().length) {
-  <details class="panel import-history"><summary>Recent imports for {{ account.name }}</summary><div class="table-scroll"><table><thead><tr><th scope="col">Batch</th><th scope="col">File</th><th scope="col">Imported</th><th scope="col">Count</th></tr></thead><tbody>@for (batch of history(); track batch.batchId) { <tr><td>#{{ batch.batchId }}</td><td>{{ batch.filename }}</td><td>{{ batch.completedAt | date:'medium' }}</td><td>{{ batch.importedCount }}</td></tr> }</tbody></table></div></details>
+  <details class="panel import-history"><summary>Recent imports for {{ account.name }}</summary><p><a routerLink="/accounts/import-history" [queryParams]="{accountId:account.id}">Review or undo past imports</a></p><div class="table-scroll"><table><thead><tr><th scope="col">Batch</th><th scope="col">File</th><th scope="col">Imported</th><th scope="col">Count</th></tr></thead><tbody>@for (batch of history(); track batch.batchId) { <tr><td>#{{ batch.batchId }}</td><td>{{ batch.filename }}</td><td>{{ batch.completedAt | date:'medium' }}</td><td>{{ batch.importedCount }}</td></tr> }</tbody></table></div></details>
 }
 
 @if(remember();as preset){<app-modal title="Remember this merchant" [busy]="busy()" (dismiss)="remember.set(null)"><app-merchant-rule-editor [preset]="preset" (busyChanged)="busy.set($event);busyChange.emit($event)" (cancelled)="remember.set(null)" (saved)="ruleSaved()" /></app-modal>}

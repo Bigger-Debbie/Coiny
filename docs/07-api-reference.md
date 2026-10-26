@@ -1649,3 +1649,7 @@ Actuals sum all linked transactions on their posting dates, including charges sp
 ### Available cash outlook
 
 `POST /api/budgets/available-cash` calculates a read-only account-based outlook. Accepts optional `asOf` and nullable `accountIds`; returns current cash/card balances, remaining expected income/allocations, the ending estimate, and eligible account options. Authentication and household ownership are required. See [Available cash outlook](17-available-cash-outlook.md) for defaults, account eligibility, range limits, and response fields.
+
+### Import undo and correction
+
+`GET /api/transaction-imports/{batchId}/review`, `POST /api/transaction-imports/undo/preview`, and `POST /api/transaction-imports/undo` provide household-scoped review and an atomic, fingerprint-validated undo. See [Import undo/correction](18-import-undo-correction.md) for request/response behavior, explicit acknowledgments, transfer preservation, reconciliation invalidation, and retry semantics.

@@ -5,6 +5,8 @@ using System.Text.Encodings.Web;
 using System.Text.Json.Serialization;
 using Coiny.API.Controllers;
 using Coiny.API.Data;
+using Coiny.API.DTOs.Transactions;
+using System.Text.Json;
 using Coiny.API.Enums;
 using Coiny.API.Interfaces;
 using Coiny.API.Models;
@@ -40,6 +42,7 @@ public class TransactionImportApiTests
         builder.Services.AddScoped<IAccountBalanceService, AccountBalanceService>();
         builder.Services.AddScoped<IAccountBalanceSnapshotService, AccountBalanceSnapshotService>();
         builder.Services.AddScoped<ITransactionImportService, TransactionImportService>();
+        builder.Services.AddScoped<ImportUndoService>();
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync();
         using var client = app.GetTestClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/transaction-imports")).StatusCode);
@@ -61,6 +64,18 @@ public class TransactionImportApiTests
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await client.PostAsJsonAsync("/api/transaction-imports", Payload(1, Guid.NewGuid()))).StatusCode);
         var history = await client.GetStringAsync("/api/transaction-imports?accountId=1"); Assert.Contains("bank.csv", history);
         Assert.Equal(1, await c.Transactions.CountAsync());
+        var batchId=JsonDocument.Parse(first).RootElement.GetProperty("batchId").GetInt32();
+        var options=new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var review=(await client.GetFromJsonAsync<ImportUndoPreview>($"/api/transaction-imports/{batchId}/review",options))!;Assert.Single(review.Rows);
+        var previewResponse=await client.PostAsJsonAsync("/api/transaction-imports/undo/preview",new{batchIds=new[]{batchId},removeTransactionIds=review.RemoveTransactionIds});previewResponse.EnsureSuccessStatusCode();
+        var preview=(await previewResponse.Content.ReadFromJsonAsync<ImportUndoPreview>(options))!;
+        var undo=new ImportUndoRequest{BatchIds=[batchId],RemoveTransactionIds=preview.RemoveTransactionIds.ToArray(),ReviewedFingerprint=preview.Fingerprint,OperationId=Guid.NewGuid()};
+        var undone=await client.PostAsJsonAsync("/api/transaction-imports/undo",undo);undone.EnsureSuccessStatusCode();
+        (await client.PostAsJsonAsync("/api/transaction-imports/undo",undo)).EnsureSuccessStatusCode();
+        Assert.Equal(0,await c.Transactions.CountAsync());
+        client.DefaultRequestHeaders.Remove("Test-User");
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.GetAsync($"/api/transaction-imports/{batchId}/review")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.PostAsJsonAsync("/api/transaction-imports/undo",undo)).StatusCode);
     }
     private sealed class User : ICurrentUserService
     {

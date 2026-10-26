@@ -1,0 +1,46 @@
+<header class="page-heading"><div><h1 class="page-title">Import history</h1><p class="hint">Review imported transactions, correct individual entries, or undo a reviewed selection.</p></div><a class="button button-outline" routerLink="/accounts" [queryParams]="accountId ? {accountId} : null">Back to accounts</a></header>
+@if (error()) {<p role="alert" class="error">{{ error() }}</p>}
+@if (loading()) {<p role="status">Loading import details…</p>}
+@if (!review() && !loading()) {
+  <section class="panel"><h2>Recent imports</h2><p class="hint">Showing the most recent 50 files{{ accountId ? ' for this account' : '' }}. Original import records remain after undo.</p>
+  @for (batch of history();track batch.batchId) {
+    <div class="history-row"><div><strong>{{ batch.filename }}</strong><small>@if (batch.accountName) { {{ batch.accountName }} · }#{{ batch.batchId }} · {{ batch.completedAt | date:'medium' }} · {{ batch.importedCount }} originally imported@if (batch.undoneCount) { · {{ batch.undoneCount }} undone }</small></div><button type="button" class="button-outline" (click)="open(batch.batchId)">Review import</button></div>
+  } @empty {<p>No imports found.</p>}
+  </section>
+}
+@if (review();as data) {
+  <section class="panel">
+    <div class="section-heading"><div><h2>Review import #{{ batchId }}</h2><p class="hint">Edit a transaction to correct it. Check a row only if you want to remove it.</p></div><button type="button" class="button-outline" [disabled]="busy()" (click)="review.set(null); load()">Back to history</button></div>
+    @if (data.relatedFiles.length>1) {<label class="check"><input type="checkbox" [checked]="wholeSession" [disabled]="loading() || busy()" (change)="scope($any($event.target).checked)" />Review all {{ data.relatedFiles.length }} files from this import session</label>}
+    <div class="files">@for (file of data.relatedFiles;track file.batchId) { @if (data.batchIds.includes(file.batchId)) {<small>{{ file.accountName }} · {{ file.filename }} · {{ file.remainingCount }} remaining of {{ file.importedCount }} imported</small>} }</div>
+    <p class="hint">Unchanged rows are selected by default. Edited rows and older imports without original-state history require your explicit selection. Entries already deleted are not listed. Search filters the list, not your selection.</p>
+    <div class="review-tools"><label>Find transactions<input type="search" [(ngModel)]="filter" placeholder="Merchant, description, or account" /></label><span>{{ selected.size }} selected for removal</span><button type="button" class="button-ghost" [disabled]="loading() || busy()" (click)="safeRows()">Select unchanged</button><button type="button" class="button-ghost" [disabled]="loading() || busy()" (click)="selectAll()">Select all</button><button type="button" class="button-ghost" [disabled]="loading() || busy()" (click)="selected.clear()">Clear selection</button></div>
+    <div class="transaction-list" tabindex="0" role="region" aria-label="Imported transactions">
+    @for (row of rows;track row.id) {
+      <div class="transaction-row"><input type="checkbox" [attr.aria-label]="'Remove transaction ' + row.id" [disabled]="loading() || busy()" [checked]="selected.has(row.id)" (change)="toggle(row.id,$any($event.target).checked)" />
+      <button type="button" class="transaction-detail" [disabled]="loading() || busy()" (click)="edit(row)"><span><strong>{{ row.merchant || row.description }}</strong><small>@if(row.merchant) { {{ row.description }} · }{{ row.date | date:'MMM d, yyyy':'UTC' }} · {{ row.accountName }}</small><small class="flags">@if(row.originalStateUnavailable) {Original state unavailable · Review required } @else if(row.changedSinceImport) {Edited since import · Review required }@if(row.hasPaymentLink) { · Payment linked }@if(row.hasBudgetAssignment) { · Budget assigned }@if(row.pairedTransactionId) { · Transfer paired with {{ row.pairedAccountName }} (#{{ row.pairedTransactionId }}) }</small></span><span>{{ row.amount | currency }}</span></button>
+      </div>
+    } @empty {<p>No matching transactions.</p>}
+    </div>
+    <div class="actions"><button type="button" class="button-outline" [disabled]="!selected.size || loading() || busy()" (click)="checkUndo()">Preview undo · {{ selected.size }} transactions</button></div>
+    @if (data.undoHistory.length) {<details class="audit"><summary>Previous undo operations</summary>@for(op of data.undoHistory;track op.operationId) {<p>{{ op.completedAt | date:'medium' }} · {{ op.removedCount }} transactions removed</p>}</details>}
+  </section>
+}
+@if (transactionId();as id) {<app-edit-transaction [transactionId]="id" (dismiss)="transactionId.set(null)" (changed)="edited()" />}
+@if (preview();as p) {
+  <app-modal title="Review import undo" [busy]="busy()" (dismiss)="preview.set(null)">
+    <p>Remove <strong>{{ p.removeTransactionIds.length }} transactions</strong> from {{ p.batchIds.length }} {{ p.batchIds.length===1 ? 'file' : 'files' }}. This removes ledger entries; it does not restore earlier transaction versions.</p>
+    <div class="table-scroll"><table><thead><tr><th>Account</th><th>Current balance</th><th>After undo</th></tr></thead><tbody>@for(account of p.accounts;track account.accountId) {<tr><td>{{ account.name }}</td><td>{{ account.before | currency }}</td><td>{{ account.after | currency }}</td></tr>}</tbody></table></div>
+    @if (p.transferPairsToDetach) {<p>{{ p.transferPairsToDetach }} transfer pairs will be detached. {{ p.counterpartsPreserved }} counterpart entries will remain with their balances intact. Both entries are removed only when both are selected.</p>}
+    @if (p.budgetAssignmentsToRemove) {<p>{{ p.budgetAssignmentsToRemove }} individual budget assignments will be removed with their transactions.</p>}
+    @if (flaggedSelected) {<label class="check"><input type="checkbox" [(ngModel)]="changedAck" />I reviewed the edited transactions or entries with unavailable original state and want to remove them.</label>}
+    @if (p.paymentLinksToDetach) {<label class="check"><input type="checkbox" [(ngModel)]="paymentAck" />Detach {{ p.paymentLinksToDetach }} payment links. Bills/contributions stay marked paid; other linked transactions remain. Items with no remaining links will await transactions.</label>}
+    @if (p.checkpoints.length) {
+      <h3>Reconciliation checkpoints affected</h3>@for(checkpoint of p.checkpoints;track checkpoint.id) {<p>{{ checkpoint.accountName }} · {{ checkpoint.statementDate | date:'MMM d, yyyy':'UTC' }} · {{ checkpoint.statementBalance | currency }}</p>}
+      <label class="check"><input type="checkbox" [(ngModel)]="reconciliationAck" />Mark these {{ p.checkpoints.length }} checkpoints as needing reconciliation. Preserve their history and the reason for invalidation.</label>
+    }
+    <p class="hint">All approved changes happen together. The original import and this undo remain in history. Undo cannot be automatically reversed.</p>
+    @if(error()) {<p role="alert" class="error">{{ error() }}</p>}
+    <div class="actions"><button type="button" class="button-outline" [disabled]="busy()" (click)="preview.set(null)">Cancel</button><button type="button" class="button-danger" [disabled]="!canConfirm" (click)="confirm()">{{ busy() ? 'Undoing import…' : 'Confirm undo' }}</button></div>
+  </app-modal>
+}

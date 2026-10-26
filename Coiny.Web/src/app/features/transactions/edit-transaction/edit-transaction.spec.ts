@@ -1,3 +1,4 @@
+import { ToastService } from '../../../core/services/toast.service';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -35,6 +36,24 @@ describe('EditTransaction', () => {
     c.request!.notes = 'Discard this'; vi.spyOn(window, 'confirm').mockReturnValue(true); c.cancelEditing(); f.detectChanges(); await f.whenStable();
     expect(c.editing()).toBe(false); expect(c.dirty).toBe(false); expect(c.request!.notes).toBe('Original note');
     expect(f.nativeElement.querySelector('form')).toBeNull();
+  });
+  it('dismisses unchanged details using Close, Escape, or the backdrop without reporting an update', async () => {
+    const f=await render(details,false);const c=f.componentInstance;const changed=vi.fn();const dismiss=vi.fn();c.changed.subscribe(changed);c.dismiss.subscribe(dismiss);
+    const toast=vi.spyOn(TestBed.inject(ToastService),'success');
+    const close=[...f.nativeElement.querySelectorAll('button')].find((b:any)=>b.textContent.trim()==='Close') as HTMLButtonElement;
+    close.click();
+    f.nativeElement.querySelector('dialog').dispatchEvent(new Event('cancel',{cancelable:true}));
+    f.nativeElement.querySelector('dialog').dispatchEvent(new MouseEvent('click',{bubbles:true,clientX:-1,clientY:-1}));
+    expect(dismiss).toHaveBeenCalledTimes(3);expect(changed).not.toHaveBeenCalled();expect(toast).not.toHaveBeenCalled();
+    http.expectNone(r=>r.method==='PUT' || r.method==='POST' || r.method==='DELETE');
+  });
+  it('does not save or emit an update when values are unchanged or restored to their original values', async () => {
+    const f=await render();const c=f.componentInstance;const changed=vi.fn();c.changed.subscribe(changed);
+    expect(f.nativeElement.querySelector('button[type="submit"]').disabled).toBe(true);
+    c.save({invalid:false} as NgForm);http.expectNone(r=>r.method==='PUT');
+    c.request!.notes='Original note  ';expect(c.dirty).toBe(false);
+    c.request!.amount=30;expect(c.dirty).toBe(true);c.request!.amount=25;expect(c.dirty).toBe(false);
+    c.save({invalid:false} as NgForm);c.close();expect(changed).not.toHaveBeenCalled();http.expectNone(r=>r.method==='PUT');
   });
   it('loads notes and provenance, saves corrections with a version, and emits refresh', async () => {
     const f = await render(); const c = f.componentInstance; const changed = vi.fn(); c.changed.subscribe(changed);

@@ -34,7 +34,10 @@ public record ImportRowCheck(int RowId, IReadOnlyList<string> Errors,
 public record TransactionImportValidation(IReadOnlyList<ImportRowCheck> Rows, bool CanImport,
     decimal CurrentBalance, decimal? ProjectedBalance, ImportBalanceComparison? BalanceComparison = null);
 public record TransactionImportResponse(int BatchId, Guid SubmissionId, int AccountId,
-    string Filename, int ImportedCount, DateTime CompletedAt, decimal BalanceAfter);
+    string Filename, int ImportedCount, DateTime CompletedAt, decimal BalanceAfter,int UndoneCount=0,DateTime? LastUndoneAt=null)
+{
+    public string? AccountName { get; init; }
+}
 
 
 public class ImportBankBalanceCheck

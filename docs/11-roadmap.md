@@ -26,11 +26,13 @@ budgeting change.
   assignments are also implemented. The optional available-cash card now uses a
   selected funding pool of cash accounts and credit cards; per-account future flows
   and explicit paycheck matching remain future work.
-- Safe import undo/correction, accounting for edits, transfer links, and bill links.
+- Import review/correction and safe undo are implemented, including transfer/payment
+  links, reconciliation invalidation, and audit history. Future work can add bulk
+  correction tools and older-history pagination.
 - Additional budget-maintenance refinements; direct item editing with effective dates is implemented.
 - Password recovery, password changes, session handling, and login protection.
 - Tested backup/restore and data export.
-- Merchant/category rules and saved CSV column mappings are implemented; import undo/correction is the next import-workflow improvement.
+- Merchant/category rules and saved CSV column mappings are implemented; safe import undo/correction is also implemented.
 
 Statement checkpoints and account reconciliation are implemented; see
 [account reconciliation](12-account-reconciliation.md).
