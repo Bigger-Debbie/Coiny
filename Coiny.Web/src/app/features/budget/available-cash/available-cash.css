@@ -1,0 +1,17 @@
+:host { display:block; min-width:0; }
+strong { display:block; color:var(--color-success); font-size:clamp(1.3rem,2.5vw,2rem); font-weight:500; overflow-wrap:anywhere; }
+strong.negative { color:var(--color-danger); }
+small,.hint { display:block; color:var(--color-text-muted); font-size:.8rem; line-height:1.5; margin-top:.45rem; }
+dl { margin:.8rem 0; } dl div { display:flex; justify-content:space-between; gap:.75rem; padding:.25rem 0; } dd { margin:0; white-space:nowrap; color:var(--color-primary); }
+.account-list { max-height:15rem; overflow-y:auto; scrollbar-gutter:stable; margin:.75rem 0; }
+.account-list label { display:flex; align-items:center; gap:.6rem; border-top:1px solid var(--color-border); padding:.6rem 0; cursor:pointer; }
+.account-list label span:first-of-type { flex:1; min-width:0; overflow-wrap:anywhere; }
+.account-list label span:last-child { white-space:nowrap; }
+.account-list small { margin-top:.15rem; }
+input { flex-shrink:0; width:1rem; height:1rem; accent-color:var(--color-primary); }
+.actions { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.65rem; }
+.actions button { font-size:.8rem; padding:.45rem .65rem; }
+
+.modal-actions { justify-content:flex-end; margin-top:1rem; }
+
+dl .calculation-total { border-top:1px solid var(--color-border); margin-top:.35rem; padding-top:.6rem; font-weight:600; }

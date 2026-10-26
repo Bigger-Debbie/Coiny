@@ -20,7 +20,7 @@ public partial class BudgetActualsService
             .Select(t => new { t.TransactionDate, t.Amount }).ToListAsync();
         var incomeByDate = income.GroupBy(t => DateOnly.FromDateTime(t.TransactionDate)).ToDictionary(g => g.Key,g => g.Sum(t => t.Amount));
         var points = new List<BudgetRemainderPoint>(); var summaries = new List<BudgetForecastPeriod>();
-        decimal plannedCarry = 0, actualCarry = 0, forecastCarry = 0, pendingIncome = 0;
+        decimal plannedCarry = 0, actualCarry = 0, forecastCarry = 0;
         decimal plannedSavings = 0, forecastSavings = 0, plannedInvestments = 0, forecastInvestments = 0;
         if (start > DateOnly.MinValue)
             points.Add(new(start.AddDays(-1),0,start <= today ? 0 : null,start > today ? 0 : null));
@@ -42,20 +42,10 @@ public partial class BudgetActualsService
             forecastInvestments += report?.ForecastInvestmentContributions ?? plan.Allocations.Where(a => a.AllocationType == BudgetAllocationType.Investments).Sum(a => remainingByItem.GetValueOrDefault(a.SourceKey!.Value));
             var daily = (report?.Points ?? projected).ToDictionary(p => p.Date);
             var futureIncome = new Dictionary<DateOnly,decimal>();
-            var incomeToDate = incomeByDate.Where(p => p.Key >= periodStart && p.Key <= periodEnd).Sum(p => p.Value);
-            var credit = incomeToDate;
-            if (periodEnd > today)
-            {
-                foreach (var payday in plan.Events.Where(e => e.IsIncome).OrderBy(e => e.Date))
-                {
-                    var covered = Math.Min(credit,payday.Amount); credit -= covered;
-                    var remaining = payday.Amount - covered;
-                    if (remaining == 0) continue;
-                    var date = payday.Date > today ? payday.Date : today.AddDays(1);
-                    futureIncome[date] = futureIncome.GetValueOrDefault(date) + remaining;
-                    if (payday.Date <= today) pendingIncome += remaining;
-                }
-            }
+            // Once a payday arrives, its forecast is replaced by recorded income only.
+            // A smaller or missing deposit is not a promise that the difference will arrive later.
+            foreach (var payday in plan.Events.Where(e => e.IsIncome && e.Date > today))
+                futureIncome[payday.Date] = futureIncome.GetValueOrDefault(payday.Date) + payday.Amount;
             decimal plannedIncome = 0, recordedIncome = 0, estimatedIncome = 0;
             decimal periodActual = 0, periodForecast = 0, forecastOut = 0;
             for (var date = periodStart; date <= periodEnd;)
@@ -90,7 +80,7 @@ public partial class BudgetActualsService
                 estimatedIncome,forecastOut,periodForecast,plannedCarry,forecastCarry));
         }
         return new() { StartDate=start,EndDate=end,ThroughDate=today < start ? null : today < end ? today : end,Months=months,
-            ExpectedIncomeAwaitingTransaction=pendingIncome,Points=points,Periods=summaries,
+            ExpectedIncomeAwaitingTransaction=0,Points=points,Periods=summaries,
             PlannedSavingsContributions=plannedSavings,ForecastSavingsContributions=forecastSavings,
             PlannedInvestmentContributions=plannedInvestments,ForecastInvestmentContributions=forecastInvestments,
             AdditionalSavings=Math.Max(0,forecastCarry),FundingShortfall=Math.Max(0,-forecastCarry),

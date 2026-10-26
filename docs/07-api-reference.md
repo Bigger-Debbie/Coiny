@@ -1434,7 +1434,9 @@ period containing `asOf` (defaults to today). `months` defaults to 3 and accepts
 only 0 (this period), 1, 3, 6, or 12. The response contains `startDate`, `endDate`,
 nullable `throughDate`, `months`, `expectedIncomeAwaitingTransaction`, daily
 `points`, and `periods`. Ranges always include whole periods and may end after
-the exact calendar-month target.
+the exact calendar-month target. `expectedIncomeAwaitingTransaction` is retained
+for response compatibility and is now zero: paydays today or earlier use actual
+income only, while strictly future paydays use scheduled income.
 
 Daily points contain `date`, signed cumulative `planned`, nullable `actual`, and
 nullable `forecast`. All use a $0 view baseline. Period rows contain `startDate`,
@@ -1643,3 +1645,7 @@ See [saved mapping behavior](16-saved-csv-mappings.md).
 Bill/contribution payment PUT accepts optional `transactionIds` (up to 50 unique IDs), replacing the complete linked set. An empty array detaches all links while retaining manual paid status. Legacy `transactionId` requests remain supported; if both fields are supplied, the single ID must belong to the array. Responses include `transactionIds` and `linkedTransactions`, each with its canonical `actualPostingDate`; legacy single fields describe the first surviving link. Each movement may belong to only one scheduled occurrence or individual assignment. Select only one side of a paired transfer.
 
 Actuals sum all linked transactions on their posting dates, including charges split across months. Forecasts include known future linked amounts once and do not add the settled occurrence's planned amount again. Removing an item releases every associated link. Deleting a transaction removes its link while retaining other links and the independent paid status. Links never create ledger entries or modify balances.
+
+### Available cash outlook
+
+`POST /api/budgets/available-cash` calculates a read-only account-based outlook. Accepts optional `asOf` and nullable `accountIds`; returns current cash/card balances, remaining expected income/allocations, the ending estimate, and eligible account options. Authentication and household ownership are required. See [Available cash outlook](17-available-cash-outlook.md) for defaults, account eligibility, range limits, and response fields.

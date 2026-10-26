@@ -303,7 +303,7 @@ public partial class BudgetService(
         var awaitingTransactions = bills.Concat(contributions)
             .Where(e => e.Payment is { IsPaid: true, TransactionId: null }).ToList();
         return new() {
-            Plan = periodPlan, PlannedPoints = periodPlan is null ? [] : PeriodPoints(start!.Value, end!.Value, periodPlan, published),
+            HouseholdId = householdId, Plan = periodPlan, PlannedPoints = periodPlan is null ? [] : PeriodPoints(start!.Value, end!.Value, periodPlan, published),
             AsOf = date, SourceKey = sourceKey, Sources = sources, StartDate = start, EndDate = end, NextPayday = next,
             Bills = bills, BillsTotal = bills.Sum(e => e.Amount), UnpaidBillsTotal = bills.Where(e => e.Payment?.IsPaid != true).Sum(e => e.Amount), Contributions = contributions,
             ContributionsTotal = contributions.Sum(e => e.Amount),

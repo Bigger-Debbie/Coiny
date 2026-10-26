@@ -35,3 +35,6 @@ export interface BudgetForecast {
   plannedInvestmentContributions?: number; forecastInvestmentContributions?: number;
   additionalSavings?: number; fundingShortfall?: number; potentialSavings?: number; shortfallBeyondSavings?: number;
   startDate: string; endDate: string; throughDate: string | null; months: number; expectedIncomeAwaitingTransaction: number; points: BudgetRemainderPoint[]; periods: BudgetForecastPeriod[]; }
+
+export interface AvailableCashAccount { id:number; name:string; accountType:string; balance:number; isActive:boolean; }
+export interface AvailableCashOutlook { balanceDate:string; endDate:string; cashBalance:number; cardBalance:number; expectedIncome:number; remainingAllocations:number; expectedRemaining:number|null; accountIds:number[]; accounts:AvailableCashAccount[]; }

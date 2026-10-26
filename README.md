@@ -17,7 +17,7 @@ password recovery and complete expired-session handling remain future work.
 | Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic multi-account import and transfer matching, import history, and account/category management and household merchant/category rules and saved CSV mappings | XLS/XLSX imports |
 | History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and account-balance forecasts |
 | Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Monthly budget setup, income-period outlook and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, manual and optional daily recurring-expense scans, household alerts with personal unread badges, and review, and comparisons with category defaults and transaction assignments | Savings funds, account-balance forecasts |
+| Planning | Monthly budget setup, income-period outlook with period-surplus/available-cash views and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, manual and optional daily recurring-expense scans, household alerts with personal unread badges, and review, and comparisons with category defaults and transaction assignments | Savings funds, individual account-balance forecasts |
 
 ## Get started
 
@@ -66,6 +66,7 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Recurring detection and alerts](docs/14-recurring-detection.md) | Manual/daily scans, review decisions, household settings, and personal unread status |
 | [Merchant/category rules](docs/15-merchant-category-rules.md) | Rule management, preview examples, and import suggestions |
 | [Saved CSV mappings](docs/16-saved-csv-mappings.md) | Reusable household bank layouts, header matching, and import confirmation rules |
+| [Available cash outlook](docs/17-available-cash-outlook.md) | Period surplus and a forecast based on selected cash and credit-card balances |
 | [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
 
 ## Next milestones

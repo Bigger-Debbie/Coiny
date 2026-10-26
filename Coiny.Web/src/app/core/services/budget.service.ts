@@ -1,13 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environemnt } from '../../../environments/environment';
-import { BudgetActuals, BudgetForecast } from '../../shared/models/budget/budget-actuals';
+import { AvailableCashOutlook, BudgetActuals, BudgetForecast } from '../../shared/models/budget/budget-actuals';
 import { BudgetManagement, BudgetItemChange, BudgetItemReview, BillPaymentState, BillTransactionCandidate, BudgetEvent, BudgetIncomePeriod, BudgetDraftRequest, BudgetMonth, BudgetPreview, BudgetRevision, BudgetSetup } from '../../shared/models/budget/budget';
 
 @Injectable({ providedIn: 'root' })
 export class BudgetService {
   private readonly http = inject(HttpClient);
   private readonly url = `${environemnt.apiUrl}/budgets`;
+  availableCash(asOf: string, accountIds: number[] | null) { return this.http.post<AvailableCashOutlook>(`${this.url}/available-cash`, { asOf, accountIds }); }
   forecast(asOf: string, months: number) { return this.http.get<BudgetForecast>(`${this.url}/forecast`, { params: { asOf, months } }); }
   actuals(month: string, view: string, type: string, page: number, allocationKey?: string) {
     return this.http.get<BudgetActuals>(`${this.url}/actuals`, { params: { month, view, page, ...(type ? { type } : {}), ...(allocationKey ? { allocationKey } : {}) } });

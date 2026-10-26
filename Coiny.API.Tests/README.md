@@ -90,3 +90,5 @@ Budget actuals tests cover posting-month attribution, effective category rules,
 individual override/reset, payment priority, pending estimates, future months,
 single-count transfer contributions, invalid/foreign assignments, version conflicts,
 and HTTP access/binding contracts.
+
+`BudgetAvailableCashTests` verifies the account-based outlook, card liability signs, no double counting of posted expenses/income, savings selection, future-period continuity, and household account eligibility. The HTTP suite covers the authenticated calculation route.

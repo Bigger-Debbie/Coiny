@@ -1,10 +1,13 @@
+import { SelectMenu } from '../../shared/components/select-menu/select-menu';
+import { AvailableCash } from './available-cash/available-cash';
+import { AuthService } from '../../core/services/auth.service';
 import { RecurringExpenses } from './recurring-expenses';
 import { BudgetItemEditor } from './budget-item-editor';
 import { BudgetService } from '../../core/services/budget.service';
 import { getTrendDates } from '../dashboard/trend-range';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
-import { Component, DestroyRef, inject, Input, OnChanges, SimpleChanges, output, signal } from '@angular/core';
+import { Component, DestroyRef, inject, Input, OnChanges, SimpleChanges, ViewChild, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BudgetMonth, BudgetIncomePeriod, AllocationType, BudgetItemSelection, BudgetMonthlyItem } from '../../shared/models/budget/budget';
@@ -19,11 +22,40 @@ const groups: { type: AllocationType; label: string; color: string }[] = [
   { type: 'Investments', label: 'Investing', color: '#d4a027' },
 ];
 @Component({
-  selector: 'app-budget-dashboard', imports: [RecurringExpenses, CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
+  selector: 'app-budget-dashboard', imports: [SelectMenu, AvailableCash, RecurringExpenses, CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
   templateUrl: './budget-dashboard.html', styleUrl: './budget-dashboard.css',
 })
 export class BudgetDashboard implements OnChanges {
   private readonly api = inject(BudgetService);
+  private readonly auth = inject(AuthService);
+  @ViewChild(AvailableCash) cashOutlook?: AvailableCash;
+  readonly outlookOptions = [{value:'surplus',label:'Period surplus'},{value:'cash',label:'Available cash'}];
+  readonly outlookView = signal<'surplus'|'cash'>('surplus');
+  readonly cashRemainder = signal<number|null>(null);
+  readonly cashRefresh = signal(0);
+  readonly cashAccountIds = signal<number[]|null>(null);
+  private preferenceScope: string | null = null;
+  private restoreOutlook() {
+    const household = this.period()?.householdId; const user = this.auth.currentUser()?.id;
+    const key = household && user ? `coiny.cash-outlook.${user}.${household}` : null;
+    if (this.preferenceScope === key) return;
+    this.preferenceScope = key; this.outlookView.set('surplus'); this.cashAccountIds.set(null);
+    if (!key) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem(key) ?? 'null');
+      if (stored?.view === 'cash') this.outlookView.set('cash');
+      if (Array.isArray(stored?.accountIds) && stored.accountIds.length <= 200 && stored.accountIds.every((id:unknown) => typeof id === 'number' && Number.isInteger(id) && id > 0))
+        this.cashAccountIds.set(stored.accountIds);
+    } catch { /* Unavailable storage leaves the default view usable. */ }
+  }
+  private rememberOutlook() {
+    if (!this.preferenceScope) return;
+    try { localStorage.setItem(this.preferenceScope,JSON.stringify({ view:this.outlookView(),accountIds:this.cashAccountIds() })); } catch { /* The view still works without persistence. */ }
+  }
+  selectOutlook(view: string | number | null) {
+    if (view !== 'surplus' && view !== 'cash') return; this.cashRemainder.set(null); this.outlookView.set(view); this.rememberOutlook(); }
+  saveCashAccounts(ids:number[]) { this.cashAccountIds.set(ids); this.rememberOutlook(); }
+
   private readonly destroy = inject(DestroyRef);
   private request?: Subscription;
   private forecastRequest?: Subscription;
@@ -31,6 +63,7 @@ export class BudgetDashboard implements OnChanges {
   readonly remainderLoading = signal(false);
   readonly remainderError = signal(false);
   loadRemainder() {
+    this.cashRefresh.update(value => value + 1);
     this.forecastRequest?.unsubscribe(); this.expectedRemainder.set(null); this.remainderError.set(false);
     const period = this.period();
     if (this.mode() !== 'period' || !period?.plan || !period.startDate) { this.remainderLoading.set(false); return; }
@@ -74,9 +107,9 @@ export class BudgetDashboard implements OnChanges {
   }
   loadPeriod(asOf = this.referenceDate) {
     this.forecastRequest?.unsubscribe(); this.expectedRemainder.set(null);
-    this.referenceDate = asOf; this.request?.unsubscribe(); this.periodLoading.set(true); this.periodError.set(false);
+    this.cashRemainder.set(null); this.referenceDate = asOf; this.request?.unsubscribe(); this.periodLoading.set(true); this.periodError.set(false);
     this.request = this.api.incomePeriod(null,asOf).pipe(takeUntilDestroyed(this.destroy)).subscribe({
-      next: period => { this.period.set(period); this.periodLoading.set(false); this.loadRemainder(); },
+      next: period => { this.period.set(period); this.restoreOutlook(); this.periodLoading.set(false); this.loadRemainder(); },
       error: () => { this.periodError.set(true); this.periodLoading.set(false); },
     });
   }

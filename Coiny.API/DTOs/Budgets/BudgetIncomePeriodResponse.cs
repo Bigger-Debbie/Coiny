@@ -2,6 +2,7 @@ namespace Coiny.API.DTOs.Budgets;
 
 public class BudgetIncomePeriodResponse
 {
+    public int HouseholdId { get; init; }
     public BudgetMonthResponse? Plan { get; init; }
     public IReadOnlyList<BudgetComparisonPoint> PlannedPoints { get; init; } = [];
     public decimal ExpectedRemaining => Plan is null ? 0 : Plan.ExpectedIncome - Plan.Allocated;

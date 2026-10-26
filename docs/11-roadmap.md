@@ -19,11 +19,13 @@ budgeting change.
 
 ## Other planned areas
 
-- Account-balance forecasting and explicit paycheck/source matching. The zero-based
+- Individual account-balance forecasting and explicit paycheck/source matching. The zero-based
   running remainder across complete household income periods is implemented for
   this period and 1/3/6/12 months, carrying surpluses and shortfalls forward.
   Allocation-detail forecasts, comparisons, category defaults, and individual
-  assignments are also implemented.
+  assignments are also implemented. The optional available-cash card now uses a
+  selected funding pool of cash accounts and credit cards; per-account future flows
+  and explicit paycheck matching remain future work.
 - Safe import undo/correction, accounting for edits, transfer links, and bill links.
 - Additional budget-maintenance refinements; direct item editing with effective dates is implemented.
 - Password recovery, password changes, session handling, and login protection.

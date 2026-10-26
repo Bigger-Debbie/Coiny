@@ -25,23 +25,31 @@
       <div class="totals" aria-label="Planned outlook totals">
         <div class="panel income-total"><span>{{ mode() === 'period' ? 'Income this period' : 'Take-home income' }}</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
         <div class="panel allocations-total"><span>{{ mode() === 'period' ? 'Allocations this period' : 'Planned allocations' }}</span><strong>{{ plan.allocated | currency }}</strong></div>
-        <div class="panel remaining-total" [class.over]="mode() === 'period' ? (expectedRemainder() ?? 0) < 0 : plan.overBudget > 0">
-          <div class="remainder-heading">{{ mode() === 'period' ? 'Expected remaining' : 'Monthly remainder' }}@if (unlinkedReserve > 0) {
+        <div class="panel remaining-total" [class.over]="mode() === 'period' ? ((outlookView() === 'cash' ? cashRemainder() : expectedRemainder()) ?? 0) < 0 : plan.overBudget > 0">
+          <div class="remainder-heading">{{ mode() === 'period' ? (outlookView() === 'cash' ? 'Expected available cash' : 'Expected period surplus') : 'Monthly remainder' }}@if (unlinkedReserve > 0) {
             <em class="unlinked-reserve"> ({{ unlinkedReserve | currency }} awaiting transaction links)</em>
             <details class="reserve-help" #reserveHelp (keydown.escape)="reserveHelp.open = false; $event.stopPropagation()" (document:click)="closeReserveHelp(reserveHelp, $event)">
               <summary aria-label="Why unlinked payments affect the expected remainder" (click)="$event.preventDefault(); reserveHelp.open = !reserveHelp.open">?</summary>
               <div class="reserve-explanation">Marked-paid bills and contributions still reserve their planned amounts until linked. Their transactions may already count as spending.</div>
             </details>
           }</div>
-          @if (mode() === 'period') {
+          @if (mode() === 'period' && outlookView() === 'cash') {
+            <app-available-cash [refreshKey]="cashRefresh()" [asOf]="period()!.startDate!" [accountIds]="cashAccountIds()" (accountsSaved)="saveCashAccounts($event)" (amountChanged)="cashRemainder.set($event)" />
+          } @else if (mode() === 'period') {
             @if (expectedRemainder() !== null) { <strong>{{ expectedRemainder() | currency }}</strong> }
             @else { <strong aria-label="Forecast unavailable">—</strong> }
             <small>Planned remainder {{ (plan.expectedIncome - plan.allocated) | currency }}</small>
             @if (remainderLoading()) { <small role="status">Updating forecast…</small> }
             @else if (remainderError()) { <small>Forecast couldn’t load. <button type="button" class="button-ghost" (click)="loadRemainder()">Try again</button></small> }
-            @else { <small>Actuals to date + expected income and allocations still to come.</small> }
+            @else { <small>Actuals + remaining income and allocations; excludes starting balances.</small> }
           } @else {
             <strong>{{ (plan.expectedIncome - plan.allocated) | currency }}</strong><small>{{ plan.overBudget > 0 ? 'Requires funds carried forward.' : 'After planned spending, savings, and contributions.' }}</small>
+          }
+          @if (mode() === 'period') {
+            <div class="outlook-footer">
+              @if (outlookView() === 'cash') { <button type="button" class="button-ghost calculation-button" (click)="cashOutlook?.openDetails()">Accounts & calculation</button> }
+              <app-select-menu class="outlook-menu" inputId="remainder-calculation" label="Remainder calculation" [options]="outlookOptions" [ngModel]="outlookView()" (ngModelChange)="selectOutlook($event)" />
+            </div>
           }
         </div>
       </div>

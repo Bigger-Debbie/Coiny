@@ -32,6 +32,22 @@ public class BudgetApiTests
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
     [Fact]
+    public async Task Available_cash_route_returns_owned_options_and_requires_authentication()
+    {
+        await using var host=await Api.Create(); var service=host.Database.Service();
+        var draft=await service.StartDraftAsync(new(2026,11,1));
+        var saved=await service.SaveDraftAsync(draft.Id,JsonSerializer.Deserialize<BudgetDraftRequest>(CompleteDraft,Json)!);
+        await service.PublishDraftAsync(saved.Id,saved.EditVersion);
+        host.Database.Clock.Now=new(2026,11,14,16,0,0,TimeSpan.Zero);
+        var c=host.Database.Context(); c.Accounts.Add(new Coiny.API.Models.Account {HouseholdId=1,Name="Checking",OpeningBalance=500,OpeningBalanceDate=new(2026,11,1)}); await c.SaveChangesAsync();
+        var response=await host.Client.PostAsJsonAsync("/api/budgets/available-cash",new {asOf="2026-11-14"}); response.EnsureSuccessStatusCode();
+        var result=(await response.Content.ReadFromJsonAsync<AvailableCashResponse>(Json))!;
+        Assert.Single(result.Accounts); Assert.Equal(500,result.CashBalance); Assert.NotNull(result.ExpectedRemaining);
+        Assert.Equal(HttpStatusCode.BadRequest,(await host.Client.PostAsJsonAsync("/api/budgets/available-cash",new {asOf="2026-11-14",accountIds=new[]{999}})).StatusCode);
+        host.Client.DefaultRequestHeaders.Remove("Test-Household");
+        Assert.Equal(HttpStatusCode.Unauthorized,(await host.Client.PostAsJsonAsync("/api/budgets/available-cash",new {})).StatusCode);
+    }
+    [Fact]
     public async Task Saved_csv_mapping_routes_validate_payload_scope_versions_and_authentication()
     {
         await using var host=await Api.Create();

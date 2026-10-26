@@ -1,0 +1,37 @@
+@if (loading()) { <strong aria-label="Available cash loading">—</strong><small role="status">Calculating available cash…</small> }
+@else if (error()) {
+  <strong aria-label="Available cash unavailable">—</strong><small role="alert">{{ error() }}</small>
+  <div class="actions"><button type="button" class="button-ghost" (click)="load()">Try again</button><button type="button" class="button-ghost" (click)="load(null,true)">Reset accounts</button></div>
+} @else if (data(); as result) {
+  <strong [class.negative]="(result.expectedRemaining ?? 0) < 0">{{ result.expectedRemaining === null ? '—' : (result.expectedRemaining | currency) }}</strong>
+  <small>Today's selected balances, less card debt and remaining allocations, plus upcoming scheduled income.</small>
+  @if (result.expectedRemaining === null) { <small>Choose funding accounts using Accounts & calculation.</small> }
+}
+@if (detailsOpen()) {
+  <app-modal title="Available cash · Accounts & calculation" [busy]="loading()" (dismiss)="detailsOpen.set(false)">
+    @if (loading()) { <p role="status">Updating available cash…</p> }
+    @else if (error()) {
+      <p role="alert">{{ error() }}</p>
+      <div class="actions"><button type="button" class="button-outline" (click)="load()">Try again</button><button type="button" class="button-outline" (click)="load(null,true)">Reset accounts</button></div>
+    } @else if (data(); as result) {
+    <p class="hint">Balances as of {{ result.balanceDate | date:'MMM d':'UTC' }}; outlook through {{ result.endDate | date:'MMM d, yyyy':'UTC' }}. This includes savings goals and investment contributions still to come.</p>
+    <dl>
+      <div><dt>Cash in selected accounts</dt><dd>{{ result.cashBalance | currency }}</dd></div>
+      <div><dt>{{ result.cardBalance < 0 ? 'Credit on selected cards' : 'Credit cards to pay off' }}</dt><dd>{{ -result.cardBalance | currency }}</dd></div>
+      <div><dt>Upcoming scheduled income</dt><dd>{{ result.expectedIncome | currency }}</dd></div>
+      <div><dt>Remaining spending & contributions</dt><dd>{{ -result.remainingAllocations | currency }}</dd></div>
+      <div class="calculation-total"><dt>Expected available cash</dt><dd>{{ result.expectedRemaining === null ? '—' : (result.expectedRemaining | currency) }}</dd></div>
+    </dl>
+    <p class="hint">Include accounts that fund your budget and cards you plan to pay off. Savings accounts are opt-in; leave emergency or earmarked funds unchecked. The spending plan still covers the whole household.</p>
+    <div class="account-list" role="group" aria-label="Accounts included in available cash">
+      @for (account of result.accounts; track account.id) {
+        <label><input type="checkbox" [checked]="draft.includes(account.id)" (change)="toggle(account.id,$any($event.target).checked)" /><span>{{ account.name }}<small>{{ account.accountType === 'CreditCard' ? 'Credit card · owed' : 'Cash balance' }}@if (!account.isActive) { · Archived }</small></span><span>{{ account.balance | currency }}</span></label>
+      } @empty { <p>No cash or credit-card accounts are available.</p> }
+    </div>
+    @if (!hasCash) { <p class="hint">Select at least one cash account.</p> }
+    @if (changed) { <small>Apply account changes to update the estimate.</small> }
+    <p class="hint">Based on recorded balances, not a live bank connection. Unlinked paid items remain reserved. Transfers are not additional expenses; money in excluded accounts is not available here.</p>
+    <div class="actions modal-actions"><button type="button" class="button-outline" (click)="detailsOpen.set(false)">Close</button><button type="button" class="button-primary apply-accounts" [disabled]="!hasCash || !changed" (click)="apply()">Apply accounts</button></div>
+    }
+  </app-modal>
+}

@@ -28,6 +28,7 @@ export interface BudgetMonth {
 export interface BudgetPreview { draftId: number; editVersion: number; month: BudgetMonth; }
 
 export interface BudgetIncomePeriod {
+  householdId?: number;
   plan?: BudgetMonth | null; expectedRemaining?: number; plannedPoints?: import('./budget-actuals').BudgetComparisonPoint[];
   asOf: string; sourceKey: string | null; sources: { sourceKey: string; name: string }[];
   startDate: string | null; endDate: string | null; nextPayday: string | null;

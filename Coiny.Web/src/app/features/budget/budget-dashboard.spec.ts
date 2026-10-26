@@ -1,3 +1,4 @@
+import { AuthService } from '../../core/services/auth.service';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BudgetCalendar } from './budget-calendar';
@@ -61,6 +62,25 @@ describe('BudgetDashboard', () => {
     expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('—');
     expect(f.nativeElement.querySelector('.remaining-total').textContent).toContain('Forecast couldn’t load');
     f.componentInstance.selectMode('month'); f.detectChanges(); expect(f.componentInstance.displayPlan).toEqual(plan); expect(f.nativeElement.querySelector('.unlinked-reserve')).toBeNull(); http.verify();
+  });
+  it('restores the chosen outlook and accounts for this user and household', () => {
+    const key='coiny.cash-outlook.cash-user.3';
+    TestBed.overrideProvider(AuthService,{useValue:{currentUser:()=>({id:'cash-user'})}});
+    const storage=new Map<string,string>();
+    vi.stubGlobal('localStorage',{getItem:(key:string)=>storage.get(key) ?? null,setItem:(key:string,value:string)=>storage.set(key,value),removeItem:(key:string)=>storage.delete(key)});
+    localStorage.setItem(key,JSON.stringify({view:'cash',accountIds:[1,3]}));
+    try {
+      const f=TestBed.createComponent(BudgetDashboard); const http=TestBed.inject(HttpTestingController);
+      f.componentRef.setInput('month',plan); f.componentRef.setInput('selectedMonth','2026-10-01'); f.detectChanges();
+      http.expectOne(r=>r.url.endsWith('/income-period')).flush({householdId:3,asOf:'2026-10-26',startDate:'2026-10-16',endDate:'2026-10-29',nextPayday:'2026-10-30',sourceKey:null,sources:[],bills:[],contributions:[],billsTotal:0,contributionsTotal:0,plan});
+      http.expectOne(r=>r.url.endsWith('/forecast')).flush({points:[{date:'2026-10-29',forecast:488.39}]}); f.detectChanges();
+      const cash=http.expectOne(r=>r.url.endsWith('/available-cash')); expect(cash.request.body.accountIds).toEqual([1,3]);
+      cash.flush({balanceDate:'2026-10-26',endDate:'2026-10-29',cashBalance:500,cardBalance:100,expectedIncome:0,remainingAllocations:100,expectedRemaining:300,accountIds:[1,3],accounts:[]}); f.detectChanges();
+      expect(f.nativeElement.querySelector('app-available-cash').textContent).toContain('$300.00');
+      f.componentInstance.selectOutlook('surplus'); f.changeDetectorRef.markForCheck(); f.detectChanges();
+      expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('$488.39');
+      expect(JSON.parse(localStorage.getItem(key)!).view).toBe('surplus'); http.verify();
+    } finally { vi.unstubAllGlobals(); }
   });
   it('uses fixed unique budget colors with green reserved for the remainder', () => {
     const types: AllocationType[]=['Housing','Bills','Subscriptions','Spending','Savings','Investments'];

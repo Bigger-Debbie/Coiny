@@ -108,21 +108,37 @@ public class BudgetRunningForecastTests
         Assert.Equal(-750,Assert.Single(forecast.Points,p=>p.Date==new DateOnly(2026,10,10)).Actual);
         Assert.Equal(0,forecast.Periods[1].ForecastAllocations); Assert.Equal(250,forecast.Periods[1].CumulativeForecast);
     }
-    [Fact] public async Task Pending_income_is_explicit_and_queued_budget_changes_apply_to_future_periods()
+    [Fact] public async Task Past_paydays_do_not_invent_income_and_queued_budget_changes_apply_to_future_periods()
     {
         await using var db=await BudgetTestDatabase.CreateAsync(); var keys=await Plan(db);
         db.Clock.Now=new(2026,10,10,16,0,0,TimeSpan.Zero);
         var forecast=await Service(db).GetForecastAsync(new(2026,10,10),1);
-        Assert.Equal(1000,forecast.ExpectedIncomeAwaitingTransaction);
+        Assert.Equal(0,forecast.ExpectedIncomeAwaitingTransaction);
         Assert.Equal(0,Assert.Single(forecast.Points,p=>p.Date==new DateOnly(2026,10,10)).Actual);
-        Assert.Equal(500,forecast.Periods[0].ForecastRemainder);
+        Assert.Equal(-500,forecast.Periods[0].ForecastRemainder);
         var management=await db.Service().GetManagementAsync();
         await db.Service().ChangeItemAsync(new() { ExpectedRevisionId=management.Revision.Id,SourceKey=keys["Second bill"],EffectiveDate=new(2026,10,16),
             Allocation=new() { Name="Second bill",Amount=1000,AllocationType=BudgetAllocationType.Bills,Schedule=management.Revision.Allocations.Single(a=>a.Name=="Second bill").Schedule } },false);
         forecast=await Service(db).GetForecastAsync(new(2026,10,10),1);
-        Assert.Equal(0,forecast.Periods[1].ForecastRemainder); Assert.Equal(500,forecast.Periods[1].CumulativeForecast);
+        Assert.Equal(0,forecast.Periods[1].ForecastRemainder); Assert.Equal(-500,forecast.Periods[1].CumulativeForecast);
         await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).GetForecastAsync(new(2026,10,10),2));
         await Assert.ThrowsAsync<ArgumentException>(()=>Service(db,2).GetForecastAsync(new(2026,10,10),1));
+    }
+    [Theory]
+    [InlineData(800,300)]
+    [InlineData(1200,700)]
+    public async Task Past_paydays_use_actual_income_and_extra_deposits_update_the_forecast(decimal deposited,decimal remainder)
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync(); await Plan(db); await Ledger(db);
+        var c=db.Context(); (await c.Transactions.SingleAsync(t=>t.Id==1)).Amount=deposited; await c.SaveChangesAsync();
+        // The payday is today: do not assume even today's missing difference is incoming.
+        db.Clock.Now=new(2026,10,2,16,0,0,TimeSpan.Zero);
+        var forecast=await Service(db).GetForecastAsync(new(2026,10,2),1);
+        Assert.Equal(deposited,forecast.Periods[0].ForecastIncome); Assert.Equal(remainder,forecast.Periods[0].ForecastRemainder);
+        Assert.Equal(1000,forecast.Periods[1].ForecastIncome); Assert.Equal(0,forecast.ExpectedIncomeAwaitingTransaction);
+        c.Transactions.Add(new() {Id=5,HouseholdId=1,AccountId=1,CategoryId=2,Description="Extra income",Amount=25,TransactionDate=new(2026,10,2)}); await c.SaveChangesAsync();
+        forecast=await Service(db).GetForecastAsync(new(2026,10,2),0);
+        Assert.Equal(deposited+25,forecast.Periods[0].ForecastIncome); Assert.Equal(remainder+25,forecast.Periods[0].ForecastRemainder);
     }
     [Fact] public async Task Transfer_paid_early_for_a_future_budget_item_counts_once_in_the_posting_period()
     {

@@ -79,3 +79,8 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 .remaining-total.over { border-color:var(--color-danger); }
 .remaining-total.over strong { color:var(--color-danger); }
 @media(max-width:800px) { .outlook-controls { justify-items:center; } }
+
+.totals > .remaining-total { justify-content:flex-start; }
+.outlook-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; margin-top:auto; padding-top:.85rem; }
+.outlook-menu { display:block; width:10.75rem; max-width:100%; margin-left:auto; }
+.calculation-button { padding:.3rem 0; font-size:.8rem; text-align:left; }

@@ -180,9 +180,11 @@ zero line and retains signed values rather than clamping shortfalls.
 - Actual income uses household Income-category transactions on posting dates;
   transfers never create household income. Actual allocations use the same posted
   expenses and explicitly assigned/linked contributions as the allocation report.
-- Recorded income offsets expected income within each period. Unrecorded scheduled
-  income in the current period is estimated on the next day and called out. This
-  is an assumption; there is no paycheck-to-transaction matching yet.
+- Paydays today or earlier use actual income transactions only. Missing or smaller
+  deposits are not topped up to planned amounts, and extra income counts when it
+  posts. Only strictly future paydays contribute planned income to the forecast.
+  The plan remains unchanged for comparison; no paycheck confirmation is required.
+  Explicit paycheck-to-transaction matching is not implemented.
 - Forecast meets the current actual value exactly and carries each period's result
   forward. Future periods use the remaining-plan estimator, including already-paid
   occurrences, so early bill/contribution payments are not charged again later.
@@ -230,7 +232,7 @@ savings goals are included; this is not a free-cash or savings-fund balance.
 
 ## Income-period headline and display details
 
-The top **Expected remaining** card uses the ending result from the running forecast
+The top **Period surplus** view uses the ending result from the running forecast
 with `months=0` for the selected household income period. It combines actual posted
 income and allocations to date with expected income and remaining allocations.
 For completed periods it uses the final recorded result; future periods use the
@@ -248,3 +250,5 @@ Helper copy below controls and values has a small shared spacing adjustment.
 The payment calendar selects today by default when today falls within the selected
 income period. Other periods select their first day; payment refreshes preserve
 an explicitly selected day.
+
+The card also offers an account-based **Available cash** view. See [Available cash outlook](17-available-cash-outlook.md) for account selection, calculation boundaries, and API details.
