@@ -21,7 +21,7 @@
       }
       <div class="budget-layout" [class.setup-layout]="wizard()">
         @if (wizard()) {
-          <form class="panel editor" [formGroup]="form" (ngSubmit)="save(step() < 5 ? step() + 1 : 5)" novalidate>
+          <form class="panel editor" [formGroup]="form" (ngSubmit)="save(step() < 6 ? step() + 1 : 6)" novalidate>
             <fieldset [disabled]="busy() || conflict()">
               <h2 #stepHeading tabindex="-1">{{ steps[step()].label }}</h2><p>{{ steps[step()].description }}</p>
               @if (step() === 0) {
@@ -44,7 +44,11 @@
                   </article>
                 } @empty { <p class="empty">No income sources yet. You can save an empty step and return later.</p> }
                 <button type="button" class="button-outline" (click)="addIncome()">+ Add income source</button>
-              } @else if (step() < 5) {
+              } @else if (step() === 5) {
+                <p class="hint">Save the earlier steps before creating goals. Goal changes update this saved draft; publish it when your plan is ready.</p>
+                @if (!dirty) { <app-savings-funds [draft]="draft()" (changed)="fundsChanged()" /> }
+                @else { <p>Save this step to refresh the budget before reviewing savings goals.</p> }
+              } @else if (step() < 6) {
                 @for (allocation of allocations.controls; track allocation; let i = $index) {
                   @if (visibleAllocation(allocation)) {
                     <article class="entry" [formGroup]="group(allocation)">
@@ -59,7 +63,7 @@
                     </article>
                   }
                 }
-                <button type="button" class="button-outline" (click)="addAllocation()">+ {{ step() === 1 ? 'Add housing or bill' : step() === 2 ? 'Add subscription' : step() === 3 ? 'Add spending allocation' : 'Add savings or investment' }}</button>
+                <button type="button" class="button-outline" (click)="addAllocation()">+ {{ step() === 1 ? 'Add housing or bill' : step() === 2 ? 'Add subscription' : step() === 3 ? 'Add spending allocation' : 'Add investment' }}</button>
               } @else {
                 <p class="hint">Save any final changes to refresh the review. Publication requires at least one positive income source and schedules for housing, bills, and subscriptions. Publishing also releases transaction links for removed payment occurrences; transactions and balances are preserved.</p>
                 @if (projection(); as month) {
@@ -74,8 +78,8 @@
             <div class="wizard-actions">
               @if (step() > 0) { <button type="button" class="button-ghost" [disabled]="busy() || conflict()" (click)="save(step() - 1)">Back</button> }
               <button type="button" class="button-outline" [disabled]="busy() || conflict()" (click)="save(step(), true)">Save & exit</button>
-              <button type="submit" class="button-primary" [disabled]="busy() || conflict()">{{ busy() ? 'Saving…' : step() < 5 ? 'Save & continue' : 'Save review' }}</button>
-              @if (step() === 5) { <button type="button" class="button-accent" [disabled]="busy() || dirty || conflict() || !publishableMonth || !projection()" (click)="publish()">Publish budget</button> }
+              <button type="submit" class="button-primary" [disabled]="busy() || conflict()">{{ busy() ? 'Saving…' : step() < 6 ? 'Save & continue' : 'Save review' }}</button>
+              @if (step() === 6) { <button type="button" class="button-accent" [disabled]="busy() || dirty || conflict() || !publishableMonth || !projection()" (click)="publish()">Publish budget</button> }
             </div>
           </form>
         }

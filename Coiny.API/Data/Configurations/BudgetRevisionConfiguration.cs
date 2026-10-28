@@ -25,7 +25,7 @@ public class BudgetRevisionConfiguration : IEntityTypeConfiguration<BudgetRevisi
                 "substr(\"EffectiveFromMonth\", 9, 2) = '01'");
             table.HasCheckConstraint("CK_BudgetRevisions_State",
                 "(\"State\" = 0 AND \"PublishedAt\" IS NULL) OR (\"State\" = 1 AND \"PublishedAt\" IS NOT NULL)");
-            table.HasCheckConstraint("CK_BudgetRevisions_SetupStep", "\"SetupStep\" BETWEEN 0 AND 5");
+            table.HasCheckConstraint("CK_BudgetRevisions_SetupStep", "\"SetupStep\" BETWEEN 0 AND 7");
         });
     }
 }

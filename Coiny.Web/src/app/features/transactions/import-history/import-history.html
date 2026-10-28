@@ -34,7 +34,7 @@
     @if (p.transferPairsToDetach) {<p>{{ p.transferPairsToDetach }} transfer pairs will be detached. {{ p.counterpartsPreserved }} counterpart entries will remain with their balances intact. Both entries are removed only when both are selected.</p>}
     @if (p.budgetAssignmentsToRemove) {<p>{{ p.budgetAssignmentsToRemove }} individual budget assignments will be removed with their transactions.</p>}
     @if (flaggedSelected) {<label class="check"><input type="checkbox" [(ngModel)]="changedAck" />I reviewed the edited transactions or entries with unavailable original state and want to remove them.</label>}
-    @if (p.paymentLinksToDetach) {<label class="check"><input type="checkbox" [(ngModel)]="paymentAck" />Detach {{ p.paymentLinksToDetach }} payment links. Bills/contributions stay marked paid; other linked transactions remain. Items with no remaining links will await transactions.</label>}
+    @if (p.paymentLinksToDetach) {<label class="check"><input type="checkbox" [(ngModel)]="paymentAck" />Detach {{ p.paymentLinksToDetach }} payment or fund links. Bills/contributions stay marked paid; other linked transactions remain. Review affected savings allocations afterward.</label>}
     @if (p.checkpoints.length) {
       <h3>Reconciliation checkpoints affected</h3>@for(checkpoint of p.checkpoints;track checkpoint.id) {<p>{{ checkpoint.accountName }} · {{ checkpoint.statementDate | date:'MMM d, yyyy':'UTC' }} · {{ checkpoint.statementBalance | currency }}</p>}
       <label class="check"><input type="checkbox" [(ngModel)]="reconciliationAck" />Mark these {{ p.checkpoints.length }} checkpoints as needing reconciliation. Preserve their history and the reason for invalidation.</label>

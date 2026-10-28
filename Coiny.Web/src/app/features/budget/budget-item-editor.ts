@@ -15,6 +15,7 @@ import { BudgetScheduleEditor } from './budget-schedule';
 })
 export class BudgetItemEditor implements OnInit {
   @Input() selection: BudgetItemSelection | null = null;
+  readonly manageFund=output<string>();
   readonly dismiss = output<void>(); readonly saved = output<void>();
   private readonly api = inject(BudgetService); private readonly destroy = inject(DestroyRef);
   private readonly toast = inject(ToastService); private readonly fb = inject(UntypedFormBuilder);
@@ -52,6 +53,7 @@ export class BudgetItemEditor implements OnInit {
     }, error:e=>{ this.busy.set(false); this.error.set(e.error?.detail || 'Budget items couldn’t load. Try again.'); } });
   }
   open(item: BudgetIncome | BudgetAllocation | null, income: boolean, type?: string) {
+    if(!income && (item as BudgetAllocation)?.savingsPlan && item?.sourceKey){this.manageFund.emit(item.sourceKey);return;}
     this.item=item; this.isIncome=income; this.removing=false; this.attempted=false; this.review.set(null); this.error.set('');
     this.form.removeControl('schedule');
     this.form.reset({ name:item?.name ?? '',amount:item?.amount ?? null,allocationType:(item as BudgetAllocation)?.allocationType ?? type ?? 'Bills',

@@ -44,6 +44,7 @@ public class ImportUndoService(CoinyContext context,ICurrentUserService user,IAc
         if(scope.Any(t=>t.PairedTransactionId is int id && !pairs.Any(p=>p.Id==id && p.PairedTransactionId==t.Id))) throw Changed();
         var movementIds=scope.Select(t=>t.Id).Concat(pairIds).Distinct().ToArray();
         var payments=await context.BillPayments.AsNoTracking().Include(p=>p.Links).Where(p=>p.HouseholdId==household && (p.TransactionId.HasValue && movementIds.Contains(p.TransactionId.Value) || p.Links.Any(l=>movementIds.Contains(l.TransactionId)))).OrderBy(p=>p.Id).ToListAsync();
+        var savings=await context.Set<SavingsActivity>().AsNoTracking().Where(a=>a.SavingsFund.HouseholdId==household && a.TransactionId.HasValue && movementIds.Contains(a.TransactionId.Value)).OrderBy(a=>a.Id).ToListAsync();
         var assignments=await context.TransactionBudgetAssignments.AsNoTracking().Where(a=>a.HouseholdId==household && movementIds.Contains(a.TransactionId)).OrderBy(a=>a.Id).ToListAsync();
         var originals=batches.ToDictionary(b=>b.Id,b=>string.IsNullOrEmpty(b.OriginalStateJson)?new List<ImportOriginalState>():JsonSerializer.Deserialize<List<ImportOriginalState>>(b.OriginalStateJson) ?? []);
         var rows=scope.Select(t=>{
@@ -52,7 +53,7 @@ public class ImportUndoService(CoinyContext context,ICurrentUserService user,IAc
             bool Match(int? id)=>id==t.Id || pair is not null && id==pair.Id;
             return new ImportUndoRow(t.Id,t.ImportBatchId.Value,t.AccountId,t.Account.Name,DateOnly.FromDateTime(t.TransactionDate),t.Amount,t.Description,t.Merchant,
                 original is not null && (original.EditVersion!=t.EditVersion || original.PairedTransactionId!=t.PairedTransactionId),original is null,
-                t.PairedTransactionId,pair?.Account.Name,pair?.ImportBatchId,payments.Any(p=>Match(p.TransactionId)||p.Links.Any(l=>Match(l.TransactionId))),assignments.Any(a=>Match(a.TransactionId)));
+                t.PairedTransactionId,pair?.Account.Name,pair?.ImportBatchId,payments.Any(p=>Match(p.TransactionId)||p.Links.Any(l=>Match(l.TransactionId))) || savings.Any(a=>Match(a.TransactionId)),assignments.Any(a=>Match(a.TransactionId)));
         }).ToList();
         var remove=request.RemoveTransactionIds ?? rows.Where(r=>!r.ChangedSinceImport && !r.OriginalStateUnavailable).Select(r=>r.Id).ToArray();
         if(remove.Length>8000 || remove.Distinct().Count()!=remove.Length || remove.Any(id=>!scope.Any(t=>t.Id==id))) throw new ArgumentException("Choose transactions from the reviewed imports.");
@@ -73,11 +74,11 @@ public class ImportUndoService(CoinyContext context,ICurrentUserService user,IAc
         var history=(await context.Set<TransactionImportUndo>().AsNoTracking().Where(o=>o.HouseholdId==household).OrderByDescending(o=>o.Id).Select(o=>new{o.OperationId,o.ActorUserId,o.BatchIdsJson,o.ResultJson}).ToListAsync())
             .Where(o=>(JsonSerializer.Deserialize<int[]>(o.BatchIdsJson) ?? []).Any(id=>relatedIds.Contains(id))).Take(50)
             .Select(o=>JsonSerializer.Deserialize<ImportUndoResult>(o.ResultJson) is {} result ? new ImportUndoHistory(o.OperationId,result.CompletedAt,result.RemovedCount,o.ActorUserId):null).Where(o=>o is not null).Cast<ImportUndoHistory>().ToList();
-        var fingerprint=Hash(new {Batches=batches.Select(b=>new {b.Id,b.OriginalStateJson,b.UndoneCount,b.LastUndoneAt}),Scope=scope.Select(State),Pairs=pairs.Select(State),Remove=remove,Accounts=accounts.Select(a=>new{a.Id,a.Name,a.AccountType,a.OpeningBalance,a.OpeningBalanceDate}),Ledger=ledger.Select(State),Payments=payments.Select(p=>new{p.Id,p.TransactionId,p.IsPaid,p.AllocationKey,p.DueDate,Links=p.Links.OrderBy(l=>l.Id).Select(l=>new{l.Id,l.TransactionId})}),Assignments=assignments,Checkpoints=checkpoints});
+        var fingerprint=Hash(new {Batches=batches.Select(b=>new {b.Id,b.OriginalStateJson,b.UndoneCount,b.LastUndoneAt}),Scope=scope.Select(State),Pairs=pairs.Select(State),Remove=remove,Accounts=accounts.Select(a=>new{a.Id,a.Name,a.AccountType,a.OpeningBalance,a.OpeningBalanceDate}),Ledger=ledger.Select(State),Payments=payments.Select(p=>new{p.Id,p.TransactionId,p.IsPaid,p.AllocationKey,p.DueDate,Links=p.Links.OrderBy(l=>l.Id).Select(l=>new{l.Id,l.TransactionId})}),Savings=savings.Select(a=>new{a.Id,a.Amount,a.Kind,a.TransactionId,a.ComponentKey,a.OperationId}),Assignments=assignments,Checkpoints=checkpoints});
         var detachedPairs=selected.Where(t=>t.PairedTransactionId.HasValue).Select(t=>Math.Min(t.Id,t.PairedTransactionId!.Value)).Distinct().Count();
         var preserved=selected.Where(t=>t.PairedTransactionId.HasValue && !remove.Contains(t.PairedTransactionId.Value)).Select(t=>t.PairedTransactionId).Distinct().Count();
         var preview=new ImportUndoPreview(request.BatchIds.Order().ToArray(),related.Select(b=>new ImportUndoFile(b.Id,b.Filename,b.AccountId,b.Account.Name,b.ImportedCount,allCounts.FirstOrDefault(g=>g.Id==b.Id)?.Count ?? 0,b.UndoneCount)).ToList(),rows,remove,impact,checkpoints,
-            payments.Sum(p=>(p.TransactionId.HasValue && remove.Contains(p.TransactionId.Value)?1:0)+p.Links.Count(l=>remove.Contains(l.TransactionId))),assignments.Count(a=>remove.Contains(a.TransactionId)),detachedPairs,preserved,fingerprint,history);
+            payments.Sum(p=>(p.TransactionId.HasValue && remove.Contains(p.TransactionId.Value)?1:0)+p.Links.Count(l=>remove.Contains(l.TransactionId)))+savings.Count(a=>remove.Contains(a.TransactionId!.Value)),assignments.Count(a=>remove.Contains(a.TransactionId)),detachedPairs,preserved,fingerprint,history);
         return new(preview,scope,pairs,batches);
     }
     public async Task<ImportUndoResult> UndoAsync(ImportUndoRequest request)

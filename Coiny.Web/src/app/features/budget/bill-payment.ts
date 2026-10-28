@@ -54,6 +54,14 @@ export class BillPayment implements OnInit {
   choose(entry: BillTransactionCandidate) { if (this.selected.some(t => t.id === entry.id)) return; this.selected = [...this.selected, entry]; this.linkedTransaction = this.selected[0]; this.transactionId = this.selected[0].id; this.isPaid = true; if (!this.bill.payment?.isPaid) this.paidOn = entry.date; this.linking = false; }
   remove(id: number) { this.selected = this.selected.filter(t => t.id !== id); this.transactionId = this.selected[0]?.id ?? null; this.linkedTransaction = this.selected[0] ?? null; }
   unpaid() { this.isPaid = false; this.transactionId = null; this.selected = []; }
+  setSkipped(skipped: boolean) {
+    if(this.busy() || this.bill.allocationType!=='Savings')return;
+    this.busy.set(true);this.error.set('');
+    this.api.saveBillPayment(this.bill,{isSkipped:skipped,isPaid:false,paidOn:null,note:this.note||null,transactionId:null,transactionIds:[]}).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+      next:result=>{this.busy.set(false);if(result.isSkipped!==skipped){this.error.set('The server did not confirm the skip change. Restart the API with the latest build, then try again.');return;}this.toasts.success(skipped?'Savings contribution skipped for this income period.':'Savings contribution restored.');this.saved.emit(result);},
+      error:e=>{this.busy.set(false);this.error.set(e.error?.detail??'The contribution couldn’t be updated.');}
+    });
+  }
   save() {
     if (this.busy() || (this.isPaid && (!this.paidOn || this.paidOn > this.today)) || this.note.length > 500) return;
     this.busy.set(true); this.error.set('');

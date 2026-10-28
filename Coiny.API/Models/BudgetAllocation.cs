@@ -11,5 +11,6 @@ public class BudgetAllocation : BaseEntity
     public BudgetAllocationType AllocationType { get; set; }
     /// <summary>Monthly amount without a schedule; per-occurrence amount with one.</summary>
     public decimal Amount { get; set; }
+    public string? SavingsPlanJson { get; set; }
     public BudgetSchedule? Schedule { get; set; }
 }

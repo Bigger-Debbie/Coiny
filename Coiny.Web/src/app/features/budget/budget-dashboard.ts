@@ -1,3 +1,4 @@
+import { SavingsFunds } from '../savings/savings-funds';
 import { SelectMenu } from '../../shared/components/select-menu/select-menu';
 import { AvailableCash } from './available-cash/available-cash';
 import { AuthService } from '../../core/services/auth.service';
@@ -22,12 +23,13 @@ const groups: { type: AllocationType; label: string; color: string }[] = [
   { type: 'Investments', label: 'Investing', color: '#d4a027' },
 ];
 @Component({
-  selector: 'app-budget-dashboard', imports: [SelectMenu, AvailableCash, RecurringExpenses, CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
+  selector: 'app-budget-dashboard', imports: [SavingsFunds,SelectMenu, AvailableCash, RecurringExpenses, CurrencyPipe, DatePipe, FormsModule, DonutChart, BudgetCalendar, BudgetActualsPanel, BudgetItemEditor],
   templateUrl: './budget-dashboard.html', styleUrl: './budget-dashboard.css',
 })
 export class BudgetDashboard implements OnChanges {
   private readonly api = inject(BudgetService);
   private readonly auth = inject(AuthService);
+  @ViewChild(SavingsFunds) savingsFunds?: SavingsFunds;
   @ViewChild(AvailableCash) cashOutlook?: AvailableCash;
   readonly outlookOptions = [{value:'surplus',label:'Period surplus'},{value:'cash',label:'Available cash'}];
   readonly outlookView = signal<'surplus'|'cash'>('surplus');
@@ -127,12 +129,13 @@ export class BudgetDashboard implements OnChanges {
   @Input() error = false;
   readonly periodSource = signal<string | null>(null);
   readonly actualsRefresh = signal(0);
-  refreshActuals() { this.actualsRefresh.update(value => value + 1); if (this.mode() === 'period') this.loadPeriod(); }
+  refreshActuals() { this.actualsRefresh.update(value => value + 1); if (this.mode() === 'period') this.loadPeriod(); else this.budgetChanged.emit(); }
   readonly selectMonth = output<string>();
   readonly budgetChanged = output<void>();
   readonly itemEditor = signal<{ selection: BudgetItemSelection | null } | null>(null);
-  manageItem(item: BudgetMonthlyItem, isIncome: boolean) { this.itemEditor.set({ selection: { sourceKey:item.sourceKey,isIncome } }); }
-  addItem(isIncome: boolean, type?: string) { this.itemEditor.set({ selection: { isIncome,type:type as AllocationType,add:true } }); }
+  manageItem(item: BudgetMonthlyItem, isIncome: boolean) { if(!isIncome && item.sourceKey && item.allocationType==='Savings' && this.savingsFunds?.openFund(item.sourceKey))return; this.itemEditor.set({ selection: { sourceKey:item.sourceKey,isIncome } }); }
+  addItem(isIncome: boolean, type?: string) { if(!isIncome && type==='Savings' && this.savingsFunds){void this.savingsFunds.edit();return;} this.itemEditor.set({ selection: { isIncome,type:type as AllocationType,add:true } }); }
+  openFund(key:string) { this.itemEditor.set(null); this.savingsFunds?.openFund(key); }
   itemSaved() { this.itemEditor.set(null); this.actualsRefresh.update(v=>v+1); this.budgetChanged.emit(); }
   private chartData: CategoryBreakdownItem[] = [];
   private chartMonth: BudgetMonth | null = null;
@@ -141,7 +144,8 @@ export class BudgetDashboard implements OnChanges {
       { key: 'bills', label: 'Housing & bills', types: ['Housing', 'Bills'] },
       { key: 'subscriptions', label: 'Subscriptions', types: ['Subscriptions'] },
       { key: 'spending', label: 'Everyday spending', types: ['Spending'] },
-      { key: 'savings', label: 'Savings & investing', types: ['Savings', 'Investments'] },
+      { key: 'investments', label: 'Investments', types: ['Investments'] },
+      { key: 'savings', label: 'Savings goals', types: ['Savings'] },
     ].map(section => {
       const items = this.displayPlan?.allocations.filter(item => section.types.includes(item.allocationType ?? '')) ?? [];
       return { ...section, items, total: items.reduce((sum, item) => sum + item.plannedAmount, 0) };

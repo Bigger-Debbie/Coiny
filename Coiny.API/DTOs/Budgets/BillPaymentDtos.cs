@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 namespace Coiny.API.DTOs.Budgets;
 public class BillPaymentRequest
 {
+    public bool IsSkipped { get; set; }
     [JsonRequired] public bool IsPaid { get; set; }
     public DateOnly? PaidOn { get; set; }
     [MaxLength(500)] public string? Note { get; set; }
@@ -13,7 +14,9 @@ public class BillPaymentRequest
 }
 public record BillPaymentResponse(bool IsPaid, DateOnly? PaidOn, string? Note, int? TransactionId, BillTransactionSummary? LinkedTransaction = null, DateOnly? ActualPostingDate = null)
 {
-    public string Status => !IsPaid ? "Unpaid" : TransactionId.HasValue ? "Linked" : "AwaitingTransaction";
+    public bool IsSkipped { get; init; }
+    public bool IsFundAllocation { get; init; }
+    public string Status => IsSkipped ? "Skipped" : !IsPaid ? "Unpaid" : IsFundAllocation ? "Allocated" : TransactionId.HasValue ? "Linked" : "AwaitingTransaction";
     public IReadOnlyList<BillTransactionSummary> LinkedTransactions { get; init; } = [];
     public IReadOnlyList<int> TransactionIds => LinkedTransactions.Select(t => t.Id).ToArray();
     public static BillPaymentResponse From(BillPayment p)
@@ -24,7 +27,7 @@ public record BillPaymentResponse(bool IsPaid, DateOnly? PaidOn, string? Note, i
                 DateOnly.FromDateTime(t.TransferDirection == TransferDirection.Out && t.PairedTransaction is not null
                     ? t.PairedTransaction.TransactionDate : t.TransactionDate))).ToArray();
         var first = entries.FirstOrDefault();
-        return new(p.IsPaid, p.PaidOn, p.Note, first?.Id ?? p.TransactionId, first, first?.ActualPostingDate) { LinkedTransactions = entries };
+        return new(p.IsPaid, p.PaidOn, p.Note, first?.Id ?? p.TransactionId, first, first?.ActualPostingDate) { LinkedTransactions = entries, IsSkipped = p.IsSkipped };
     }
 }
 public record BillTransactionCandidate(int Id, DateOnly Date, decimal Amount, string Description, string AccountName, string CategoryName, bool ExactAmount,

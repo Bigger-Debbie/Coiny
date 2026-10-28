@@ -1,6 +1,7 @@
+import { SavingsFunds } from '../savings/savings-funds';
 import { BudgetDashboard } from './budget-dashboard';
 import { BudgetCalendar } from './budget-calendar';
-import { BudgetCalendarStub, BudgetActualsStub } from './budget-calendar.stub';
+import { BudgetCalendarStub, BudgetActualsStub, SavingsFundsStub } from './budget-calendar.stub';
 import { BudgetActualsPanel } from './budget-actuals';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
@@ -20,7 +21,7 @@ describe('Budget setup', () => {
   let http: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({ imports: [Budget], providers: [provideHttpClient(), provideHttpClientTesting()] });
-    TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub] } });
+    TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel, SavingsFunds] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub, SavingsFundsStub] } });
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => { http.verify(); vi.restoreAllMocks(); });

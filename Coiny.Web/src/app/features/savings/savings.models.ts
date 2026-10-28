@@ -1,0 +1,8 @@
+export interface SavingsComponent { key:string; name:string; mode:'Target'|'Recurring'|'Monthly'; amount:number; targetDate:string|null; repeatMonths:number; alreadyFunded:number; }
+export interface SavingsPlan { startDate:string; components:SavingsComponent[]; }
+export interface SavingsActivity { id:number; componentKey:string; date:string; amount:number; kind:string; note:string|null; transactionId:number|null; merchant:string|null; missingTransaction:boolean; operationId:string; }
+export interface SavingsFund { nextContributionDate?:string|null;nextContributionAmount?:number|null; id:number; sourceKey:string; accountId:number; name:string; editVersion:number; isArchived:boolean; plan:SavingsPlan; balance:number; components:{definition:SavingsComponent;balance:number}[]; activities:SavingsActivity[]; }
+export interface SavingsAccount { accountId:number; name:string; balance:number; allocated:number; unallocated:number; shortfall:number; funds:SavingsFund[]; }
+export interface SaveFund { acceptShortfall?:boolean; sourceKey:string|null; accountId:number; name:string; expectedEditVersion:number; expectedRevisionId:number|null; draftId:number|null; draftEditVersion:number|null; plan:SavingsPlan; openingAllocations:Record<string,number>; }
+export interface FundPreview { monthlyEquivalent:number; periods:{startDate:string;endDate:string;dueDate:string;contribution:number;availableBeforeGoal:number;remainder:number;components:Record<string,number>}[];largestShortfall:number;supportedMonthlyContribution:number;estimatedCompletion:string|null;warning:string|null;affordableCompletion:string|null; }
+export interface FundCandidate {id:number;date:string;amount:number;merchant:string|null;description:string;accountName:string;}

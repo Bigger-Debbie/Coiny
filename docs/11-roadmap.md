@@ -9,13 +9,10 @@ patterns with missing cycles while keeping suggestions reviewable.
 
 ## Savings funds and component goals
 
-After the income-period budgeting view, add savings funds that carry balances
-forward and optionally group several goals (for example car repairs, annual tires,
-and six-month insurance) under one monthly contribution. Track opening fund
-balances, contributions, withdrawals, scheduled bills funded from a fund, and
-projected shortfalls at due dates. Fund-backed payments must not duplicate the
-pay-period funding allocation. Keep this separate from the initial income-period
-budgeting change.
+Account-backed savings funds, component targets/recurring costs/reserves, paycheck
+contribution schedules, affordability reviews, account makeup, and budget integration
+are implemented; see [savings funds](19-savings-funds.md). Multiple-account funding
+remains deliberately outside the first version.
 
 ## Other planned areas
 
@@ -36,3 +33,12 @@ budgeting change.
 
 Statement checkpoints and account reconciliation are implemented; see
 [account reconciliation](12-account-reconciliation.md).
+
+## Agreed V1 completion scope
+
+Savings funds are the final planned finance feature. Remaining V1 work is account
+security (password recovery/change, sessions, login protection) and tested backup,
+restore, and export. Other refinements above are post-V1. After these, focus on
+infrastructure, container self-hosting, and hosted deployment. Per-household databases
+and client-side encryption/shared household keys are architecture ideas to evaluate
+before hosting; no zero-knowledge privacy claim is currently implemented.

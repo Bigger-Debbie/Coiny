@@ -73,4 +73,19 @@ describe('BillPayment', () => {
     unlink.click(); f.detectChanges(); expect(f.nativeElement.textContent).toContain('Paid · Awaiting transaction');
     expect(f.componentInstance.isPaid).toBe(true);
   });
+  it('skips and restores a savings contribution without creating a payment or transaction',()=>{
+    const f=render();f.componentRef.setInput('bill',{...bill,allocationType:'Savings'});f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Skip this period');f.componentInstance.setSkipped(true);
+    const skip=http.expectOne(r=>r.url.endsWith('/payment'));expect(skip.request.body.isSkipped).toBe(true);expect(skip.request.body.isPaid).toBe(false);expect(skip.request.body.transactionIds).toEqual([]);skip.flush(skip.request.body);
+    f.componentRef.setInput('bill',{...bill,allocationType:'Savings',payment:{isSkipped:true,isPaid:false,paidOn:null,note:null,transactionId:null}});f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Restore contribution');f.componentInstance.setSkipped(false);const restore=http.expectOne(r=>r.url.endsWith('/payment'));expect(restore.request.body.isSkipped).toBe(false);restore.flush(restore.request.body);
+    http.expectNone(r=>r.url.includes('/transactions')&&r.method==='POST');
+  });
+
+  it('does not claim a skip succeeded when an older server ignores the skip flag',()=>{
+    const f=render();f.componentRef.setInput('bill',{...bill,allocationType:'Savings'});f.detectChanges();const saved=vi.fn();f.componentInstance.saved.subscribe(saved);
+    f.componentInstance.setSkipped(true);http.expectOne(r=>r.url.endsWith('/payment')).flush({isPaid:false,paidOn:null,note:null,transactionId:null});
+    expect(saved).not.toHaveBeenCalled();expect(f.componentInstance.error()).toContain('did not confirm');expect(f.componentInstance.busy()).toBe(false);
+  });
+
 });

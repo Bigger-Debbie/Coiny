@@ -26,6 +26,7 @@ internal static class BudgetAllocationForecast
             var assigned = recorded.Where(t => t.AllocationKey == item.SourceKey && t.PaymentDueDate is null).Sum(t => t.Amount);
             foreach (var occurrence in events)
             {
+                if(occurrence.Payment?.IsSkipped==true) continue;
                 if (occurrence.Payment is { IsPaid: true, TransactionId: not null } paid)
                 {
                     foreach (var linked in paid.LinkedTransactions.Count > 0 ? paid.LinkedTransactions : paid.LinkedTransaction is {} single ? new[] { single } : Array.Empty<BillTransactionSummary>())
@@ -35,8 +36,9 @@ internal static class BudgetAllocationForecast
                     }
                     continue;
                 }
-                var covered = Math.Min(assigned, occurrence.Amount); assigned -= covered;
-                var remaining = occurrence.Amount - covered;
+                var settled = recorded.Where(t => t.IsFundActivity && t.AllocationKey == item.SourceKey && t.PaymentDueDate == occurrence.Date).Sum(t => t.Amount);
+                var covered = Math.Min(assigned, Math.Max(0,occurrence.Amount-settled)); assigned -= covered;
+                var remaining = Math.Max(0,occurrence.Amount - covered - settled);
                 // Overdue and manually paid items still need a posted transaction. Keep them
                 // in the estimate rather than pretending that the commitment disappeared.
                 var date = occurrence.Payment?.IsPaid == true || occurrence.Date <= through ? future[0].Date : occurrence.Date;

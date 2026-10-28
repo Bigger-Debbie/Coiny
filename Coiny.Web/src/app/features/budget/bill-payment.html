@@ -1,5 +1,13 @@
 <app-modal [title]="bill.name" [busy]="busy()" (dismiss)="dismiss.emit()">
   <p class="bill-summary">{{ bill.amount | currency }} · Due {{ bill.date | date:'MMM d, yyyy':'UTC' }}</p>
+  @if(bill.payment?.isSkipped){
+    <p class="hint">Skipped for this income period. No contribution is reserved in its plan or forecast. Recorded transactions remain in actuals. Later contributions may need to increase to keep a dated goal on track.</p>
+    @if(error()){<p class="error" role="alert">{{error()}}</p>}
+    <button type="button" class="button-outline" [disabled]="busy()" (click)="setSkipped(false)">Restore contribution</button>
+  }@else if(bill.payment?.isFundAllocation){
+    <p class="payment-state linked-state">✓ Funded · Allocated<small>This contribution was recorded against cash in its savings account. Manage or reverse it from Savings funds & goals.</small></p>
+    <button type="button" class="button-outline" (click)="dismiss.emit()">Close</button>
+  }@else{
   @if (isPaid && !transactionId) {
     <p class="payment-state awaiting-state"><span aria-hidden="true">◷</span> Paid · Awaiting transaction<small>Marked paid. Link the transaction when it appears to include the recorded amount in your actuals.</small></p>
   } @else if (isPaid && transactionId) {
@@ -37,7 +45,8 @@
       </div>
       <p class="hint">Linking marks this entire occurrence paid, even if the combined transaction amount differs. This won’t create a transaction or change an account balance.</p>
       @if (error()) { <p role="alert" class="error">{{ error() }}</p> }
-      <div class="actions"><button type="button" class="button-outline" (click)="dismiss.emit()">Cancel</button><button type="submit" [disabled]="busy() || (isPaid && (!paidOn || paidOn > today))">{{ busy() ? 'Saving…' : 'Save payment' }}</button></div>
+      <div class="actions">@if(bill.allocationType==='Savings'&&!bill.payment?.isPaid&&!transactionId){<button type="button" class="button-outline" [disabled]="busy()" (click)="setSkipped(true)">Skip this period</button>}<button type="button" class="button-outline" (click)="dismiss.emit()">Cancel</button><button type="submit" [disabled]="busy() || (isPaid && (!paidOn || paidOn > today))">{{ busy() ? 'Saving…' : 'Save payment' }}</button></div>
     </fieldset>
   </form>
+  }
 </app-modal>

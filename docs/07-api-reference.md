@@ -1653,3 +1653,5 @@ Actuals sum all linked transactions on their posting dates, including charges sp
 ### Import undo and correction
 
 `GET /api/transaction-imports/{batchId}/review`, `POST /api/transaction-imports/undo/preview`, and `POST /api/transaction-imports/undo` provide household-scoped review and an atomic, fingerprint-validated undo. See [Import undo/correction](18-import-undo-correction.md) for request/response behavior, explicit acknowledgments, transfer preservation, reconciliation invalidation, and retry semantics.
+
+Savings fund endpoints and activity semantics: [Savings funds](19-savings-funds.md#api).

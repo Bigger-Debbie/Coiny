@@ -1,4 +1,4 @@
-export type BudgetStep = 'Income' | 'Bills' | 'Subscriptions' | 'Spending' | 'SavingsAndInvestments' | 'Review';
+export type BudgetStep = 'Income' | 'Bills' | 'Subscriptions' | 'Spending' | 'SavingsAndInvestments' | 'Investments' | 'SavingsGoals' | 'Review';
 export type AllocationType = 'Housing' | 'Bills' | 'Subscriptions' | 'Spending' | 'Savings' | 'Investments';
 export type BudgetFrequency = 'Weekly' | 'EveryTwoWeeks' | 'TwiceMonthly' | 'Monthly' | 'EverySixMonths' | 'Yearly';
 export interface BudgetSchedule {
@@ -6,7 +6,7 @@ export interface BudgetSchedule {
   dayOfMonth: number | null; secondDayOfMonth: number | null;
 }
 export interface BudgetIncome { sourceKey?: string | null; name: string; amount: number; healthInsurancePerPaycheck?: number | null; retirementContributionPerPaycheck?: number | null; schedule: BudgetSchedule; }
-export interface BudgetAllocation { sourceKey?: string | null; name: string; amount: number; allocationType: AllocationType; schedule: BudgetSchedule | null; }
+export interface BudgetAllocation { savingsPlan?: import('../../../features/savings/savings.models').SavingsPlan | null; sourceKey?: string | null; name: string; amount: number; allocationType: AllocationType; schedule: BudgetSchedule | null; }
 export interface BudgetDraftRequest {
   expectedEditVersion: number; effectiveFromMonth: string; setupStep: BudgetStep;
   incomeSources: BudgetIncome[]; allocations: BudgetAllocation[];
@@ -36,8 +36,10 @@ export interface BudgetIncomePeriod {
   awaitingTransactionCount?: number; awaitingTransactionTotal?: number;
 }
 
-export type BudgetPaymentStatus = 'Unpaid' | 'AwaitingTransaction' | 'Linked';
+export type BudgetPaymentStatus = 'Unpaid' | 'AwaitingTransaction' | 'Linked' | 'Allocated' | 'Skipped';
 export interface BillPaymentState {
+  isSkipped?:boolean;
+  isFundAllocation?:boolean;
   transactionIds?: number[];
   linkedTransactions?: { id: number; date: string; amount: number; description: string; actualPostingDate?: string | null }[]; actualPostingDate?: string | null; status?: BudgetPaymentStatus; linkedTransaction?: { id: number; date: string; amount: number; description: string } | null; isPaid: boolean; paidOn: string | null; note: string | null; transactionId: number | null; }
 export interface BillTransactionCandidate { id: number; date: string; amount: number; description: string; accountName: string; categoryName: string; exactAmount: boolean; categoryType?: 'Income' | 'Expense' | 'Transfer'; transferDirection?: 'In' | 'Out' | null; }

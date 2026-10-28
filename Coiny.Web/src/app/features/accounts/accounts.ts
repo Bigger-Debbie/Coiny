@@ -1,3 +1,4 @@
+import { SavingsFunds } from '../savings/savings-funds';
 import { ToastService, notificationSignal } from '../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
@@ -31,7 +32,7 @@ import { ReconcileAccount } from './reconcile-account/reconcile-account';
 
 @Component({
   selector: 'app-accounts',
-  imports: [CurrencyPipe, DatePipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel, EditTransaction, ReconcileAccount],
+  imports: [SavingsFunds,CurrencyPipe, DatePipe, DecimalPipe, FormsModule, RouterLink, TrendChart, Icon, TransactionList, SelectMenu, Modal, CreateAccount, CreateTransaction, CreateCategory, CategoryBreakdownPanel, EditTransaction, ReconcileAccount],
   templateUrl: './accounts.html',
   styleUrl: './accounts.css',
 })

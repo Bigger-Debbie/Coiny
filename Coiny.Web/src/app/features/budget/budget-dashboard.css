@@ -9,9 +9,13 @@ p { line-height:1.6; }
 .month-picker button { font-size:1.5rem; }
 .month-picker label { font-size:.8rem; }
 .panel { padding:1.5rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); min-width:0; }
-.totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.25rem; margin-bottom:1.5rem; }
-.totals > .panel { display:flex; flex-direction:column; justify-content:center; padding:1.25rem; }
-.totals span { display:block; font-size:.85rem; color:var(--color-text-muted); margin-bottom:.75rem; }
+.totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:start; gap:1rem; margin-bottom:1.5rem; }
+.totals.period-totals { grid-template-columns:minmax(0,1fr) minmax(0,1.5fr); grid-template-areas:'income remainder' 'allocations remainder'; align-items:stretch; }
+.period-totals > .income-total { grid-area:income; }
+.period-totals > .allocations-total { grid-area:allocations; }
+.period-totals > .remaining-total { grid-area:remainder; }
+.totals > .panel { display:flex; flex-direction:column; justify-content:center; padding:1rem 1.25rem; }
+.totals span { display:block; font-size:.85rem; color:var(--color-text-muted); margin-bottom:.4rem; }
 .totals strong { font-size:clamp(1.3rem,2.5vw,2rem); font-weight:500; color:var(--color-primary); overflow-wrap:anywhere; }
 .totals .income-total { border-color:var(--color-success); }
 .totals .income-total strong { color:var(--color-success); }
@@ -20,12 +24,13 @@ p { line-height:1.6; }
 .totals .over strong,.warning { color:var(--color-danger); }
 .totals .unlinked-reserve { color:#855600; font-style:normal; }
 .remaining-total { position:relative; }
-.remainder-heading { font-size:.85rem; color:var(--color-text-muted); margin-bottom:.75rem; }
+.remainder-heading { font-size:.85rem; color:var(--color-text-muted); margin-bottom:.5rem; }
 .reserve-help { display:inline; margin-left:.35rem; }
 .reserve-help summary { display:inline-flex; align-items:center; justify-content:center; width:1.1rem; height:1.1rem; border:1px solid currentColor; border-radius:50%; color:var(--color-primary); cursor:pointer; font-weight:600; list-style:none; }
 .reserve-help summary::-webkit-details-marker { display:none; }
 .reserve-help summary:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
 .reserve-explanation { position:absolute; z-index:5; top:3.5rem; left:1rem; right:1rem; padding:.85rem 1rem; border-radius:var(--radius-sm); background:var(--color-primary); color:white; box-shadow:var(--shadow-card); line-height:1.5; font-weight:400; }
+app-savings-funds { display:block; margin-top:1.5rem; }
 .outlook-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.5rem; align-items:start; }
 .detail-panels { position:relative; min-height:0; align-self:stretch; }
 .breakdown { position:absolute; inset:0; display:flex; flex-direction:column; }
@@ -46,8 +51,8 @@ small { display:block; font-size:.8rem; line-height:1.5; margin-top:.4rem; }
 .paycheck-details .item:last-of-type { border-bottom:0; }
 button:disabled { opacity:.5; cursor:default; transform:none; }
 @media(max-width:800px) { .outlook-grid { grid-template-columns:1fr; } .dashboard-heading { flex-direction:column; align-items:stretch; } .month-picker { justify-content:center; } }
-@media(max-width:900px) { .totals { grid-template-columns:repeat(2,minmax(0,1fr)); } .totals > .remaining-total { grid-column:1 / -1; } }
-@media(max-width:550px) { .totals { grid-template-columns:1fr; gap:.75rem; } .panel { padding:1rem; } }
+@media(max-width:1200px) { .totals { grid-template-columns:repeat(2,minmax(0,1fr)); } .totals.period-totals { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-areas:'income allocations' 'remainder remainder'; } .totals > .remaining-total { grid-column:1 / -1; } }
+@media(max-width:550px) { .totals { grid-template-columns:1fr; gap:.75rem; } .totals.period-totals { grid-template-columns:1fr; grid-template-areas:'income' 'allocations' 'remainder'; } .panel { padding:1rem; } }
 
 .budget-group { margin-bottom:.75rem; border:1px solid var(--color-border); border-radius:.5rem; overflow:hidden; }
 .budget-group summary { display:flex; align-items:center; gap:.75rem; cursor:pointer; padding:.85rem 1rem; color:var(--color-primary); background:#f0f0f7; }
@@ -81,6 +86,10 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 @media(max-width:800px) { .outlook-controls { justify-items:center; } }
 
 .totals > .remaining-total { justify-content:flex-start; }
-.outlook-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; margin-top:auto; padding-top:.85rem; }
+.outlook-footer { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; margin-top:auto; padding-top:.6rem; }
 .outlook-menu { display:block; width:10.75rem; max-width:100%; margin-left:auto; }
 .calculation-button { padding:.3rem 0; font-size:.8rem; text-align:left; }
+
+.totals > .income-total,.totals > .allocations-total{box-sizing:border-box}.outlook-footer .calculation-button{flex:0 1 auto}.outlook-footer .outlook-menu{flex:0 0 10.75rem}.remainder-heading{line-height:1.5}@media(max-width:550px){.totals > .income-total,.totals > .allocations-total{min-height:0}.outlook-footer{gap:.65rem}.outlook-footer .outlook-menu{flex-basis:10.75rem}.calculation-button{max-width:100%}}@media(max-width:380px){.outlook-footer{align-items:stretch}.outlook-footer .outlook-menu{flex:1 1 100%;width:100%;margin-left:0}}
+
+@media(min-width:1201px) { .totals:not(.period-totals) { align-items:stretch; } }

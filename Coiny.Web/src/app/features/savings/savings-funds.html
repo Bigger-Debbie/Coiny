@@ -1,0 +1,106 @@
+<section class="fund-panel" aria-label="Savings funds">
+ <header class="section-heading"><div><h3>{{ accountId ? 'What this savings account holds' : 'Savings funds & goals' }}</h3><p class="hint">Give your savings a purpose, then plan what to set aside from each paycheck.</p></div><button type="button" class="button-outline" [disabled]="busy() || loading() || !accounts().length" (click)="edit()">+ Create fund</button></header>
+ @if(error()&&!dialog()){<p class="error" role="alert">{{error()}}</p><button class="button-ghost" (click)="load()">Try again</button>}
+ @if(loading()){<p role="status">Loading savings funds…</p>}
+ @for(account of accounts();track account.accountId){
+  <article class="account-funds"><header><h4>{{account.name}}</h4><strong>{{account.balance|currency}}</strong></header>
+   <div class="fund-bar" role="img" [attr.aria-label]="account.name+' fund allocation; '+account.allocated+' allocated; '+account.unallocated+' unallocated'">
+    @for(fund of account.funds;track fund.sourceKey;let i=$index){@if(fund.balance>0){<button type="button" [style.width.%]="width(account,fund.balance)" [style.background]="color(i)" [attr.aria-label]="fund.name+' '+fund.balance" [title]="fund.name+': '+(fund.balance|currency)" (click)="detail(fund)"></button>}}
+    @if(account.unallocated>0){<span class="unallocated" [style.width.%]="width(account,account.unallocated)"></span>}
+   </div>
+   @if(account.shortfall>0){<p class="warning" role="alert">Allocations exceed the recorded account balance by {{account.shortfall|currency}}. Review withdrawals and move money out of the affected funds.</p>}
+   <div class="fund-list">
+    @for(fund of account.funds;track fund.sourceKey;let i=$index){<button type="button" class="fund-row" (click)="detail(fund)"><span class="dot" [style.background]="color(i)"></span><span>{{fund.name}}<small>{{fund.components.length}} {{fund.components.length===1?'goal':'components'}} @if(fund.isArchived){ · Archived }</small>@if(fund.nextContributionDate){<small>Set aside {{fund.nextContributionAmount|currency}} by {{fund.nextContributionDate|date:'MMM d':'UTC'}}</small>}</span><strong>{{fund.balance|currency}}</strong><span aria-hidden="true">›</span></button>}
+    <div class="fund-row unallocated-row"><span class="dot unallocated"></span><span>Unallocated cash<small>Available to assign to a purpose</small></span><strong>{{account.unallocated|currency}}</strong></div>
+   </div>
+  </article>
+ }@empty{ @if(!loading()){<p>Add a savings account to organize your existing money into funds and goals.</p>} }
+ <p class="hint">Allocations describe money in the account; they don’t create bank transactions. Planned contributions become funded when recorded.</p>
+</section>
+@if(dialog() && dialog()!=='review'){
+ @let view=dialog()!;
+ <app-modal [title]="view==='edit'?(selected()?'Edit savings fund':'Create savings fund'):view==='activity'?'Record fund activity':view==='move'?'Move savings allocation':view==='archive'?'Archive savings fund':selected()!.name" [busy]="busy()" (dismiss)="close()">
+  @if(error()){<p class="error editor-error" tabindex="-1" role="alert">{{error()}}</p>}
+  @if(view==='edit'){
+   <form (ngSubmit)="$event.stopPropagation(); review()" (input)="invalidate()">
+    <fieldset [disabled]="busy()">
+     <div class="fields"><div><label for="fund-name">Fund name</label><input id="fund-name" name="fundName" [attr.aria-invalid]="fundIssues()['name']?true:null" aria-describedby="fund-name-error" [(ngModel)]="form.name" required maxlength="100" placeholder="e.g. Car expenses or Summer vacation"/>@if(fundIssues()['name']){<small id="fund-name-error" class="field-error">{{fundIssues()['name']}}</small>}</div>
+      <div><label for="fund-account">Savings account</label>@if(selected()){<input id="fund-account" [value]="selectedAccount?.name||''" disabled/>}@else{<app-select-menu [attr.aria-invalid]="fundIssues()['account']?true:null" inputId="fund-account" label="Savings account" name="account" [options]="accountOptions" [(ngModel)]="form.accountId" (ngModelChange)="invalidate()"/>}@if(fundIssues()['account']){<small class="field-error">{{fundIssues()['account']}}</small>}</div>
+     </div>
+     @if(!selected()) {<label for="fund-adopt">Budget contribution</label><app-select-menu inputId="fund-adopt" label="Existing savings budget item" name="adopt" [options]="legacyOptions" [ngModel]="form.sourceKey||''" (ngModelChange)="adopt($event)"/><small>Connect an existing savings item to keep its history and avoid adding its contribution twice.</small>}
+     <label for="fund-start">Contribution plan starts</label><input id="fund-start" name="start" type="date" [attr.aria-invalid]="fundIssues()['startDate']?true:null" aria-describedby="fund-start-error" [(ngModel)]="form.plan.startDate" required/>@if(fundIssues()['startDate']){<small id="fund-start-error" class="field-error">{{fundIssues()['startDate']}}</small>}
+     <p class="hint">Set up the goals below. Coiny combines them into one contribution plan and checks it against the rest of your budget.</p>
+     @for(component of form.plan.components;track component.key;let i=$index){
+      <article class="component-editor" [class.invalid]="componentInvalid(component)"><header><h4>Goal {{i+1}}@if(componentInvalid(component)){<span class="component-warning"> · Needs attention</span>}</h4>@if(!selected()){<button type="button" class="button-ghost" (click)="removeComponent(component)">Remove</button>}</header>
+       <div class="fields"><div><label [for]="'component-name-'+i">Purpose</label><input [id]="'component-name-'+i" [name]="'name'+i" [attr.aria-invalid]="componentError(component,'name')?true:null" [attr.aria-describedby]="'component-name-error-'+i" [(ngModel)]="component.name" required maxlength="100" placeholder="e.g. Tires"/>@if(componentError(component,'name')){<small [id]="'component-name-error-'+i" class="field-error">{{componentError(component,'name')}}</small>}</div>
+        <div><label [for]="'mode-'+i">How to fund it</label><app-select-menu [inputId]="'mode-'+i" label="Goal type" [name]="'mode'+i" [options]="modes" [(ngModel)]="component.mode" (ngModelChange)="invalidate()"/></div>
+        <div><label [for]="'amount-'+i">{{component.mode==='Monthly'?'Monthly contribution':component.mode==='Recurring'?'Amount needed each cycle':'Target amount'}}</label><input [id]="'amount-'+i" [name]="'amount'+i" type="number" [min]="component.mode==='Monthly'?0:0.01" max="999999999" step="0.01" [attr.aria-invalid]="componentError(component,'amount')?true:null" [attr.aria-describedby]="'amount-error-'+i" [(ngModel)]="component.amount" required/>@if(componentError(component,'amount')){<small [id]="'amount-error-'+i" class="field-error">{{componentError(component,'amount')}}</small>}</div>
+        @if(component.mode!=='Monthly'){<div><label [for]="'target-'+i">{{component.mode==='Recurring'?'Next expense date':'Reach goal by'}}</label><input [id]="'target-'+i" [name]="'target'+i" type="date" [attr.aria-invalid]="componentError(component,'targetDate')?true:null" [attr.aria-describedby]="'target-error-'+i" [(ngModel)]="component.targetDate" required/>@if(componentError(component,'targetDate')){<small [id]="'target-error-'+i" class="field-error">{{componentError(component,'targetDate')}}</small>}</div>}
+        @if(component.mode==='Recurring'){<div><label [for]="'repeat-'+i">Repeat</label><app-select-menu [inputId]="'repeat-'+i" label="Repeat cost" [name]="'repeat'+i" [options]="repeats" [(ngModel)]="component.repeatMonths" (ngModelChange)="invalidate()"/></div>}
+        @if(!selected()){<div><label [for]="'opening-'+i">Already set aside in this account</label><input [id]="'opening-'+i" [name]="'opening'+i" type="number" min="0" step="0.01" [attr.aria-invalid]="componentError(component,'opening')?true:null" [attr.aria-describedby]="'opening-error-'+i" [(ngModel)]="opening[component.key]" placeholder="0.00"/>@if(componentError(component,'opening')){<small [id]="'opening-error-'+i" class="field-error">{{componentError(component,'opening')}}</small>}</div>}
+        @else{<div class="existing"><span>Already set aside</span><strong>{{component.alreadyFunded|currency}}</strong></div>}
+       </div>
+      </article>
+     }
+     @if(fundIssues()['components']){<p class="field-error editor-error" tabindex="-1" role="alert">{{fundIssues()['components']}}</p>}
+     <button type="button" class="button-outline" (click)="addComponent()">+ Add component</button>
+     @if(!selected()&&selectedAccount){<p class="hint">This account has {{selectedAccount.unallocated|currency}} available to assign. Opening allocations don’t move any money.</p>}
+    </fieldset>
+    <footer class="actions"><button type="button" class="button-ghost" [disabled]="busy()" (click)="close()">Cancel</button><button type="submit" class="button-outline" [disabled]="busy()">{{busy()?'Calculating…':'Review contribution schedule'}}</button></footer>
+   </form>
+  }@else if(view==='detail'){
+   @if(selected();as fund){<div class="balance-heading"><span>Currently set aside</span><strong>{{fund.balance|currency}}</strong></div>
+    @if(fund.nextContributionDate){<p class="hint">Next contribution: <strong>{{fund.nextContributionAmount|currency}}</strong> by {{fund.nextContributionDate|date:'MMM d, yyyy':'UTC'}}.</p>}<div class="component-list">@for(c of fund.components;track c.definition.key){<div class="component-summary"><div><strong>{{c.definition.name}}</strong><small>{{c.definition.mode==='Monthly'?'Ongoing reserve':c.definition.mode==='Recurring'?'Recurring cost':'Target by date'}} @if(c.definition.targetDate){ · {{c.definition.targetDate|date:'MMM d, yyyy':'UTC'}} }</small></div><div><strong>{{c.balance|currency}}</strong><small>{{c.definition.mode==='Monthly'?(c.definition.amount|currency)+' / month':'of '+(c.definition.amount|currency)}}</small></div></div>}</div>
+    @if(!fund.isArchived){
+     <footer class="fund-actions" aria-label="Fund actions">
+      <details class="fund-management" #fundManagement (document:click)="closeManagement(fundManagement,$event)" (keydown.escape)="$event.preventDefault();$event.stopPropagation();fundManagement.open=false;managementTrigger.focus()">
+       <summary #managementTrigger>Manage fund <span aria-hidden="true">⌃</span></summary>
+       <div class="management-options">
+        <button type="button" (click)="fundManagement.open=false;edit(fund)">Edit goals & plan</button>
+        <button type="button" (click)="fundManagement.open=false;activity('Allocate')">Assign existing cash</button>
+        <button type="button" (click)="fundManagement.open=false;activity('Reallocate')">Move between components</button>
+        <button type="button" (click)="fundManagement.open=false;move()">Move to another fund</button>
+        @if(fund.balance===0){<button type="button" class="archive-action" (click)="fundManagement.open=false;archiveReview()">Archive fund</button>}
+       </div>
+      </details>
+      <div class="primary-fund-actions"><button type="button" class="button-outline" (click)="activity('Withdrawal')">Use fund money</button><button type="button" class="button-primary" (click)="activity('Contribution')">Record contribution</button></div>
+     </footer>
+    }
+    <details><summary>Fund activity · {{fund.activities.length}} entries</summary><div class="activity-scroll">@for(a of fund.activities;track a.id){<div class="activity-row"><span>{{a.merchant||componentName(a.componentKey)}}<small>{{a.date|date:'MMM d, yyyy':'UTC'}} · {{a.kind}} @if(a.note){ · {{a.note}} }</small>@if(a.missingTransaction){<small class="warning">The linked bank entry was removed. Review this allocation.</small>}</span><strong>{{a.amount|currency}}</strong>@if(canCorrect(a.kind)){<button class="button-ghost" [disabled]="busy()" (click)="correct(a.operationId)">Reverse</button>}</div>}@empty{<p>No activity yet.</p>}</div></details>
+   }
+  }@else if(view==='move'){
+   <p>Change what this account's money is for. No bank transaction is created.</p>
+   <form (ngSubmit)="$event.stopPropagation(); saveMove()"><fieldset [disabled]="busy()"><label for="move-origin">From component</label><app-select-menu inputId="move-origin" label="From component" name="origin" [options]="originOptions" [(ngModel)]="moveOrigin"/><label for="move-destination">Destination</label><app-select-menu inputId="move-destination" label="Destination fund" name="destination" [options]="destinationOptions" [(ngModel)]="moveDestination" (ngModelChange)="moveComponent=''"/>
+   @if(moveDestination){<label for="move-component">Destination component</label><app-select-menu inputId="move-component" label="Destination component" name="component" [options]="destinationComponents" [(ngModel)]="moveComponent"/>}
+   <label for="move-amount">Amount</label><input id="move-amount" name="amount" type="number" min="0.01" step="0.01" [(ngModel)]="moveAmount" required/></fieldset><footer class="actions"><button class="button-primary" [disabled]="busy()" type="submit">Move allocation</button></footer></form>
+  }@else if(view==='archive'){
+   <p>Archive this empty fund and stop upcoming budget contributions from {{(management()?.earliestEffectiveDate||form.plan.startDate)|date:'MMM d, yyyy':'UTC'}}. Past activity and paid occurrences are retained.</p><footer class="actions"><button class="button-outline" (click)="dialog.set('detail')">Back</button><button class="button-primary" [disabled]="busy()" (click)="archive()">Archive fund</button></footer>
+  }@else{
+   <p>{{activityKind==='Allocate'?'Assign money already saved in this account to a purpose. This does not count as a new paycheck contribution.':activityKind==='Contribution'?'Assign cash already in this account, or link an incoming transfer.':activityKind==='Withdrawal'?'Use earmarked money for an expense. Link the expense, not a transfer back to spending, so it is counted once.':'Move money between components without creating a bank transaction. Enter negative amounts for money leaving a component and positive amounts for its destination.'}}</p>
+   <form (ngSubmit)="$event.stopPropagation(); record()"><fieldset [disabled]="busy()">
+    @if(activityKind!=='Reallocate'&&activityKind!=='Allocate'){<label for="activity-transaction">{{activityKind==='Withdrawal'?'Expense paid from this fund':'Incoming transaction (optional)'}}</label><app-select-menu inputId="activity-transaction" label="Transaction" name="transaction" [options]="transactionOptions" [ngModel]="activityTransaction" (ngModelChange)="chooseTransaction($event)"/>}
+    <div class="fields"><div><label for="activity-date">Recorded date</label><input id="activity-date" name="date" type="date" [(ngModel)]="activityDate" required/></div>
+    @if(activityKind==='Contribution'){<div><label for="activity-due">Calendar contribution date (optional)</label><input id="activity-due" name="due" type="date" [(ngModel)]="activityDue"/><small>Defaults to this recorded date’s income period. Choose a different scheduled contribution date if needed.</small></div>}</div>
+    @for(c of selected()!.components;track c.definition.key;let i=$index){<div class="amount-row"><label [for]="'activity-'+i">{{c.definition.name}}<small>{{c.balance|currency}} currently set aside</small></label><input [id]="'activity-'+i" [name]="'amount'+i" type="number" step="0.01" [min]="activityKind==='Reallocate'?null:0" [(ngModel)]="activityAmounts[c.definition.key]" placeholder="0.00"/></div>}
+    <label for="activity-note">Note (optional)</label><input id="activity-note" name="note" [(ngModel)]="activityNote" maxlength="500"/>
+   </fieldset><footer class="actions"><button type="button" class="button-ghost" [disabled]="busy()" (click)="dialog.set('detail')">Back</button><button type="submit" class="button-primary" [disabled]="busy()">Record allocation</button></footer></form>
+  }
+ </app-modal>
+}
+
+@if(dialog()==='review'){
+ <app-modal title="Review savings contribution plan" [busy]="busy()" (dismiss)="backToEdit()">
+  @if(error()){<p class="error" role="alert">{{error()}}</p>}
+   @if(preview();as review){
+    <section class="review" aria-label="Savings contribution review"><h3>Your paycheck contribution plan</h3><p>Ongoing monthly equivalent: <strong>{{review.monthlyEquivalent|currency}}</strong>. Actual contributions below follow your income periods.</p>
+     @if(review.warning){<p class="warning">{{review.warning}}</p>}
+     @if(review.largestShortfall>0){<p>Your tightest period is short by <strong>{{review.largestShortfall|currency}}</strong>. Across this schedule, the budget has about {{review.supportedMonthlyContribution|currency}} per month available before this goal. Check individual periods before choosing an amount.</p>}
+     <div class="schedule-scroll" tabindex="0" aria-label="Paycheck contribution schedule"><table><thead><tr><th>Income period</th><th>Set aside</th><th>Budget left afterward</th></tr></thead><tbody>@for(period of review.periods;track period.startDate){<tr><td>{{period.startDate|date:'MMM d':'UTC'}} – {{period.endDate|date:'MMM d, yyyy':'UTC'}}<small>Set aside by {{period.dueDate|date:'MMM d':'UTC'}}</small><details><summary>Component amounts</summary>@for(c of form.plan.components;track c.key){<small>{{c.name}}: {{period.components[c.key]|currency}}</small>}</details></td><td>{{period.contribution|currency}}</td><td [class.error]="period.remainder<0">{{period.remainder|currency}}</td></tr>}</tbody></table></div>
+     @if(review.largestShortfall>0&&review.estimatedCompletion){@if(review.affordableCompletion){<p>Using the budget's available capacity, the combined target could be funded around <strong>{{review.affordableCompletion|date:'MMM d, yyyy':'UTC'}}</strong>. This assumes that available money is directed to these goals.</p>}@else{<p>The combined target is not fully covered by the available capacity within the shown schedule. Try a smaller target or a longer timeframe.</p>}}
+     @if(review.estimatedCompletion){<p>Target completion: {{review.estimatedCompletion|date:'MMM d, yyyy':'UTC'}} if contributions are made as planned.</p>}
+     @if(review.largestShortfall>0){<label class="check"><input type="checkbox" [(ngModel)]="acceptedShortfall"/>Keep this as a stretch goal despite the displayed shortfalls</label>}
+     <footer class="actions"><button type="button" class="button-outline" [disabled]="busy()" (click)="backToEdit()">Back to components</button><button type="button" class="button-primary" [disabled]="busy()||(review.largestShortfall>0&&!acceptedShortfall)" (click)="save()">Save fund & contribution plan</button></footer>
+    </section>
+   }
+ </app-modal>
+}

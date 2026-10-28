@@ -130,7 +130,11 @@
       </div>
     </section>
     <div class="category-pane-shell">
+    @if (selectedAccount()?.accountType === 'Savings') {
+      <app-savings-funds [accountId]="selectedId()" [refreshKey]="breakdownRefresh()" (changed)="loadOverview(true)" />
+    } @else {
     <app-category-breakdown [accountId]="selectedId()" [startDate]="transactionDates().startDate" [endDate]="transactionDates().endDate" [refreshKey]="breakdownRefresh()" />
+    }
     </div>
     </div>
   }

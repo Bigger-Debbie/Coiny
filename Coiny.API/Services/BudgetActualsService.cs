@@ -76,6 +76,7 @@ public partial class BudgetActualsService(CoinyContext context, ICurrentUserServ
             throw new ArgumentException("Choose an item in this period's budget or linked payments.");
         var overrides = await context.TransactionBudgetAssignments.AsNoTracking().Where(a => a.HouseholdId == household && ids.Contains(a.TransactionId)).ToListAsync();
         var rows = new List<BudgetActualsTransaction>();
+        var fundActivity = await context.Set<SavingsActivity>().AsNoTracking().Include(a => a.SavingsFund).Where(a => a.SavingsFund.HouseholdId == household && a.Date >= rangeStart && a.Date <= (through ?? DateOnly.MinValue)).ToListAsync();
         foreach (var t in ledger)
         {
             var payment = payments.SingleOrDefault(p => p.TransactionId == t.Id || t.PairedTransactionId.HasValue && p.TransactionId == t.PairedTransactionId || p.Links.Any(l => l.TransactionId == t.Id || l.TransactionId == t.PairedTransactionId));
@@ -89,18 +90,28 @@ public partial class BudgetActualsService(CoinyContext context, ICurrentUserServ
             var target = (payment is null ? plan.Allocations : reportAllocations).SingleOrDefault(a => a.SourceKey == key);
             if (t.Category.CategoryType == CategoryType.Transfer && target?.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Investments)) target = null;
             rows.Add(new(t.Id, t.EditVersion, t.PairedTransaction?.EditVersion, DateOnly.FromDateTime(t.TransactionDate), t.Description, t.Amount,
-                t.Account.Name, t.Category.Name, t.Category.CategoryType, target?.SourceKey, target?.Name, source, t.Merchant, payment?.DueDate));
+                t.Account.Name, t.Category.Name, t.Category.CategoryType, target?.SourceKey, target?.Name, source, t.Merchant, payment?.DueDate, Math.Min(t.Amount,-fundActivity.Where(a => a.TransactionId == t.Id && a.Kind == "WithdrawalLinked").Sum(a => a.Amount))));
+        }
+        foreach (var fund in fundActivity.Where(a => a.Amount > 0 && a.Kind is "Contribution" or "ContributionLinked").Select(a => a.SavingsFund).DistinctBy(f => f.Id))
+            if (!reportAllocations.Any(a => a.SourceKey == fund.SourceKey)) reportAllocations.Add(new() { SourceKey=fund.SourceKey,Name=fund.Name,AllocationType=BudgetAllocationType.Savings });
+        foreach (var activity in fundActivity.Where(a => a.Kind is "Contribution" or "ContributionLinked"))
+        {
+            // Linked calendar payments already enter via their ledger movement.
+            var movement = activity.TransactionId.HasValue ? ledger.FirstOrDefault(t => t.Id == activity.TransactionId || t.PairedTransactionId == activity.TransactionId) : null;
+            if (movement is not null && rows.Any(r => r.Id == movement.Id && r.AllocationKey == activity.SavingsFund.SourceKey)) continue;
+            if (movement is not null) rows.RemoveAll(r => r.Id == movement.Id);
+            rows.Add(new(-activity.Id,0,null,activity.Date,"Savings set aside",activity.Amount,"Savings fund",activity.SavingsFund.Name,CategoryType.Transfer,activity.SavingsFund.SourceKey,activity.SavingsFund.Name,"Fund",null,activity.DueDate,0,true));
         }
         var items = reportAllocations.Select(a =>
         {
             var assigned = rows.Where(t => t.AllocationKey == a.SourceKey).ToList();
             var actual = assigned.Sum(t => t.Amount);
-            var pending = plan.Events.Where(e => e.SourceKey == a.SourceKey && e.Payment is { IsPaid: true, TransactionId: null }).Sum(e => e.Amount);
+            var pending = plan.Events.Where(e => e.SourceKey == a.SourceKey && e.Payment is { IsPaid: true, TransactionId: null, IsFundAllocation: false, IsSkipped: false }).Sum(e => e.Amount);
             return new BudgetActualsItem(a.SourceKey!.Value, a.Name, a.AllocationType!.Value, a.PlannedAmount, actual, a.PlannedAmount - actual, pending, assigned.Count,
                 assigned.Where(t => t.PaymentDueDate < rangeStart).Sum(t => t.Amount),
                 assigned.Where(t => t.PaymentDueDate > last).Sum(t => t.Amount));
         }).ToList();
-        var visible = rows.Where(t => (allocationKey.HasValue ? t.AllocationKey == allocationKey : view == "all" || t.AllocationKey is null) && (type is null || t.CategoryType.ToString() == type))
+        var visible = rows.Where(t => (!t.IsFundActivity || allocationKey.HasValue) && (allocationKey.HasValue ? t.AllocationKey == allocationKey : view == "all" || t.AllocationKey is null) && (type is null || t.CategoryType.ToString() == type))
             .OrderByDescending(t => t.Date).ThenByDescending(t => t.Id).ToList();
         var totalPages = Math.Max(1, (visible.Count + 9) / 10); page = Math.Min(page, totalPages);
         bool Contribution(BudgetMonthlyItem item) => item.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
@@ -121,13 +132,14 @@ public partial class BudgetActualsService(CoinyContext context, ICurrentUserServ
         var points = plannedPoints.Select(p => {
             var recorded = rows.Where(t => t.Date <= p.Date).ToList();
             decimal? spending = through.HasValue && p.Date <= through.Value
-                ? recorded.Where(t => t.CategoryType == CategoryType.Expense && !contributionKeys.Contains(t.AllocationKey)).Sum(t => t.Amount) : null;
+                ? recorded.Where(t => t.CategoryType == CategoryType.Expense && !contributionKeys.Contains(t.AllocationKey)).Sum(t => t.Amount-t.FundedFromSavings) : null;
             decimal? contributions = through.HasValue && p.Date <= through.Value
                 ? recorded.Where(t => t.AllocationKey.HasValue && contributionKeys.Contains(t.AllocationKey)).Sum(t => t.Amount) : null;
             return new BudgetComparisonPoint(p.Date,p.PlannedSpending,spending,p.PlannedContributions,contributions);
         }).ToList();
         var remainingByItem = new Dictionary<Guid,decimal>();
         points = BudgetAllocationForecast.Apply(plan, rows, points, through, remainingByItem);
+        items=items.Select(i=>i with {ForecastRemaining=remainingByItem.GetValueOrDefault(i.AllocationKey)}).ToList();
         decimal ForecastContribution(BudgetAllocationType type) => items.Where(i => i.AllocationType == type).Sum(i => i.Actual) +
             plan.Allocations.Where(a => a.AllocationType == type).Sum(a => remainingByItem.GetValueOrDefault(a.SourceKey!.Value));
         return new()

@@ -1,4 +1,6 @@
 using Coiny.API.Data;
+using System.Text.Json;
+using Coiny.API.DTOs.Savings;
 using Coiny.API.DTOs.Budgets;
 using Coiny.API.Enums;
 using Coiny.API.Interfaces;
@@ -52,11 +54,11 @@ public partial class BudgetService(
     public async Task<BudgetRevisionResponse> StartDraftAsync(DateOnly? effectiveFromMonth = null)
     {
         var householdId = await currentUser.GetCurrentHouseholdIdAsync();
-        await using var transaction = await context.Database.BeginTransactionAsync();
+        await using var transaction = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync() : null;
         var existing = await Revisions(householdId).SingleOrDefaultAsync(r => r.State == BudgetRevisionState.Draft);
         if (existing is not null)
         {
-            await transaction.CommitAsync();
+            if (transaction is not null) await transaction.CommitAsync();
             return Response(existing);
         }
 
@@ -86,11 +88,11 @@ public partial class BudgetService(
                     RetirementContributionPerPaycheck = source.RetirementContributionPerPaycheck, Schedule = Copy(source.Schedule) });
             foreach (var allocation in baseline.Allocations)
                 draft.Allocations.Add(new() { SourceKey = allocation.SourceKey, Name = allocation.Name, Amount = allocation.Amount,
-                    AllocationType = allocation.AllocationType, Schedule = allocation.Schedule is null ? null : Copy(allocation.Schedule) });
+                    AllocationType = allocation.AllocationType, SavingsPlanJson = allocation.SavingsPlanJson, Schedule = allocation.Schedule is null ? null : Copy(allocation.Schedule) });
         }
         context.BudgetRevisions.Add(draft);
         await context.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
         return Response(draft);
     }
 
@@ -101,7 +103,17 @@ public partial class BudgetService(
         var draft = await OwnedDraft(householdId, draftId);
         CheckVersion(draft, request.ExpectedEditVersion);
         ValidateDefinitions(request);
-        await using var transaction = await context.Database.BeginTransactionAsync();
+        if (!request.FundManaged)
+        {
+            var funds = await context.Set<SavingsFund>().AsNoTracking().Where(f => f.HouseholdId == householdId && !f.IsArchived).ToListAsync();
+            foreach (var fund in funds)
+            {
+                var allocation = request.Allocations.FirstOrDefault(a => a.SourceKey == fund.SourceKey);
+                if (allocation is null || allocation.AllocationType != BudgetAllocationType.Savings || allocation.Schedule is not null || allocation.Name.Trim() != fund.Name || !SavingsGoalCalculator.Equivalent(allocation.SavingsPlan,JsonSerializer.Deserialize<SavingsPlan>(fund.PlanJson)!))
+                    throw new ArgumentException("Manage savings funds from the Savings goals step so their account allocations and contribution plans remain consistent.");
+            }
+        }
+        await using var transaction = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync() : null;
         var updated = await context.BudgetRevisions.Where(r => r.Id == draftId &&
                 r.State == BudgetRevisionState.Draft && r.EditVersion == request.ExpectedEditVersion &&
                 r.HouseholdBudget.HouseholdId == householdId)
@@ -120,12 +132,13 @@ public partial class BudgetService(
         }).ToList();
         draft.Allocations = request.Allocations.Select(a => new BudgetAllocation {
             BudgetRevisionId = draftId, SourceKey = a.SourceKey ?? Guid.NewGuid(), Name = a.Name.Trim(), Amount = a.Amount, AllocationType = a.AllocationType,
+            SavingsPlanJson = a.SavingsPlan is null ? null : JsonSerializer.Serialize(a.SavingsPlan),
             Schedule = a.Schedule is null ? null : Schedule(a.Schedule),
         }).ToList();
         context.BudgetIncomeSources.AddRange(draft.IncomeSources);
         context.BudgetAllocations.AddRange(draft.Allocations);
         await context.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
         draft.EditVersion++;
         draft.SetupStep = request.SetupStep;
         draft.EffectiveFromMonth = request.EffectiveFromMonth;
@@ -152,7 +165,7 @@ public partial class BudgetService(
             throw new ArgumentException("Housing and bill allocations need a schedule before publishing.");
 
         var publishedAt = clock.GetUtcNow().UtcDateTime;
-        await using var transaction = await context.Database.BeginTransactionAsync();
+        await using var transaction = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync() : null;
         var updated = await context.BudgetRevisions.Where(r => r.Id == draftId &&
                 r.State == BudgetRevisionState.Draft && r.EditVersion == expectedEditVersion &&
                 r.HouseholdBudget.HouseholdId == householdId)
@@ -163,7 +176,7 @@ public partial class BudgetService(
         // Draft edits must never detach a live payment link.
         await ReleaseObsoletePaymentLinks(householdId);
         await context.SaveChangesAsync();
-        await transaction.CommitAsync();
+        if (transaction is not null) await transaction.CommitAsync();
         draft.EditVersion++;
         draft.State = BudgetRevisionState.Published;
         draft.PublishedAt = publishedAt;
@@ -217,12 +230,15 @@ public partial class BudgetService(
         foreach (var allocation in revision.Allocations.OrderBy(a => a.Id))
         {
             var dates = allocation.Schedule is null ? Array.Empty<DateOnly>() : schedules.GetOccurrences(allocation.Schedule, month);
+            bool Skipped(DateOnly date) => allocation.AllocationType==BudgetAllocationType.Savings && skippedSavings.Any(p=>p.AllocationKey==allocation.SourceKey && p.SkippedPeriodStart<=date && p.SkippedPeriodEnd>=date);
+            var goal = allocation.SavingsPlanJson is null ? null : JsonSerializer.Deserialize<SavingsPlan>(allocation.SavingsPlanJson);
+            var dailyGoal = goal is null ? null : Enumerable.Range(1,DateTime.DaysInMonth(month.Year,month.Month)).ToDictionary(day => new DateOnly(month.Year,month.Month,day), day => Skipped(new DateOnly(month.Year,month.Month,day)) ? 0 : goal.Components.Sum(c => SavingsGoalDay(goal,c,allocation.SourceKey,new DateOnly(month.Year,month.Month,day))));
             allocations.Add(new() { SourceKey = allocation.SourceKey, Id = allocation.Id, Name = allocation.Name, AllocationType = allocation.AllocationType,
-                DailyAmounts = allocation.Schedule is null ? Enumerable.Range(1,DateTime.DaysInMonth(month.Year,month.Month)).ToDictionary(day => new DateOnly(month.Year,month.Month,day), day => Portion(allocation.Amount,day,day,DateTime.DaysInMonth(month.Year,month.Month))) : null,
-                IsScheduled = allocation.Schedule is not null, OccurrenceCount = dates.Count, PlannedAmount = allocation.Amount * (allocation.Schedule is null ? 1 : dates.Count) });
+                DailyAmounts = dailyGoal ?? (allocation.Schedule is null ? Enumerable.Range(1,DateTime.DaysInMonth(month.Year,month.Month)).ToDictionary(day => new DateOnly(month.Year,month.Month,day), day => Skipped(new DateOnly(month.Year,month.Month,day)) ? 0 : Portion(allocation.Amount,day,day,DateTime.DaysInMonth(month.Year,month.Month))) : null),
+                IsScheduled = allocation.Schedule is not null, OccurrenceCount = dates.Count, PlannedAmount = dailyGoal?.Values.Sum() ?? (allocation.Schedule is null ? Enumerable.Range(1,DateTime.DaysInMonth(month.Year,month.Month)).Where(day=>!Skipped(new DateOnly(month.Year,month.Month,day))).Sum(day=>Portion(allocation.Amount,day,day,DateTime.DaysInMonth(month.Year,month.Month))) : dates.Where(d=>!Skipped(d)).Count()*allocation.Amount) });
             foreach (var date in dates)
                 events.Add(new() { SourceKey = allocation.SourceKey, Date = date, ItemId = allocation.Id, Name = allocation.Name,
-                    AllocationType = allocation.AllocationType, Amount = allocation.Amount });
+                    AllocationType = allocation.AllocationType, Amount = Skipped(date)?0:allocation.Amount });
         }
         if (protect)
         {
@@ -301,7 +317,7 @@ public partial class BudgetService(
         var contributions = periodEvents.Where(e => e.AllocationType is BudgetAllocationType.Savings or BudgetAllocationType.Investments).ToList();
         await ApplyPayments(householdId, periodEvents);
         var awaitingTransactions = bills.Concat(contributions)
-            .Where(e => e.Payment is { IsPaid: true, TransactionId: null }).ToList();
+            .Where(e => e.Payment is { IsPaid: true, TransactionId: null, IsFundAllocation: false, IsSkipped: false }).ToList();
         return new() {
             HouseholdId = householdId, Plan = periodPlan, PlannedPoints = periodPlan is null ? [] : PeriodPoints(start!.Value, end!.Value, periodPlan, published),
             AsOf = date, SourceKey = sourceKey, Sources = sources, StartDate = start, EndDate = end, NextPayday = next,
@@ -311,6 +327,16 @@ public partial class BudgetService(
             AwaitingTransactionCount = awaitingTransactions.Count,
             AwaitingTransactionTotal = awaitingTransactions.Sum(e => e.Amount),
         };
+    }
+
+    private decimal SavingsGoalDay(SavingsPlan plan,SavingsComponent component,Guid key,DateOnly date)
+    {
+        if(component.Mode!="Target" || fundingPeriodStart==DateOnly.MinValue || date<fundingPeriodStart || !fundedBalances.TryGetValue((key,component.Key),out var balance))
+            return SavingsGoalCalculator.Between(plan,component,date,date);
+        var start=plan.StartDate>fundingPeriodStart?plan.StartDate:fundingPeriodStart;
+        var recorded=fundContributions.Where(a=>a.SavingsFundId==fundIds[key] && a.ComponentKey==component.Key && a.Date>=start && a.Date<=Today()).Sum(a=>a.Amount);
+        var adjusted=new SavingsComponent {Key=component.Key,Name=component.Name,Mode=component.Mode,Amount=component.Amount,TargetDate=component.TargetDate<start?fundingPeriodEnd:component.TargetDate,RepeatMonths=component.RepeatMonths,AlreadyFunded=Math.Max(0,balance-recorded)};
+        return SavingsGoalCalculator.Between(new(){StartDate=start},adjusted,date,date);
     }
 
     private static bool Contribution(BudgetAllocationType? type) => type is BudgetAllocationType.Savings or BudgetAllocationType.Investments;
@@ -367,8 +393,10 @@ public partial class BudgetService(
             {
                 var amount = goal.Sum(g => g.Amount); if (amount <= 0) continue;
                 var a = goal.Last().Item;
+                var goalJson=Applicable(published,goalEnd)?.Allocations.FirstOrDefault(item=>item.SourceKey==a.SourceKey)?.SavingsPlanJson;
+                var contributionDate=goalJson is null?goalEnd:SavingsGoalCalculator.ContributionDate(JsonSerializer.Deserialize<SavingsPlan>(goalJson)!,goalStart,goalEnd);
                 events.Add(new() { SourceKey = a.SourceKey, ItemId = a.Id, Name = a.Name, AllocationType = a.AllocationType,
-                    Date = goalEnd, Amount = amount, IsPeriodSetAside = true });
+                    Date = contributionDate, Amount = amount, IsPeriodSetAside = true });
             }
         }
         // Preserve paid generated set-asides when the monthly rate or definition changes.
@@ -378,6 +406,11 @@ public partial class BudgetService(
             events.RemoveAll(e => !e.IsIncome && e.SourceKey == saved.SourceKey && e.Date == saved.Date);
             events.Add(saved);
             if (!allocations.Any(a => a.SourceKey == saved.SourceKey)) allocations.Add(new() { SourceKey = saved.SourceKey, Id = saved.ItemId, Name = saved.Name, AllocationType = saved.AllocationType });
+        }
+        foreach(var skip in skippedSavings.Where(p=>p.DueDate>=start && p.DueDate<=end))
+        {
+            var item=allocations.FirstOrDefault(a=>a.SourceKey==skip.AllocationKey);
+            if(item is not null && !events.Any(e=>e.SourceKey==skip.AllocationKey && e.Date==skip.DueDate))events.Add(new(){SourceKey=skip.AllocationKey,ItemId=item.Id,Name=item.Name,AllocationType=BudgetAllocationType.Savings,Date=skip.DueDate,Amount=0,IsPeriodSetAside=true});
         }
         allocations = allocations.Select(a => new BudgetMonthlyItem { SourceKey = a.SourceKey, Id = a.Id, Name = a.Name,
             AllocationType = a.AllocationType, IsScheduled = a.IsScheduled, DailyAmounts = a.DailyAmounts,
@@ -427,8 +460,15 @@ public partial class BudgetService(
         if (bills.Count == 0) return;
         var min = bills.Min(e => e.Date); var max = bills.Max(e => e.Date);
         var payments = await context.BillPayments.AsNoTracking().Include(p => p.Transaction).ThenInclude(t => t!.PairedTransaction).Include(p => p.Links).ThenInclude(l => l.Transaction).ThenInclude(t => t.PairedTransaction).Where(p => p.HouseholdId == householdId && p.DueDate >= min && p.DueDate <= max).ToListAsync();
+        var allocated=await context.Set<SavingsActivity>().AsNoTracking().Where(a=>a.SavingsFund.HouseholdId==householdId && a.DueDate>=min && a.DueDate<=max && (a.Kind=="Contribution" || a.Kind=="ContributionLinked")).Select(a=>new{a.SavingsFund.SourceKey,a.DueDate,a.Amount}).ToListAsync();
         foreach (var bill in bills)
+        {
             bill.Payment = payments.Where(p => p.AllocationKey == bill.SourceKey && p.DueDate == bill.Date).Select(BillPaymentResponse.From).SingleOrDefault();
+            if(bill.AllocationType==BudgetAllocationType.Savings && skippedSavings.Any(p=>p.AllocationKey==bill.SourceKey && p.SkippedPeriodStart<=bill.Date && p.SkippedPeriodEnd>=bill.Date))
+                bill.Payment=new(false,null,bill.Payment?.Note,null){IsSkipped=true};
+            if(bill.Payment is {IsSkipped:false} paid && paid.TransactionId is null && allocated.Where(a=>a.SourceKey==bill.SourceKey && a.DueDate==bill.Date).Sum(a=>a.Amount)>=bill.Amount)
+                bill.Payment=paid with {IsPaid=true,IsFundAllocation=true};
+        }
     }
 
     private IQueryable<BudgetRevision> Revisions(int householdId) => context.BudgetRevisions.AsNoTracking()
@@ -479,6 +519,10 @@ public partial class BudgetService(
         {
             if (allocation is null) throw new ArgumentException("An allocation cannot be empty.");
             ValidateNameAndAmount(allocation.Name, allocation.Amount);
+            if (allocation.SavingsPlan is {} goal) {
+                if (allocation.AllocationType != BudgetAllocationType.Savings || allocation.Schedule is not null) throw new ArgumentException("Savings goals require an unscheduled savings allocation.");
+                SavingsGoalCalculator.Validate(goal);
+            }
             if (!Enum.IsDefined(allocation.AllocationType)) throw new ArgumentException("Unsupported allocation type.");
             if (allocation.Schedule is not null) schedules.Validate(Schedule(allocation.Schedule));
         }
@@ -499,7 +543,7 @@ public partial class BudgetService(
     private static BudgetIncomeInput Income(BudgetIncomeSource i) => new() { SourceKey = i.SourceKey, Name = i.Name, Amount = i.Amount, HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck,
         RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck, Schedule = Input(i.Schedule) };
     private static BudgetAllocationInput Allocation(BudgetAllocation a) => new() {
-        SourceKey = a.SourceKey, Name = a.Name, Amount = a.Amount, AllocationType = a.AllocationType, Schedule = a.Schedule is null ? null : Input(a.Schedule),
+        SourceKey = a.SourceKey, Name = a.Name, Amount = a.Amount, AllocationType = a.AllocationType, SavingsPlan = a.SavingsPlanJson is null ? null : JsonSerializer.Deserialize<SavingsPlan>(a.SavingsPlanJson), Schedule = a.Schedule is null ? null : Input(a.Schedule),
     };
     private static BudgetRevisionResponse Response(BudgetRevision r) => new() {
         Id = r.Id, RevisionNumber = r.RevisionNumber, EditVersion = r.EditVersion, EffectiveFromMonth = r.EffectiveFromMonth,

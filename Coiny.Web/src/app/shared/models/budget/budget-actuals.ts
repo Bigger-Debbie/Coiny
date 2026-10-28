@@ -8,12 +8,12 @@ export interface BudgetCategoryDefault {
   categoryId: number; categoryName: string; isActive: boolean; allocationKey: string | null;
   effectiveFromMonth: string | null; editVersion: number;
 }
-export interface BudgetActualsTransaction {
+export interface BudgetActualsTransaction { fundedFromSavings?: number;
   id: number; editVersion: number; pairedEditVersion: number | null; date: string;
   description: string; merchant?: string | null; amount: number; accountName: string; categoryName: string;
   categoryType: 'Expense' | 'Transfer'; allocationKey: string | null; allocationName: string | null;
   paymentDueDate?: string | null;
-  assignmentSource: 'Payment' | 'Override' | 'Category' | 'Unassigned';
+  assignmentSource: 'Payment' | 'Override' | 'Category' | 'Unassigned' | 'Fund';
 }
 export interface BudgetActuals {
   startDate?: string; endDate?: string;

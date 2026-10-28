@@ -1,3 +1,4 @@
+import { SavingsFunds } from '../savings/savings-funds';
 import { notificationSignal } from '../../core/services/toast.service';
 import { Component, DestroyRef, ElementRef, HostListener, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -27,7 +28,7 @@ const scheduleValidator = (c: AbstractControl): ValidationErrors | null => {
 };
 
 @Component({
-  selector: 'app-budget', imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, SelectMenu, BudgetScheduleEditor, BudgetDashboard],
+  selector: 'app-budget', imports: [SavingsFunds,ReactiveFormsModule, CurrencyPipe, DatePipe, SelectMenu, BudgetScheduleEditor, BudgetDashboard],
   templateUrl: './budget.html', styleUrl: './budget.css',
 })
 export class Budget implements OnInit {
@@ -55,7 +56,8 @@ export class Budget implements OnInit {
     { key: 'Bills', label: 'Housing & bills', description: 'Add payments you regularly need to cover, like rent, mortgage, electricity, and insurance. Use a recent bill to estimate amounts that change.' },
     { key: 'Subscriptions', label: 'Subscriptions', description: 'List recurring memberships and services, such as streaming, music, apps, and gym memberships. Enter the amount per renewal and when it is charged, including yearly subscriptions.' },
     { key: 'Spending', label: 'Everyday spending', description: 'How much would you like to set aside each month for groceries, transportation, dining, and other day-to-day spending? Start with recent spending—you can adjust these amounts later.' },
-    { key: 'SavingsAndInvestments', label: 'Savings & investing', description: 'Plan contributions toward an emergency fund, future purchases, or investments. Only include money coming from the take-home income above, so payroll deductions aren’t counted twice.' },
+    { key: 'Investments', label: 'Investments', description: 'Plan investment contributions from your take-home income. Payroll deductions are already accounted for and should not be included twice.' },
+    { key: 'SavingsGoals', label: 'Savings goals', description: 'Choose what you want to save for. Coiny calculates paycheck contributions and checks what your budget can support.' },
     { key: 'Review', label: 'Review', description: 'Does this plan feel workable? Check what’s left unassigned or whether you’ve planned more than your expected income. You can go back and adjust before publishing.' },
   ];
   readonly billTypes: SelectOption[] = [{ value: 'Housing', label: 'Housing' }, { value: 'Bills', label: 'Bill' }, { value: 'Subscriptions', label: 'Subscription' }];
@@ -73,7 +75,7 @@ export class Budget implements OnInit {
   schedule(control: AbstractControl) { return control.get('schedule') as FormGroup; }
   visibleAllocation(control: AbstractControl) {
     const type: AllocationType = control.value.allocationType;
-    return this.step() === 1 ? ['Housing', 'Bills'].includes(type) : this.step() === 2 ? type === 'Subscriptions' : this.step() === 3 ? type === 'Spending' : ['Savings', 'Investments'].includes(type);
+    return this.step() === 1 ? ['Housing', 'Bills'].includes(type) : this.step() === 2 ? type === 'Subscriptions' : this.step() === 3 ? type === 'Spending' : this.step() === 4 ? type === 'Investments' : type === 'Savings';
   }
   ngOnInit() { void this.load(); }
   private request<T>(observable: import('rxjs').Observable<T>) { return firstValueFrom(observable.pipe(takeUntilDestroyed(this.destroyRef))); }
@@ -113,7 +115,7 @@ export class Budget implements OnInit {
     this.form.patchValue({ effectiveMonth: draft.effectiveFromMonth.slice(0, 7) });
     draft.incomeSources.forEach(i => this.income.push(this.incomeGroup(i)));
     draft.allocations.forEach(a => this.allocations.push(this.allocationGroup(a)));
-    this.step.set(Math.max(0, this.steps.findIndex(s => s.key === draft.setupStep)));
+    this.step.set(draft.setupStep === 'SavingsAndInvestments' ? 4 : Math.max(0, this.steps.findIndex(s => s.key === draft.setupStep)));
     this.snapshot = JSON.stringify(this.form.getRawValue());
     this.attempted.set(false); this.conflict.set(false);
   }
@@ -127,7 +129,7 @@ export class Budget implements OnInit {
       retirementContributionPerPaycheck: [i?.retirementContributionPerPaycheck ?? null, optionalMoney], schedule: this.scheduleGroup(i?.schedule) });
   }
   private allocationGroup(a: BudgetAllocation) {
-    const group = this.fb.group({ sourceKey: a.sourceKey ?? null, name: [a.name, name], amount: [a.amount, money], allocationType: a.allocationType, schedule: a.schedule ? this.scheduleGroup(a.schedule) : this.fb.control(null) });
+    const group = this.fb.group({ sourceKey: a.sourceKey ?? null, name: [a.name, name], amount: [a.amount, money], allocationType: a.allocationType, savingsPlan: this.fb.control(a.savingsPlan ?? null), schedule: a.schedule ? this.scheduleGroup(a.schedule) : this.fb.control(null) });
     group.get('allocationType')!.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(type => {
       if (['Housing', 'Bills', 'Subscriptions'].includes(type) && !group.value.schedule)
         group.setControl('schedule', this.scheduleGroup());
@@ -136,13 +138,18 @@ export class Budget implements OnInit {
   }
   addIncome() { this.income.push(this.incomeGroup()); }
   addAllocation() {
-    const type = this.step() === 1 ? 'Bills' : this.step() === 2 ? 'Subscriptions' : this.step() === 3 ? 'Spending' : 'Savings';
+    const type = this.step() === 1 ? 'Bills' : this.step() === 2 ? 'Subscriptions' : this.step() === 3 ? 'Spending' : this.step() === 4 ? 'Investments' : 'Savings';
     const group = this.allocationGroup({ name: '', amount: null as unknown as number, allocationType: type, schedule: null });
     if (type === 'Bills' || type === 'Subscriptions') group.setControl('schedule', this.scheduleGroup());
     this.allocations.push(group);
   }
   toggleSchedule(control: AbstractControl, event: Event) {
     this.group(control).setControl('schedule', (event.target as HTMLInputElement).checked ? this.scheduleGroup() : this.fb.control(null));
+  }
+  async fundsChanged() {
+    this.busy.set(true); this.error.set('');
+    try { const draft = (await this.request(this.api.setup())).draft; if (draft) { this.hydrate(draft); await this.refreshPreview(); } }
+    catch (e) { this.fail(e); } finally { this.busy.set(false); }
   }
   private normalize(s: BudgetSchedule): BudgetSchedule {
     const anchored = ['Weekly', 'EveryTwoWeeks', 'EverySixMonths', 'Yearly'].includes(s.frequency);

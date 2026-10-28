@@ -31,12 +31,12 @@ public record BudgetComparisonPoint(DateOnly Date, decimal PlannedSpending, deci
 
 public record BudgetActualsItem(Guid AllocationKey, string Name, BudgetAllocationType AllocationType,
     decimal Planned, decimal Actual, decimal Remaining, decimal AwaitingTransaction, int TransactionCount,
-    decimal PriorPeriodActual = 0, decimal FuturePeriodActual = 0);
+    decimal PriorPeriodActual = 0, decimal FuturePeriodActual = 0, decimal ForecastRemaining = 0);
 public record BudgetCategoryDefault(int CategoryId, string CategoryName, bool IsActive, Guid? AllocationKey,
     DateOnly? EffectiveFromMonth, int EditVersion);
 public record BudgetActualsTransaction(int Id, int EditVersion, int? PairedEditVersion, DateOnly Date,
     string Description, decimal Amount, string AccountName, string CategoryName, CategoryType CategoryType,
-    Guid? AllocationKey, string? AllocationName, string AssignmentSource, string? Merchant = null, DateOnly? PaymentDueDate = null);
+    Guid? AllocationKey, string? AllocationName, string AssignmentSource, string? Merchant = null, DateOnly? PaymentDueDate = null, decimal FundedFromSavings = 0, bool IsFundActivity = false);
 
 public class SaveBudgetCategoryRuleRequest
 {

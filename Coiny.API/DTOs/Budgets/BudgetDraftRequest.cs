@@ -5,6 +5,7 @@ namespace Coiny.API.DTOs.Budgets;
 
 public class BudgetDraftRequest
 {
+    [JsonIgnore] public bool FundManaged { get; set; }
     [JsonRequired]
     public int ExpectedEditVersion { get; set; }
     [JsonRequired]
@@ -43,6 +44,7 @@ public class BudgetIncomeInput
 
 public class BudgetAllocationInput
 {
+    public Coiny.API.DTOs.Savings.SavingsPlan? SavingsPlan { get; set; }
     public Guid? SourceKey { get; set; }
     [JsonRequired]
     public string Name { get; set; } = string.Empty;

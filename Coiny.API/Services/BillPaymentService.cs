@@ -32,6 +32,8 @@ public class BillPaymentService(CoinyContext context, ICurrentUserService user, 
             throw new ArgumentException("The primary transaction must be included in the selected transactions.");
         var entries = new List<Transaction>();
         if (!request.IsPaid && selected.Length > 0) throw new ArgumentException("Detach the transaction when marking an occurrence unpaid.");
+        if(request.IsSkipped && (occurrence.AllocationType!=BudgetAllocationType.Savings || request.IsPaid || selected.Length>0))
+            throw new ArgumentException("Only an unlinked savings contribution can be skipped. Recorded transactions remain in actuals.");
         var paidOn = request.PaidOn;
         foreach (var selectedId in selected)
         {
@@ -56,6 +58,22 @@ public class BillPaymentService(CoinyContext context, ICurrentUserService user, 
             throw new ArgumentException("Payment date must be a valid date on or before today.");
         var payment = await context.BillPayments.Include(p => p.Transaction).ThenInclude(t => t!.PairedTransaction).Include(p => p.Links).ThenInclude(l => l.Transaction).ThenInclude(t => t.PairedTransaction).SingleOrDefaultAsync(p => p.HouseholdId == householdId && p.AllocationKey == key && p.DueDate == date);
         if (payment is null) { payment = new() { HouseholdId = householdId, AllocationKey = key, DueDate = date }; context.BillPayments.Add(payment); }
+        var wasSkipped=payment.IsSkipped;
+        if(!request.IsSkipped && occurrence.AllocationType==BudgetAllocationType.Savings)
+        {
+            var restores=await context.BillPayments.Where(p=>p.HouseholdId==householdId && p.AllocationKey==key && p.IsSkipped && p.SkippedPeriodStart<=date && p.SkippedPeriodEnd>=date).ToListAsync();
+            wasSkipped=wasSkipped || restores.Count>0;
+            foreach(var skipped in restores){skipped.IsSkipped=false;skipped.SkippedPeriodStart=null;skipped.SkippedPeriodEnd=null;}
+        }
+        if(request.IsSkipped && (payment.TransactionId.HasValue || payment.Links.Count>0))throw new ArgumentException("Unlink this contribution's transactions before skipping it. Actual money already recorded is not removed.");
+        if(request.IsSkipped)
+        {
+            var period=await budgets.GetIncomePeriodAsync(date);
+            if(period.StartDate is null || period.EndDate is null)throw new ArgumentException("A complete income period is required to skip a savings contribution.");
+            payment.SkippedPeriodStart=period.StartDate;payment.SkippedPeriodEnd=period.EndDate;
+        }
+        else {payment.SkippedPeriodStart=null;payment.SkippedPeriodEnd=null;}
+        payment.IsSkipped=request.IsSkipped;
         payment.IsPaid = request.IsPaid; payment.PaidOn = request.IsPaid ? paidOn ?? Today : null;
         payment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(); payment.TransactionId = selected.Cast<int?>().FirstOrDefault();
         payment.Transaction = entries.FirstOrDefault();
@@ -63,6 +81,7 @@ public class BillPaymentService(CoinyContext context, ICurrentUserService user, 
         foreach (var link in payment.Links.Where(l => !additional.Contains(l.TransactionId)).ToList()) payment.Links.Remove(link);
         foreach (var entry in entries.Skip(1).Where(t => !payment.Links.Any(l => l.TransactionId == t.Id)))
             payment.Links.Add(new() { TransactionId = entry.Id, Transaction = entry });
+        if(!request.IsSkipped && !wasSkipped) await SavingsFundsService.SynchronizePaymentAsync(context,householdId,key,date,payment,entries,Today);
         try { await context.SaveChangesAsync(); await dbTransaction.CommitAsync(); }
         catch (DbUpdateException) { throw new BudgetConflictException("This scheduled item or transaction changed. Reload it before saving again."); }
         return BillPaymentResponse.From(payment);

@@ -41,6 +41,9 @@ public class TransactionManagementService(CoinyContext context, ICurrentUserServ
             throw new ArgumentException("A linked transfer must keep its direction and use two different accounts. Unlink it before changing its type.");
         if (request.CategoryType != entry.Category.CategoryType && await context.BillPayments.AnyAsync(p => (p.TransactionId == id || p.Links.Any(l => l.TransactionId == id))))
             throw new TransactionConflictException("Unlink this transaction from its scheduled bill or contribution before changing its type.");
+        if (await context.Set<SavingsActivity>().AnyAsync(a => !a.Kind.StartsWith("Voided:") && (a.TransactionId == id || pair != null && a.TransactionId == pair.Id)) &&
+            (entry.Amount != request.Amount || entry.AccountId != request.AccountId || DateOnly.FromDateTime(entry.TransactionDate) != request.Date || entry.Category.CategoryType != request.CategoryType || entry.TransferDirection != request.Direction))
+            throw new TransactionConflictException("Correct this movement’s savings fund activity before changing its amount, date, account, or type.");
         Category category;
         if (request.CategoryType == CategoryType.Transfer)
         {

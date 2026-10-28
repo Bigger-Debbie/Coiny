@@ -8,6 +8,9 @@ public class BillPayment : BaseEntity
     public Household Household { get; set; } = null!;
     public Guid AllocationKey { get; set; }
     public DateOnly DueDate { get; set; }
+    public bool IsSkipped { get; set; }
+    public DateOnly? SkippedPeriodStart { get; set; }
+    public DateOnly? SkippedPeriodEnd { get; set; }
     public bool IsPaid { get; set; }
     public DateOnly? PaidOn { get; set; }
     public string? Note { get; set; }

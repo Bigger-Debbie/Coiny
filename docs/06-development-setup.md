@@ -219,3 +219,5 @@ apply migrations, and restart the API. See [saved CSV mappings](16-saved-csv-map
 Split bill payments require the additive `AddMultipleBillTransactions` migration. It adds an empty additional-link table and preserves all existing payments and transaction rows. Restart the API after applying migrations.
 
 Import review/undo requires `20261026191419_AddImportUndoAudit`. It adds an undo audit table and import-batch baseline/undo metadata. Existing imports remain flagged as original-state unavailable rather than being silently treated as unchanged. The migration executes no undo.
+
+Savings funds use the additive `AddSavingsFunds` and `SplitSavingsWizardSteps` migrations. Back up existing SQLite data before upgrading; no funds or allocations are inferred automatically. See [the feature guide](19-savings-funds.md).

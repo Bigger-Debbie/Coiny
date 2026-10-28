@@ -78,15 +78,15 @@ export class BudgetCalendar implements OnInit, OnChanges {
   }
   readonly paymentBill = signal<BudgetEvent | null>(null);
   canTrackPayment(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills', 'Subscriptions', 'Savings', 'Investments'].includes(event.allocationType ?? ''); }
-  awaitingTransaction(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId == null; }
-  linkedPayment(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId != null; }
+  awaitingTransaction(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId == null && !event.payment.isFundAllocation; }
+  linkedPayment(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && (event.payment.transactionId != null || !!event.payment.isFundAllocation); }
   paymentMarker(event: BudgetEvent) { return this.linkedPayment(event) ? '✓' : this.awaitingTransaction(event) ? '◷' : '●'; }
-  paymentAction(event: BudgetEvent) { return this.awaitingTransaction(event) ? 'Link transaction' : this.linkedPayment(event) ? 'View payment' : 'Mark paid'; }
-  status(event: BudgetEvent) { return this.awaitingTransaction(event) ? 'Paid · Awaiting transaction' : this.linkedPayment(event) ? 'Paid · Linked' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
+  paymentAction(event: BudgetEvent) { if(event.payment?.isSkipped)return 'Restore contribution'; if(event.payment?.isFundAllocation)return 'View allocation'; return this.awaitingTransaction(event) ? 'Link transaction' : this.linkedPayment(event) ? 'View payment' : 'Mark paid'; }
+  status(event: BudgetEvent) { if(event.payment?.isSkipped)return 'Skipped this period'; if(event.payment?.isFundAllocation)return 'Funded · Allocated'; return this.awaitingTransaction(event) ? 'Paid · Awaiting transaction' : this.linkedPayment(event) ? 'Paid · Linked' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
   get awaitingPayments() { return [...(this.period()?.bills ?? []), ...(this.period()?.contributions ?? [])].filter(e => this.awaitingTransaction(e)); }
   get awaitingTotal() { return this.awaitingPayments.reduce((sum, item) => sum + item.amount, 0); }
   readonly showCompleted = signal(true);
-  visiblePayments(events: BudgetEvent[]) { return this.showCompleted() ? events : events.filter(event => !this.linkedPayment(event)); }
+  visiblePayments(events: BudgetEvent[]) { return this.showCompleted() ? events : events.filter(event => !this.linkedPayment(event) && !event.payment?.isSkipped); }
   readonly linkOnOpen = signal(false);
   openPayment(event: BudgetEvent) { this.linkOnOpen.set(this.awaitingTransaction(event)); this.paymentBill.set(event); }
   paymentSaved(payment: BillPaymentState) {

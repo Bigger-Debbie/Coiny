@@ -1,8 +1,9 @@
+import { SavingsFunds } from '../savings/savings-funds';
 import { AuthService } from '../../core/services/auth.service';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BudgetCalendar } from './budget-calendar';
-import { BudgetCalendarStub, BudgetActualsStub } from './budget-calendar.stub';
+import { BudgetCalendarStub, BudgetActualsStub, SavingsFundsStub } from './budget-calendar.stub';
 import { BudgetActualsPanel } from './budget-actuals';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -21,7 +22,7 @@ const plan: BudgetMonth = {
   ],
 };
 describe('BudgetDashboard', () => {
-  beforeEach(() => { TestBed.configureTestingModule({ providers:[provideHttpClient(),provideHttpClientTesting()] }); TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub] } }); });
+  beforeEach(() => { TestBed.configureTestingModule({ providers:[provideHttpClient(),provideHttpClientTesting()] }); TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel, SavingsFunds] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub, SavingsFundsStub] } }); });
   function render(month: BudgetMonth | null = plan) {
     const f = TestBed.createComponent(BudgetDashboard); f.componentInstance.mode.set('month');
     f.componentRef.setInput('month', month); f.componentRef.setInput('selectedMonth', '2026-10-01');

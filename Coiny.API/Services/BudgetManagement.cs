@@ -11,7 +11,33 @@ public partial class BudgetService
     private static DateOnly Effective(BudgetRevision revision) => revision.EffectiveFromDate ?? revision.EffectiveFromMonth;
     private static BudgetRevision? Applicable(IReadOnlyList<BudgetRevision> revisions, DateOnly date) => revisions
         .Where(r => Effective(r) <= date).OrderByDescending(Effective).ThenByDescending(r => r.RevisionNumber).FirstOrDefault();
-    private Task<List<BudgetRevision>> Published(int household) => Revisions(household).Where(r => r.State == BudgetRevisionState.Published).ToListAsync();
+    private List<BillPayment> skippedSavings = [];
+    private Dictionary<(Guid Fund,Guid Component),decimal> fundedBalances = [];
+    private List<SavingsActivity> fundContributions = [];
+    private Dictionary<Guid,int> fundIds = [];
+    private DateOnly fundingPeriodEnd = DateOnly.MaxValue;
+    private DateOnly fundingPeriodStart = DateOnly.MinValue;
+    private async Task<List<BudgetRevision>> Published(int household)
+    {
+        skippedSavings=await context.BillPayments.AsNoTracking().Where(p=>p.HouseholdId==household && p.IsSkipped).ToListAsync();
+        var funds=await context.Set<SavingsFund>().AsNoTracking().Include(f=>f.Activities).Where(f=>f.HouseholdId==household).ToListAsync();
+        fundedBalances=funds.SelectMany(f=>JsonSerializer.Deserialize<Coiny.API.DTOs.Savings.SavingsPlan>(f.PlanJson)!.Components.Select(c=>new {Key=(f.SourceKey,c.Key),Balance=f.Activities.Where(a=>a.ComponentKey==c.Key).Sum(a=>a.Amount)})).ToDictionary(p=>p.Key,p=>p.Balance);
+        fundIds=funds.ToDictionary(f=>f.SourceKey,f=>f.Id);
+        fundContributions=funds.SelectMany(f=>f.Activities.Where(a=>a.Kind is "Contribution" or "ContributionLinked" or "CalendarContribution")).ToList();
+        var revisions=await Revisions(household).Where(r => r.State == BudgetRevisionState.Published).ToListAsync();
+        var today=Today();fundingPeriodStart=DateOnly.MinValue;
+        if(funds.Count>0)
+        {
+            var paydays=new List<DateOnly>();
+            for(var m=new DateOnly(today.Year,today.Month,1).AddMonths(-12);m<=today.AddMonths(12);m=m.AddMonths(1))
+                foreach(var revision in revisions)
+                    foreach(var income in revision.IncomeSources)
+                        paydays.AddRange(schedules.GetOccurrences(income.Schedule,m).Where(d=>Applicable(revisions,d)?.Id==revision.Id));
+            fundingPeriodStart=paydays.Where(d=>d<=today).DefaultIfEmpty(DateOnly.MinValue).Max();
+            fundingPeriodEnd=paydays.Where(d=>d>today).Select(d=>d.AddDays(-1)).DefaultIfEmpty(DateOnly.MaxValue).Min();
+        }
+        return revisions;
+    }
     private DateOnly Today() => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), ApplicationTimeZone).DateTime);
     private sealed record ProtectedPayment(BudgetScheduledEvent Event, DateOnly? SuppressedDate, Dictionary<DateOnly, decimal>? DailyAmounts = null);
     private static List<ProtectedPayment> Protected(BudgetRevision revision) => string.IsNullOrWhiteSpace(revision.ProtectedPaymentsJson) ? [] : JsonSerializer.Deserialize<List<ProtectedPayment>>(revision.ProtectedPaymentsJson) ?? [];
@@ -27,7 +53,7 @@ public partial class BudgetService
     public async Task<BudgetItemReview> ChangeItemAsync(BudgetItemChange request, bool preview)
     {
         var household = await currentUser.GetCurrentHouseholdIdAsync();
-        await using var transaction = await context.Database.BeginTransactionAsync();
+        await using var transaction = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync() : null;
         var published = await Published(household);
         var baseline = published.OrderByDescending(Effective).ThenByDescending(r => r.RevisionNumber).FirstOrDefault()
             ?? throw new ArgumentException("Publish your first budget before managing its items.");
@@ -37,7 +63,9 @@ public partial class BudgetService
         if (await Revisions(household).AnyAsync(r => r.State == BudgetRevisionState.Draft))
             throw new BudgetConflictException("A saved household draft exists. Finish publishing it before editing published items.");
         var incomes = baseline.IncomeSources.Select(Income).ToList(); var allocations = baseline.Allocations.Select(Allocation).ToList();
-        var key = request.SourceKey ?? Guid.NewGuid();
+        var key = request.SourceKey ?? request.NewSourceKey ?? Guid.NewGuid();
+        if (!request.FundManaged && await context.Set<SavingsFund>().AnyAsync(f => f.HouseholdId == household && f.SourceKey == key))
+            throw new ArgumentException("Manage this savings goal from Savings funds so its account and components stay in sync.");
         if (key == Guid.Empty || request.Remove && request.SourceKey is null) throw new ArgumentException("Choose an existing budget item to remove.");
         if (request.SourceKey.HasValue && !(request.IsIncome ? incomes.Any(i => i.SourceKey == key) : allocations.Any(a => a.SourceKey == key)))
             throw new ArgumentException("This item is not in the household's latest published budget.");
@@ -64,7 +92,7 @@ public partial class BudgetService
             IncomeSources = incomes.Select(i => new BudgetIncomeSource { SourceKey = i.SourceKey!.Value, Name = i.Name.Trim(), Amount = i.Amount,
                 Schedule = Schedule(i.Schedule), HealthInsurancePerPaycheck = i.HealthInsurancePerPaycheck, RetirementContributionPerPaycheck = i.RetirementContributionPerPaycheck }).ToList(),
             Allocations = allocations.Select(a => new BudgetAllocation { SourceKey = a.SourceKey!.Value, Name = a.Name.Trim(), Amount = a.Amount, AllocationType = a.AllocationType,
-                Schedule = a.Schedule is null ? null : Schedule(a.Schedule) }).ToList(),
+                SavingsPlanJson = a.SavingsPlan is null ? null : JsonSerializer.Serialize(a.SavingsPlan), Schedule = a.Schedule is null ? null : Schedule(a.Schedule) }).ToList(),
         };
         // Capture paid occurrences before changing the definition. Include already paid future dates,
         // even if an item is removed or its schedule changes. No ledger or payment rows are changed.
@@ -112,7 +140,7 @@ public partial class BudgetService
         }
         var after = ProjectPublishedMonth(published.Append(next).ToList(), month);
         await ApplyPayments(household, after.Events);
-        if (!preview) await transaction.CommitAsync();
+        if (!preview && transaction is not null) await transaction.CommitAsync();
         return new(before, after, locks.Count, request.EffectiveDate, beforePeriod, await GetPeriod(request.EffectiveDate, null, published.Append(next).ToList()));
     }
 

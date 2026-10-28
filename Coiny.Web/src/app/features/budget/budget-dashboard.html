@@ -22,7 +22,7 @@
   @else if (displayPlan; as plan) {
     @if (plan.revisionId === null) { <div class="panel"><h3>No published plan for this month</h3><p>Choose a month when your budget is in effect. Draft changes appear here after you publish them.</p></div> }
     @else {
-      <div class="totals" aria-label="Planned outlook totals">
+      <div class="totals" [class.period-totals]="mode() === 'period'" aria-label="Planned outlook totals">
         <div class="panel income-total"><span>{{ mode() === 'period' ? 'Income this period' : 'Take-home income' }}</span><strong>{{ plan.expectedIncome | currency }}</strong></div>
         <div class="panel allocations-total"><span>{{ mode() === 'period' ? 'Allocations this period' : 'Planned allocations' }}</span><strong>{{ plan.allocated | currency }}</strong></div>
         <div class="panel remaining-total" [class.over]="mode() === 'period' ? ((outlookView() === 'cash' ? cashRemainder() : expectedRemainder()) ?? 0) < 0 : plan.overBudget > 0">
@@ -91,10 +91,11 @@
           </article>
         </div>
       </div>
+      <app-savings-funds [refreshKey]="actualsRefresh()" (changed)="itemSaved()" />
       <app-budget-actuals (refreshed)="loadRemainder()" [periodAsOf]="mode() === 'period' ? period()?.asOf ?? null : null" [month]="plan.month" [refreshKey]="actualsRefresh()" />
       <app-budget-calendar [controlledPeriod]="mode() === 'period' ? period() : null" [month]="mode() === 'period' ? month! : plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" (paymentChanged)="refreshActuals()" />
     }
   }
 <app-recurring-expenses (budgetChanged)="itemSaved()" />
-@if (itemEditor(); as editor) { <app-budget-item-editor [selection]="editor.selection" (dismiss)="itemEditor.set(null)" (saved)="itemSaved()" /> }
+@if (itemEditor(); as editor) { <app-budget-item-editor [selection]="editor.selection" (manageFund)="openFund($event)" (dismiss)="itemEditor.set(null)" (saved)="itemSaved()" /> }
 </section>
