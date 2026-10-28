@@ -17,10 +17,10 @@ p { line-height:1.6; }
 .totals > .panel { display:flex; flex-direction:column; justify-content:center; padding:1rem 1.25rem; }
 .totals span { display:block; font-size:.85rem; color:var(--color-text-muted); margin-bottom:.4rem; }
 .totals strong { font-size:clamp(1.3rem,2.5vw,2rem); font-weight:500; color:var(--color-primary); overflow-wrap:anywhere; }
-.totals .income-total { border-color:var(--color-success); }
-.totals .income-total strong { color:var(--color-success); }
-.totals .allocations-total { border-color:var(--color-danger); }
-.totals .allocations-total strong { color:var(--color-danger); }
+.totals .income-total { border-color:var(--color-success); background:var(--color-success); }
+.totals .allocations-total { border-color:var(--color-danger); background:var(--color-danger); }
+.totals .income-total span,.totals .income-total strong,
+.totals .allocations-total span,.totals .allocations-total strong { color:white; }
 .totals .over strong,.warning { color:var(--color-danger); }
 .totals .unlinked-reserve { color:#855600; font-style:normal; }
 .remaining-total { position:relative; }
