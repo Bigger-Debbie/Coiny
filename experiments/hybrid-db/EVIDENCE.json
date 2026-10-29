@@ -1,0 +1,110 @@
+{
+  "syntheticOnly": true,
+  "lifecycleIncluded": true,
+  "checks": [
+    {
+      "name": "Household isolation",
+      "passed": true,
+      "durationMs": 67.5,
+      "details": {
+        "distinctHouseholdFiles": true,
+        "unauthorizedRequestsDeniedBeforeFileOpens": true
+      }
+    },
+    {
+      "name": "Concurrent imports and retry safety",
+      "passed": true,
+      "durationMs": 117.7,
+      "details": {
+        "imports": 20,
+        "concurrentClients": 8,
+        "importedRows": 5000,
+        "exactBalances": true,
+        "idempotentRetry": true,
+        "sharedHouseholdMemberWrite": true
+      }
+    },
+    {
+      "name": "Independent writers and WAL reads",
+      "passed": true,
+      "durationMs": 4032.0,
+      "details": {
+        "heldWriterMs": 4000,
+        "otherHouseholdWriteMs": 5.9,
+        "sameHouseholdReadMs": 2.0,
+        "sameHouseholdWriterQueued": true
+      }
+    },
+    {
+      "name": "Interrupted provisioning",
+      "passed": true,
+      "durationMs": 71.8,
+      "details": {
+        "recoveredHouseholds": [
+          "ccb52013-d3f3-4822-a4ee-38b4b7355495",
+          "ec154fb7-16c4-422a-aede-d24e9dc8642c"
+        ],
+        "duplicateRecoverySafe": true
+      }
+    },
+    {
+      "name": "Interrupted schema migration",
+      "passed": true,
+      "durationMs": 28.9,
+      "details": {
+        "upgrade": "v1 \u2192 v2",
+        "interruptedCatalogUpdateRecovered": true,
+        "repeatMigrationPreservesData": true
+      }
+    },
+    {
+      "name": "Backup, restore, and current permissions",
+      "passed": true,
+      "durationMs": 45.0,
+      "details": {
+        "consistentSqliteBackupApi": true,
+        "pendingRestoreRecovered": true,
+        "revokedMembershipNotRestored": true,
+        "otherHouseholdUnchanged": true
+      }
+    },
+    {
+      "name": "Household node ownership",
+      "passed": true,
+      "durationMs": 9.4,
+      "details": {
+        "wrongNodeDenied": true
+      }
+    },
+    {
+      "name": "Incorrect registry mapping",
+      "passed": true,
+      "durationMs": 17.8,
+      "details": {
+        "incorrectRegistryMappingsFailClosed": true,
+        "financialDataUnchanged": true
+      }
+    },
+    {
+      "name": "Container recreation and startup recovery",
+      "passed": true,
+      "durationMs": 1982.3,
+      "details": {
+        "appContainerRecreated": true,
+        "postgresContainerRecreated": true,
+        "pendingProvisionAndRestoreRecoveredOnStartup": true,
+        "dataAndAccessPersisted": true
+      }
+    },
+    {
+      "name": "Control database outage",
+      "passed": true,
+      "durationMs": 828.7,
+      "details": {
+        "failsClosedWithoutPostgres": true,
+        "resumedWithoutDataLoss": true
+      }
+    }
+  ],
+  "allPassed": true
+}

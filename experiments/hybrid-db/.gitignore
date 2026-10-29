@@ -1,0 +1,5 @@
+.env
+results/
+Lab/bin/
+Lab/obj/
+__pycache__/
