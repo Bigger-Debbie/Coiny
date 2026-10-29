@@ -16,7 +16,7 @@ public static class HouseholdInvitationRateLimits
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                     context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 await context.HttpContext.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails {
-                    Status = 429, Title = "Too many attempts", Detail = "Please wait a minute before trying again.",
+                    Status = 429, Title = "Too many attempts", Detail = "Please wait before trying again.",
                 }, cancellationToken: token);
             };
             // An IP cap complements authenticated-user limits without limiting unrelated API traffic.

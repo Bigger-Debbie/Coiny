@@ -18,13 +18,14 @@ public class TokenService : ITokenService
         _jwtOptions = jwtOptions.Value;
     }
 
-    public string CreateToken(ApplicationUser user)
+    public string CreateToken(ApplicationUser user, string? sessionId = null)
     {
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Jti, sessionId ?? Guid.NewGuid().ToString()),
+            new("security_stamp", user.SecurityStamp ?? ""),
             new(ClaimTypes.NameIdentifier, user.Id)
         };
 

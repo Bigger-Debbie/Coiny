@@ -1,11 +1,15 @@
 :host {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+  min-height:100dvh;
 }
-
-.app-main {
-  flex: 1;
-  padding-bottom: 2rem;
-}
+.page-body { position:relative; display:flex; flex:1; flex-direction:column; isolation:isolate; }
+.page-content { display:flex; flex:1; flex-direction:column; min-width:0; }
+.app-main { flex:1; padding-bottom:2rem; }
+.page-loading { position:absolute; inset:0; z-index:10; background:white; opacity:1; transition:opacity 450ms ease-out; }
+.page-loading.is-fading { opacity:0; }
+.loading-indicator { position:sticky; top:calc(50dvh - 4rem); min-height:8rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; padding:1.5rem; color:var(--color-primary); font-size:.9rem; }
+.loading-indicator img { display:block; width:5rem; height:5rem; object-fit:contain; transform-origin:center; animation:coiny-loading-spin 1.4s linear infinite; }
+@keyframes coiny-loading-spin { from { transform:perspective(500px) rotateY(0deg); } to { transform:perspective(500px) rotateY(360deg); } }
+@media(prefers-reduced-motion:reduce) { .loading-indicator img { animation:none; } .page-loading { transition:none; } }

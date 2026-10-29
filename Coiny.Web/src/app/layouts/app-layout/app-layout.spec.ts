@@ -12,6 +12,9 @@ describe('AppLayout', () => {
     http.expectOne(r => r.url.endsWith('/auth/me')).flush({ id: 'alex', email: 'alex@example.test', firstName: 'Alex' });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-header')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('app-header').closest('.page-body')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.page-content').hasAttribute('inert')).toBe(true);
+    expect(fixture.nativeElement.querySelector('.page-loading img').getAttribute('src')).toBe('assets/icons/favicon.svg');
     expect(fixture.nativeElement.querySelector('app-footer')).toBeTruthy();
     http.verify();
   });

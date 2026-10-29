@@ -1,0 +1,15 @@
+<div class="settings-page">
+  <header class="settings-heading"><h1 class="page-title">Settings</h1><p>Manage your household, preferences, and account security.</p></header>
+  <section class="settings-section" aria-labelledby="household-heading">
+    <header class="section-heading"><h2 id="household-heading">Household</h2><p>Your members and invitations.</p></header>
+    <app-household-settings />
+  </section>
+  <section class="settings-section" aria-labelledby="preferences-heading">
+    <header class="section-heading"><h2 id="preferences-heading">Preferences</h2><p>Choose how Coiny works for you and your household.</p></header>
+    <app-user-settings [pageMode]="true" />
+  </section>
+  <section class="settings-section" aria-labelledby="security-heading">
+    <header class="section-heading"><h2 id="security-heading">Security</h2><p>Manage your password, recovery codes, and signed-in sessions.</p></header>
+    <app-account-security />
+  </section>
+</div>

@@ -76,10 +76,8 @@ describe('Login', () => {
     expect(fixture.nativeElement.querySelector('.login-button').disabled).toBe(false);
   });
 
-  it('explains future actions and can pause background motion', async () => {
-    fixture.nativeElement.querySelector('.forgot').click();
-    await fixture.whenStable();
-    expect(fixture.nativeElement.querySelector('[role="status"]').textContent).toContain('Password recovery is coming soon.');
+  it('links to password recovery and can pause background motion', async () => {
+    expect(fixture.nativeElement.querySelector('.forgot').getAttribute('href')).toBe('/forgot-password');
     expect(fixture.nativeElement.querySelector('.signup').getAttribute('href')).toBe('/signup');
     fixture.nativeElement.querySelector('.motion-control').click();
     await fixture.whenStable();

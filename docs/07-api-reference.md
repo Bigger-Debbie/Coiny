@@ -7,7 +7,7 @@ use camelCase. Send JSON creation bodies with `Content-Type: application/json`.
 Use named enum strings from the tables below. Dates in examples are illustrative;
 choose appropriate historical dates for your test account.
 
-All endpoints except registration and login require:
+All endpoints except registration, login, password-recovery requests/options, code recovery, and password resets require:
 
 ```http
 Authorization: Bearer <token>
@@ -26,6 +26,18 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/auth/register` | 200 | Register and issue token |
 | POST | `/api/auth/login` | 200 | Sign in and issue token |
 | GET | `/api/auth/me` | 200 | Current user profile |
+| GET | `/api/auth/recovery-options` | 200 | Installation recovery methods; no account details |
+| POST | `/api/auth/recover-with-code` | 200 | Reset password using a saved recovery code |
+| GET | `/api/auth/recovery-codes` | 200 | Owned recovery-code count; no plaintext |
+| POST | `/api/auth/recovery-codes` | 200 | Verify password, replace set, return codes once |
+| POST | `/api/auth/recovery-codes/revoke` | 204 | Verify password and revoke owned codes |
+| POST | `/api/auth/forgot-password` | 200 | Request a reset email; generic confirmation |
+| POST | `/api/auth/reset-password` | 200 | Redeem single-use reset link |
+| POST | `/api/auth/change-password` | 200 | Change password and end all sessions |
+| GET | `/api/auth/sessions` | 200 | Current user's active sessions |
+| DELETE | `/api/auth/sessions/{id}` | 204 | Revoke an owned session |
+| POST | `/api/auth/logout` | 204 | Revoke current session |
+| POST | `/api/auth/logout-all` | 204 | Verify password and end every session |
 | GET | `/api/households/me` | 200 | Current household and role; 404 if none |
 | POST | `/api/households` | 201 | Create household and owner membership |
 | GET | `/api/households/members` | 200 | Current household member cards and caller flag |
@@ -1532,7 +1544,7 @@ The worker checks every 15 minutes and records one successful scan per enabled
 household per New York calendar day. It needs a running API and the additive alert
 migration; no SMTP/text provider is used. See [automation rules](14-recurring-detection.md#optional-automatic-scans-and-alerts).
 
-The settings modal can save its personal and household toggles atomically through
+The Settings page’s Preferences section can save its personal and household toggles atomically through
 `PUT /api/users/me/preferences`. In addition to required `includeMortgageInNetWorth`,
 it optionally accepts `recurringDetection: { enabled, expectedEditVersion }` with
 the same validation/version rules as the household settings endpoint. Omitting it
@@ -1655,3 +1667,5 @@ Actuals sum all linked transactions on their posting dates, including charges sp
 `GET /api/transaction-imports/{batchId}/review`, `POST /api/transaction-imports/undo/preview`, and `POST /api/transaction-imports/undo` provide household-scoped review and an atomic, fingerprint-validated undo. See [Import undo/correction](18-import-undo-correction.md) for request/response behavior, explicit acknowledgments, transfer preservation, reconciliation invalidation, and retry semantics.
 
 Savings fund endpoints and activity semantics: [Savings funds](19-savings-funds.md#api).
+
+See [account security](20-account-security.md) for password request bodies, session expiry/revocation, rate limits, and SMTP requirements.

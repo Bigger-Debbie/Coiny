@@ -2,11 +2,11 @@
   @if (loading()) { <p role="status">Loading household…</p> }
   @else {
     @if (household(); as home) {
-      <h2 class="household-name">{{ home.name }}</h2>
+      <h3 class="household-name">{{ home.name }}</h3>
       <p class="hint">{{ members().length }} {{ members().length === 1 ? 'member' : 'members' }} · Shared accounts, transactions, and budget.</p>
       <div class="member-list" aria-label="Household members">
         @for (member of members(); track member.id) {
-          <article class="member-card">
+          <article class="member-card" [class.current-member]="member.isCurrentUser">
             <div class="member-heading">
               <span class="member-avatar" aria-hidden="true">{{ (member.firstName || member.email || '?').slice(0, 1).toUpperCase() }}</span>
               <div><h3>{{ member.firstName?.trim() || 'Household member' }} @if (member.isCurrentUser) { <small>You</small> }</h3><span class="role-badge" [class.owner]="member.role === 'Owner'">{{ member.role }}</span></div>
@@ -27,7 +27,7 @@
       </div>
       <article class="invite-card">
         @if (home.role === 'Owner') {
-          <h2>Invite a household member</h2>
+          <h3>Invite a household member</h3>
           <p>Create a single-use join code and share it with someone you trust. They’ll join as a member with access to your household’s shared financial information.</p>
           <p class="hint">Codes last 10 minutes. Generating a new code replaces the previous one. You’ll need to generate another for each person you invite.</p>
           @if (active()) {

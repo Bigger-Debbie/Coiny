@@ -39,8 +39,7 @@
             @if (password.invalid && (password.touched || form.submitted)) { Enter your password. }
           </span>
         </div>
-        <button class="text-button forgot" type="button"
-          (click)="notice.set('Password recovery is coming soon.')">Forgot Password?</button>
+        <a class="text-button forgot" routerLink="/forgot-password">Forgot Password?</a>
         @if (errorMessage()) { <p class="feedback error" role="alert">{{ errorMessage() }}</p> }
         <button class="login-button" type="submit" [disabled]="submitting()">{{ submitting() ? 'Signing in…' : 'LOGIN' }}</button>
         <a class="text-button signup" routerLink="/signup" [queryParams]="joinCode ? { code: joinCode } : null">Sign Up</a>

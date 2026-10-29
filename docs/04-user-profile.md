@@ -37,22 +37,23 @@ expired tokens are removed and navigation goes to `/login`.
 The branded `/login` form includes a password visibility toggle, validation,
 loading feedback, and user-facing sign-in errors. Background coins drift behind
 the form, with a pause control and a static reduced-motion alternative.
-Forgot Password displays a coming-soon message. Sign Up opens `/signup`.
+Forgot Password opens `/forgot-password`; emailed links open `/reset-password`. Sign Up opens `/signup`.
 The signup form collects first name/email, validates and confirms the password,
 then stores the returned token and opens `/household-setup`. Invitation codes
 from signup links are retained through signup or the sign-in link.
-There is no global handling of 401 responses
-or refresh-token flow. Do not assume an active page automatically redirects the
-moment its token expires.
+Protected API 401 responses clear the matching browser session and redirect to
+login. Other tabs refresh when the stored identity changes. There is no refresh-token
+flow or timer-based page redirect without a request/navigation; sessions have a
+fixed expiry. See [account security](20-account-security.md).
 
-## Header profile menu and local logout
+## Header profile menu and logout
 
 The header avatar shows the user's first initial, or `?` when no first name is
-available. Its right-aligned menu shows first name/email, a Household action, and
-a Log out action. Loading or
+available. Its right-aligned menu shows first name/email, Categories, Merchant rules,
+Alerts, Settings, and Log out. Loading or
 failed profile requests do not prevent local logout.
 
-Clicking the avatar toggles the menu. Arrow Down opens it at Household; Arrow Up
+Clicking the avatar toggles the menu. Arrow Down opens it at Categories; Arrow Up
 opens it at Log out. Arrow keys and Home/End move between menu items;
 native button Enter/Space activation works as well. Clicking outside or moving
 focus outside the profile controls closes it. Escape closes it and returns focus
@@ -62,9 +63,12 @@ Log out removes `coiny_token`, clears cached profile state, cancels any pending
 profile response, closes the menu, and navigates to `/login` with history
 replacement. A later protected-route visit is denied by the route guard.
 
-This is client-side logout. There is no server logout/revocation endpoint;
-an already-issued JWT remains valid until it expires. Global expired-session
-handling and server-side revocation are separate work.
+Logout also requests server-side session revocation. If the server is unavailable,
+local logout still completes and a warning explains that server revocation failed.
+The **Settings** menu item navigates to `/settings`, where Household, Preferences,
+and Security appear together as page sections. Security includes password change,
+recovery codes, session management, and sign-out-everywhere. Password changes and resets invalidate all old sessions.
+See [account security](20-account-security.md) for SMTP configuration and limits.
 
 ## Household creation and joining
 
@@ -82,8 +86,7 @@ household budget wizard. Already joined users cannot create/join another househo
 A unique UserId membership index and transactional create/redeem operations enforce
 this under concurrent requests. Self-service leaving, switching, and member role changes remain future work.
 
-**Profile → Household** opens an in-place modal, preserving the current page and
-any unsaved budget work. The modal lists one card per member with first name,
+**Profile → Settings → Household** shows one card per member with first name,
 email, role, and a You label for the caller, followed by the invitation card.
 Only owners see Remove for other regular members. Removal requires confirmation,
 preserves the user's login and all household financial data, and atomically
@@ -93,9 +96,8 @@ household setup on their next protected navigation. Members can view the roster
 but cannot remove people or manage invitations.
 
 Owners generate, copy, or revoke codes in the lower card; members see instructions
-to ask the owner. Escape/backdrop/close dismiss the modal and restore avatar focus;
-closing is blocked during writes. Existing `/household` links open the same modal
-as a route and return to the dashboard on dismissal. Codes
+to ask the owner. Navigation is blocked during writes. Existing `/household` links
+redirect to `/settings`. Codes
 use eight cryptographically random characters, displayed `K7MP-4X9Q`, excluding
 I/O/0/1. They expire after 10 minutes and admit one member. New generation replaces
 the previous code; only one invitation record/code can be active per household.
@@ -161,4 +163,15 @@ The avatar menu’s **Categories** item opens a household category modal with Ex
 
 ### Compact navigation
 
-At widths of 760px and below, the header keeps the Coiny brand and replaces the navigation icons/avatar with a hamburger button. Its panel includes Home, Accounts, Budget, user identity, Household, Categories, Settings, and Log out. Links retain active-page highlighting. Escape closes the panel and restores focus to the toggle; outside clicks, focus leaving, and navigation close it as well. Profile modals opened from the panel return focus to the toggle. Wider screens retain the existing desktop navigation.
+At widths of 760px and below, the header keeps the Coiny brand and replaces the navigation icons/avatar with a hamburger button. Its panel includes Home, Accounts, Budget, user identity, Categories, Merchant rules, Alerts, Settings, and Log out. Links retain active-page highlighting. Escape closes the panel and restores focus to the toggle; outside clicks, focus leaving, and navigation close it as well. Settings navigates to the same page on both desktop and mobile. Other profile modals opened from the panel return focus to the toggle. Wider screens retain the existing desktop navigation.
+
+## Consolidated Settings page
+
+`/settings` is an authenticated, household-protected page inside the shared app
+layout. Household, Preferences, and Security are visible together in separate
+responsive cards. Preferences retain their own **Save settings** and **Reset
+changes** controls; saving stays on the page and reloads the current household
+setting version before further edits. Household and security actions retain their
+existing confirmations and password checks. Navigation/reload protection covers
+active writes, unsaved preferences, and newly generated recovery codes that have
+not been acknowledged. Mandatory session logout still returns to sign-in.

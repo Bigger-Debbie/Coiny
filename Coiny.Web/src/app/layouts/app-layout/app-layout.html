@@ -1,9 +1,15 @@
 <app-header></app-header>
 
-<main class="app-main">
-    <div class="content-container">
-        <router-outlet></router-outlet>
+<div class="page-body">
+  <div class="page-content" [attr.inert]="loading.visible() ? '' : null" [attr.aria-busy]="loading.visible()">
+    <main class="app-main">
+      <div class="content-container"><router-outlet></router-outlet></div>
+    </main>
+    <app-footer></app-footer>
+  </div>
+  @if (loading.visible()) {
+    <div class="page-loading" [class.is-fading]="loading.fading()" role="status" aria-live="polite">
+      <div class="loading-indicator"><img src="assets/icons/favicon.svg" alt="" width="80" height="80" /><span>Loading Coiny…</span></div>
     </div>
-</main>
-
-<app-footer></app-footer>
+  }
+</div>

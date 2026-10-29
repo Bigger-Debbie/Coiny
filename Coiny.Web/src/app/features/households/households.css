@@ -11,7 +11,7 @@ fieldset { border:0; padding:0; margin:0; min-width:0; } .actions { display:flex
 a:focus-visible,button:focus-visible { outline:2px solid var(--color-accent); outline-offset:3px; }
 @media(max-width:600px) { .setup-card,.household-card { padding:1.25rem; } }
 
-.household-name { margin:0 0 .5rem; }
+.household-name { margin:0 0 .5rem; font-size:1.2rem; font-weight:500; text-transform:none; letter-spacing:normal; }
 .member-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
 .member-card,.invite-card { border:1px solid var(--color-border); border-radius:var(--radius-md); padding:1.25rem; min-width:0; }
 .member-heading { display:flex; align-items:center; gap:.75rem; }
@@ -26,5 +26,11 @@ a:focus-visible,button:focus-visible { outline:2px solid var(--color-accent); ou
 .removal-confirmation p { font-size:.85rem; }
 .remove-confirm { background:var(--color-danger); color:white; }
 .invite-card { margin-top:1.5rem; }
-.invite-card h2 { margin:0 0 1rem; }
+.invite-card h3 { margin:0 0 1rem; font-size:1.2rem; font-weight:500; text-transform:none; letter-spacing:normal; }
 @media(max-width:600px) { .member-list { grid-template-columns:1fr; } }
+
+.member-card { background:var(--color-background); }
+.member-card.current-member { background:#eeeef7; border-color:#b9b9d3; }
+.member-heading h3 small { padding:.15rem .45rem; border-radius:.35rem; background:var(--color-primary); color:white; font-size:.75rem; }
+.invite-card { background:#fff5e8; border-color:#ebd0af; }
+.removal-confirmation { background:#fff5f6; border:1px solid #ecd0d5; border-radius:var(--radius-sm); padding:.75rem; }

@@ -1,0 +1,44 @@
+@if(error()) {<p id="security-error" class="error" role="alert" tabindex="-1">{{ error() }}</p>}
+@if(message()) {<p role="status">{{ message() }}</p>}
+<section aria-labelledby="password-heading"><h3 id="password-heading">Change password</h3>
+<p class="hint">Changing your password signs you out on every device, including this one.</p>
+<form #passwordForm="ngForm" (ngSubmit)="changePassword(passwordForm)"><fieldset [disabled]="busy()">
+  <label for="current-password">Current password</label><input id="current-password" name="currentPassword" type="password" autocomplete="current-password" required maxlength="128" [(ngModel)]="currentPassword" />
+  <label for="security-new-password">New password</label><input id="security-new-password" name="newPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="128" [(ngModel)]="newPassword" aria-describedby="security-password-help" />
+  <small id="security-password-help" class="hint">Use at least 8 characters, including uppercase and lowercase letters, a number, and a symbol.</small>
+  <label for="security-confirm-password">Confirm new password</label><input id="security-confirm-password" name="confirmPassword" type="password" autocomplete="new-password" required [(ngModel)]="confirmPassword" />
+  @if(passwordForm.submitted && passwordForm.invalid) {<p class="error" role="alert">Complete each password field. The new password must contain at least 8 characters.</p>}
+  <div class="actions"><button class="button-primary" type="submit" [disabled]="busy()">Change password</button></div>
+</fieldset></form></section>
+<section aria-labelledby="recovery-codes-heading"><h3 id="recovery-codes-heading">Recovery codes</h3>
+<p class="hint">Save a set of codes to reset your password when you can’t sign in. They work even when recovery email isn’t configured.</p>
+@if (codeCount() !== null) {<p class="code-status">{{ codeCount() ? codeCount() + ' recovery codes available.' : 'No recovery codes are set up.' }}</p>}
+@if (codesError()) {<p class="error" role="alert">{{ codesError() }}</p><button class="button-ghost" type="button" [disabled]="busy()" (click)="loadCodeStatus()">Retry recovery code status</button>}
+@if (recoveryCodes().length) {
+  <div id="generated-recovery-codes" class="generated-codes" tabindex="-1">
+    <strong>Save these codes now</strong><p>These codes are shown only once. Keep them private. Anyone with a code can reset your password.</p>
+    <label for="recovery-code-list">Your recovery codes</label><textarea id="recovery-code-list" readonly rows="10" spellcheck="false" autocomplete="off" [value]="recoveryCodes().join('\n')" (focus)="$any($event.target).select()"></textarea>
+    <small>Using a code, changing/resetting your password, or signing out everywhere invalidates this entire set. Generate a fresh set afterward.</small>
+    <div class="actions"><button class="button-outline" type="button" (click)="downloadCodes()">Download codes</button><button class="button-primary" type="button" (click)="recoveryCodes.set([]); message.set('')">I’ve saved my codes</button></div>
+  </div>
+} @else {
+  <form #codesForm="ngForm" (ngSubmit)="manageCodes(codesForm)"><fieldset [disabled]="busy()">
+    <label for="recovery-password">Current password</label><input id="recovery-password" name="recoveryPassword" type="password" autocomplete="current-password" required maxlength="128" [(ngModel)]="recoveryPassword" />
+    <small class="hint">Generating a new set replaces every previous code. Revoking codes disables code recovery until you generate a new set.</small>
+    @if(codesForm.submitted && codesForm.invalid) {<p class="error" role="alert">Enter your current password.</p>}
+    <div class="actions">@if(codeCount()) {<button class="button-outline" type="button" [disabled]="busy() || !codesForm.valid" (click)="manageCodes(codesForm, true)">Revoke codes</button>}<button class="button-primary" type="submit" [disabled]="busy()">{{ codeCount() ? 'Generate replacement codes' : 'Generate recovery codes' }}</button></div>
+  </fieldset></form>
+}
+</section>
+<section aria-labelledby="sessions-heading"><h3 id="sessions-heading">Signed-in sessions</h3><p class="hint">Sessions expire after two hours. Signing out a session blocks its next request.</p>
+@if (loading()) { <p role="status">Loading sessions…</p> }
+@else {
+  <ul class="sessions">@for (session of sessions(); track session.id) {<li [class.current-session]="session.isCurrent"><div><strong>{{ session.isCurrent ? 'This browser' : 'Other browser' }}</strong><small class="device">{{ session.device || 'Browser details unavailable' }}</small><small>Signed in {{ session.createdAt | date:'medium' }} · Expires {{ session.expiresAt | date:'shortTime' }}</small></div>
+    @if (!session.isCurrent) {<button class="button-outline" type="button" [disabled]="busy()" (click)="pendingSession.set(session)">Sign out</button>}
+  </li>}</ul>
+  <button class="button-ghost" type="button" [disabled]="busy()" (click)="load()">Refresh sessions</button>
+}
+@if (pendingSession(); as session) { <div class="confirmation"><p>Sign out this other browser?</p><p class="device">{{ session.device }}</p><div class="actions"><button class="button-outline" type="button" [disabled]="busy()" (click)="pendingSession.set(null)">Cancel</button><button class="button-primary" type="button" [disabled]="busy()" (click)="revoke()">Confirm sign out</button></div></div> }
+</section>
+<section aria-labelledby="signout-heading"><h3 id="signout-heading">Sign out everywhere</h3><p class="hint">Enter your password to end all sessions, including this browser.</p>
+<form #allForm="ngForm" (ngSubmit)="signOutAll(allForm)"><fieldset [disabled]="busy()"><label for="signout-password">Current password</label><input id="signout-password" name="signOutPassword" type="password" autocomplete="current-password" required maxlength="128" [(ngModel)]="signOutPassword" />@if(allForm.submitted && allForm.invalid) {<p class="error" role="alert">Enter your current password.</p>}<div class="actions"><button class="button-outline" type="submit" [disabled]="busy()">Sign out everywhere</button></div></fieldset></form></section>

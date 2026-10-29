@@ -53,5 +53,5 @@ export class HouseholdSetup implements OnInit {
     catch (e) { this.preview.set(null); this.error.set(householdError(e, 'You couldn’t join this household. Check the code and try again.')); }
     finally { this.busy.set(false); }
   }
-  async logout() { if (this.busy()) return; if (await this.router.navigate(['/login'], { replaceUrl: true })) this.auth.logout(); }
+  async logout() { if (this.busy()) return; if (await this.router.navigate(['/login'], { replaceUrl: true })) this.auth.logout(true); }
 }

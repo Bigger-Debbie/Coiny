@@ -239,7 +239,8 @@ error/retry states. Superseded requests are cancelled.
 | `/login` | Branded login with animated coins, reduced-motion support, pause, password toggle, and validation/error states |
 | `/signup` | Registration, password confirmation, and invitation-link retention |
 | `/household-setup` | Authenticated create/join choice and household confirmation |
-| `/household` | Compatibility route opening the household modal |
+| `/household` | Compatibility redirect to `/settings` |
+| `/settings` | Household, Preferences, and Security on one page |
 | `/dashboard` | Implemented dashboard in protected layout |
 | `/accounts` | Account selection, trends, filtered/paginated transactions, income/expense donut |
 | `/accounts/new` | Redirects to accounts with the Add Account modal open |
@@ -252,11 +253,10 @@ and the separate transactions icon has been removed. The budget icon opens the
 household budgeting page. Its setup workflow and dashboard delivery sequence
 are described in [household budgeting](09-household-budgeting.md).
 The header's dynamic
-initial opens a profile menu with name/email, a Household modal action, and local logout, including
-keyboard navigation and outside-click dismissal. Signup and household setup are
-implemented; complete expired-session handling remains planned. See
-[authentication](04-user-profile.md#header-profile-menu-and-local-logout) for the
-current boundary.
+initial opens a profile menu with name/email, a Settings page destination,
+category/rule/alert dialogs, and logout, including keyboard navigation and outside-click dismissal. Logout
+revokes its server session; password change/recovery and session revocation are
+implemented. See [account security](20-account-security.md).
 
 ## Components and styling
 
@@ -272,7 +272,8 @@ current boundary.
 - `AccountList`: account rows and favorable/unfavorable trend presentation.
 - `TransactionList`: recent ledger rows and signed category amounts.
 - `Icon`: shared SVG shapes, including the supplied up/down assets.
-- `AppHeader`: shared profile state, accessible menu, and local logout.
+- `AppHeader`: shared profile state, accessible menu, Settings navigation, and session logout.
+- `SettingsPage`: Household, Preferences, and Security cards, with pending-change protection.
 - `AppFooter`: shared copyright and horizontal logo in the protected app layout.
 
 Reuse the existing CSS tokens in `src/styles/variables.css`. Keep business signs,
@@ -325,12 +326,10 @@ Mortgage uses the primary blue background with white text. Other Debt excludes
 mortgages; the mortgage pill remains visible even when omitted from the headline.
 A zero-balance mortgage still counts as an existing mortgage account.
 
-The profile menu's **Settings** item opens a modal with **Include mortgage in net
-worth**. It defaults on and is saved per authenticated user. Turning it off labels
-the headline **Net Worth**, followed by a smaller gray **excluding mortgage** label. Saving refreshes the summary and
-hero chart without changing the selected timeframe. The current value, all daily
-points, and dollar/percentage changes use the same preference. Cancelling does
-not change the saved view. Shared account balances, transaction history, and bill
+The profile menu's **Settings** item opens the Settings page. Its **Preferences**
+section includes **Include mortgage in net worth**. It defaults on and is saved per authenticated user. Turning it off labels
+the headline **Net Worth**, followed by a smaller gray **excluding mortgage** label. Saving updates the cached profile; the dashboard uses the preference when opened. The current value, all daily
+points, and dollar/percentage changes use the same preference. **Reset changes** discards edits without changing the saved view. Shared account balances, transaction history, and bill
 schedules are unaffected. The accounts page's All accounts view follows the same
 preference; individual loan balances/trends continue to show the actual debt.
 
@@ -362,3 +361,15 @@ From an unlinked transfer’s details (Accounts or the home dashboard), choose *
 Linked transfer details offer **Unlink entries (keep both)** with confirmation; both ledger entries and balances stay intact. This differs from deleting a linked transfer, which still removes both entries. Reconciliation does not automatically repair duplicates from earlier workflows or automatically repair previously duplicated movements. Multi-account CSV sessions are available through Import CSV.
 
 The Accounts **Import CSV** action opens the four-step multi-account session: Files → Review each file → Match transfers → Confirm. Single-file imports use the same flow; file-switching controls are hidden for one file and transfer matching is skipped when there are no suggestions. See [CSV import](10-csv-transaction-import.md) for review and retry behavior.
+
+## Page loading transition
+
+Authenticated pages briefly display a solid white overlay below the header
+with the full-color `favicon.svg` coin rotating around its vertical axis. It remains for about 600
+milliseconds on fast loads, waits for navigation and initial API requests to settle,
+and fades out over 450 milliseconds to reveal the page. Page content is inert while covered; the header remains available.
+Later searches, saves, and background polling do not start another overlay.
+Canceled/failed navigation dismisses it, and an eight-second safety deadline
+prevents a stalled request from trapping the user. Late responses from an older
+route cannot delay or dismiss the new route's loader. Reduced-motion preferences
+disable coin rotation and the fade animation.

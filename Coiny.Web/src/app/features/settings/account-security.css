@@ -1,0 +1,13 @@
+section{padding:1.25rem;background:var(--color-background);border:1px solid var(--color-border);border-radius:var(--radius-md)}section+section{margin-top:1rem}h3{color:var(--color-primary);font-size:1.15rem;font-weight:600;letter-spacing:normal;text-transform:none;margin:0 0 .75rem}.hint,small{color:var(--color-text-muted);line-height:1.5}.hint{margin:.5rem 0 1rem}fieldset{border:0;padding:0;margin:0;min-width:0;display:grid;gap:.5rem}label:not(:first-child){margin-top:.65rem}small{display:block;font-size:.8rem;margin-top:.4rem}input{width:100%;box-sizing:border-box}.actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:.5rem;margin-top:1rem}.sessions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;list-style:none;padding:0;margin:0}.sessions li{display:flex;flex-direction:column;align-items:flex-start;gap:1rem;padding:1.25rem;border:1px solid var(--color-border);border-radius:var(--radius-md);min-width:0}.sessions li>div{min-width:0}.sessions button{flex-shrink:0;margin-top:auto}.device{overflow-wrap:anywhere}.confirmation{padding:1rem;border:1px solid var(--color-border);border-radius:.5rem;margin-top:1rem}.error{color:var(--color-danger)}@media(max-width:600px){.sessions{grid-template-columns:1fr}}@media(max-width:500px){.actions>button{width:100%}}
+
+.generated-codes{margin-top:1rem;padding:1.25rem;background:#fff5e8;border:1px solid var(--color-accent);border-radius:.65rem}.generated-codes p{line-height:1.5;margin:.75rem 0 1rem}.generated-codes textarea{box-sizing:border-box;width:100%;font-family:monospace;font-size:.85rem;line-height:1.8;resize:vertical;margin-top:.5rem;white-space:pre;overflow-x:auto}.generated-codes:focus{outline:2px solid var(--color-accent);outline-offset:3px}.generated-codes label{display:block}
+
+section[aria-labelledby="sessions-heading"] { background:transparent; border:0; padding:0; margin-top:1.5rem; }
+section[aria-labelledby="signout-heading"] { background:#fff5f6; border-color:#ecd0d5; margin-top:1.5rem; }
+.sessions li { background:var(--color-surface); }
+.sessions .current-session { background:#eeeef7; border-color:#b9b9d3; box-shadow:inset 3px 0 var(--color-primary); }
+.sessions strong { color:var(--color-primary); }
+.code-status { display:inline-block; margin:0 0 1rem; padding:.45rem .75rem; border-radius:var(--radius-sm); background:#e9e9f3; color:var(--color-primary); font-size:.85rem; font-weight:600; }
+.generated-codes>strong { color:var(--color-primary); font-size:1.05rem; }
+.generated-codes textarea { background:var(--color-surface); }
+.confirmation { background:#fff5e8; border-color:#ebd0af; }

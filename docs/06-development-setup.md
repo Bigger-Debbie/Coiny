@@ -221,3 +221,7 @@ Split bill payments require the additive `AddMultipleBillTransactions` migration
 Import review/undo requires `20261026191419_AddImportUndoAudit`. It adds an undo audit table and import-batch baseline/undo metadata. Existing imports remain flagged as original-state unavailable rather than being silently treated as unchanged. The migration executes no undo.
 
 Savings funds use the additive `AddSavingsFunds` and `SplitSavingsWizardSteps` migrations. Back up existing SQLite data before upgrading; no funds or allocations are inferred automatically. See [the feature guide](19-savings-funds.md).
+
+Account security requires `20261028162624_AddAuthSessions`. Back up SQLite, apply the additive migration, and restart the API. Sign in again after upgrading: legacy tokens are rejected. Configure SMTP for recovery email; password changes and session controls work independently. See [account security setup](20-account-security.md).
+
+Offline recovery codes require `20261028165724_AddAuthRecoveryCodes`. Back up SQLite, apply the additive migration, and restart the API. Users generate their own codes from Security; no codes are created automatically. Code recovery works without SMTP. The server recovery command is deferred to container packaging.

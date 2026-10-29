@@ -8,10 +8,16 @@ dotnet test Coiny.API.Tests/Coiny.API.Tests.csproj
 ```
 
 These xUnit tests use EF Core's SQLite provider with isolated in-memory
-connections. They do not use or reset `Coiny.API/coiny.db`, require an API
-server or JWT signing key, or change the development user's data.
+connections. They do not use or reset `Coiny.API/coiny.db`, require an externally running API
+server or configured JWT signing key, or change the development user's data.
 
 Coverage includes:
+
+- Account security with real Identity and JWT middleware: server logout, session
+  ownership/expiry, password-change/reset revocation, single-use/expired reset
+  links, legacy-token rejection, old-identity lockout, and IP rate limits. Recovery-code coverage includes hash-only storage, password-gated generation/revocation, replacement, user isolation, no-SMTP recovery, lockout clearing, complete invalidation, concurrent redemption, and rollback on storage failure. Local
+  loopback SMTP capture verifies configured reset-link encoding and transport
+  configuration; no real emails are sent.
 
 - Batch-import HTTP contracts and authentication; required categories/directions;
   duplicate decisions within files and against the ledger; commit-time revalidation;

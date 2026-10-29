@@ -1,0 +1,31 @@
+<div class="login-page"><main><section class="login-card" [attr.aria-label]="codeRecovery ? 'Recover with a code' : reset ? 'Reset password' : 'Recover password'">
+  <img class="login-logo" src="assets/logos/Coiny-Logo-Hrztl.svg" alt="Coiny" />
+  <h1 class="page-title">{{ codeRecovery ? 'Use a recovery code' : reset ? 'Reset password' : 'Forgot your password?' }}</h1>
+  @if (!done()) {
+    @if (choosingPassword || emailAvailable() === true) {
+      <p class="recovery-intro">{{ codeRecovery ? 'Enter your account email, a saved recovery code, and a new password. All sessions and other recovery codes will be invalidated.' : reset ? 'Choose a new password. All existing sessions will be signed out.' : 'Enter your account email and we’ll send you a reset link.' }}</p>
+      <form #form="ngForm" (ngSubmit)="submit(form)"><fieldset [disabled]="busy()">
+        <div class="field"><label for="recovery-email">Email</label><input id="recovery-email" name="email" type="email" autocomplete="username" required email maxlength="256" [(ngModel)]="email" [readOnly]="reset" /></div>
+        @if(codeRecovery) {<div class="field"><label for="saved-recovery-code">Recovery code</label><input id="saved-recovery-code" name="recoveryCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required maxlength="128" [(ngModel)]="recoveryCode" aria-describedby="recovery-code-help" /><small id="recovery-code-help">Use a code you previously saved from Security settings. Spaces and hyphens are optional.</small></div>}
+        @if (choosingPassword) {
+          <div class="field"><label for="new-password">New password</label><input id="new-password" name="password" type="password" autocomplete="new-password" required minlength="8" maxlength="128" [(ngModel)]="password" aria-describedby="password-requirements" /><small id="password-requirements">Use at least 8 characters, including uppercase and lowercase letters, a number, and a symbol.</small></div>
+          <div class="field"><label for="confirm-password">Confirm new password</label><input id="confirm-password" name="confirm" type="password" autocomplete="new-password" required [(ngModel)]="confirmPassword" /></div>
+        }
+        @if(form.submitted && form.invalid) {<p class="feedback error" role="alert">{{ choosingPassword ? 'Complete each field. Use at least 8 characters for your new password.' : 'Enter a valid email address.' }}</p>}
+        <button class="login-button" type="submit" [disabled]="busy()">{{ busy() ? 'Please wait…' : choosingPassword ? 'Reset password' : 'Send reset link' }}</button>
+      </fieldset></form>
+    } @else if(emailAvailable() === false) {
+      <p class="recovery-intro">Email recovery isn’t enabled on this installation. You can reset your password using a code you previously saved from Security settings.</p>
+    } @else if(optionsError()) {
+      <p class="recovery-intro" role="alert">Recovery options couldn’t load.</p><button class="button-outline" type="button" (click)="loadOptions()">Try again</button>
+    } @else {<p class="recovery-intro" role="status">Loading recovery options…</p>}
+  }
+  @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
+  @if (message()) { <p role="status">{{ message() }}</p> }
+  @if (!choosingPassword && !done()) {
+    <a class="text-button recovery-code-link" routerLink="/recover-with-code">{{ emailAvailable() ? 'Use a recovery code instead' : 'Use a recovery code' }}</a>
+    <p class="recovery-support">If you don’t have a saved code or access to email recovery, contact the person who manages this Coiny installation.</p>
+  }
+  @if (choosingPassword && !done()) { <a class="text-button" routerLink="/forgot-password">Other recovery options</a> }
+  <a class="text-button" routerLink="/login">Back to sign in</a>
+</section></main><app-footer /></div>

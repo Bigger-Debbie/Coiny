@@ -1,4 +1,5 @@
-import { Injectable, inject, signal } from "@angular/core";
+import { ToastService } from "./toast.service";
+import { DestroyRef, Injectable, inject, signal } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { defer, finalize, Observable, shareReplay, Subject, takeUntil, tap } from "rxjs";
 import { jwtDecode } from "jwt-decode";
@@ -19,6 +20,7 @@ interface JwtPayload {
 export class AuthService {
 
     private readonly http = inject(HttpClient);
+    private readonly toast = inject(ToastService);
     private readonly apiUrl = `${environemnt.apiUrl}/auth`;
     private readonly tokenKey = 'coiny_token';
     private readonly profile = signal<CurrentUser | null>(null);
@@ -26,6 +28,16 @@ export class AuthService {
     private readonly failedProfile = signal(false);
     private readonly profileInvalidated = new Subject<void>();
     private profileRequest?: Observable<CurrentUser>;
+
+    constructor() {
+        const onStorage = (event: StorageEvent) => {
+            if (event.storageArea === localStorage && (event.key === this.tokenKey || event.key === null)) {
+                this.clearProfile(); window.location.reload();
+            }
+        };
+        window.addEventListener('storage', onStorage);
+        inject(DestroyRef).onDestroy(() => window.removeEventListener('storage', onStorage));
+    }
 
     readonly currentUser = this.profile.asReadonly();
     readonly profileLoading = this.loadingProfile.asReadonly();
@@ -75,7 +87,11 @@ export class AuthService {
 
     updateNetWorthPreference(includeMortgageInNetWorth: boolean): void { this.profile.update(user => user ? { ...user, includeMortgageInNetWorth } : null); }
 
-    logout(): void {
+    logout(revoke = false): void {
+        const token = this.getToken();
+        if (revoke && token) this.http.post(`${this.apiUrl}/logout`, {}, { headers: { Authorization: `Bearer ${token}` } }).subscribe({
+            error: error => { if (error.status !== 401) this.toast.error('Signed out of this browser. The server could not revoke the session; it will expire automatically.'); }
+        });
         localStorage.removeItem(this.tokenKey);
         this.clearProfile();
     }

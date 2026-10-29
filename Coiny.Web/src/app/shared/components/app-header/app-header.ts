@@ -6,14 +6,12 @@ import { ChangeDetectorRef, Component, computed, DestroyRef, ElementRef, HostLis
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { UserSettings } from '../../../features/settings/user-settings';
 import { Modal } from '../modal/modal';
-import { HouseholdSettings } from '../../../features/households/household-settings';
 import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, HouseholdSettings, UserSettings, CategoryManagement],
+  imports: [MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, CategoryManagement],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })
@@ -60,9 +58,7 @@ export class AppHeader implements OnInit {
   openMerchantRules() { this.prepareModal(); this.merchantRulesOpen.set(true); }
   readonly categoriesOpen = signal(false);
   openCategories() { this.prepareModal(); this.categoriesOpen.set(true); }
-  readonly settingsOpen = signal(false);
-  openSettings() { this.prepareModal(); this.settingsOpen.set(true); }
-  readonly householdOpen = signal(false);
+  openSettings() { this.menuOpen.set(false); this.closeMobile(); void this.router.navigate(['/settings']); }
   readonly menuOpen = signal(false);
   readonly initial = computed(() => Array.from(this.auth.currentUser()?.firstName?.trim() || '')[0]?.toUpperCase() || '?');
 
@@ -77,11 +73,6 @@ export class AppHeader implements OnInit {
       next: () => this.alerts.start(),
       error: () => { /* Keep the menu and logout available when profile loading fails. */ },
     });
-  }
-
-  openHousehold(): void {
-    this.prepareModal();
-    this.householdOpen.set(true);
   }
 
   toggleMenu(): void {
@@ -136,6 +127,6 @@ export class AppHeader implements OnInit {
 
   async logout(): Promise<void> {
     this.menuOpen.set(false); this.closeMobile();
-    if (await this.router.navigate(['/login'], { replaceUrl: true })) { this.alerts.stop(); this.auth.logout(); }
+    if (await this.router.navigate(['/login'], { replaceUrl: true })) { this.alerts.stop(); this.auth.logout(true); }
   }
 }

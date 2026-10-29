@@ -15,6 +15,8 @@ builder.Services.Configure<JwtOptions>(
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddApplicationServices();
 builder.Services.AddHouseholdInvitationRateLimits();
+builder.Services.AddAccountSecurityRateLimits();
+builder.Services.Configure<RecoveryEmailOptions>(builder.Configuration.GetSection("RecoveryEmail"));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

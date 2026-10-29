@@ -65,11 +65,11 @@ manual scan behavior, errors, and explicit budget review with prefilled fields.
 
 ## Optional automatic scans and alerts
 
-Under **Avatar menu → Settings → Recurring detection · Household**, enable
+Under **Avatar menu → Settings → Preferences → Recurring detection · Household**, enable
 **Scan daily for recurring expenses**. It is off by default. Any household member
 may change it; it is shared with the household, while the mortgage preference
 remains personal. Both toggles are staged until **Save settings** in the shared footer. Personal and
-household changes save together in one transaction; Cancel discards unsaved edits.
+household changes save together in one transaction; **Reset changes** discards unsaved edits.
 Stale setting versions return a conflict and require reload. The last successful
 scan date appears below it.
 

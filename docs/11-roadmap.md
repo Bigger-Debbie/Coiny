@@ -27,7 +27,7 @@ remains deliberately outside the first version.
   links, reconciliation invalidation, and audit history. Future work can add bulk
   correction tools and older-history pagination.
 - Additional budget-maintenance refinements; direct item editing with effective dates is implemented.
-- Password recovery, password changes, session handling, and login protection.
+- Password recovery/change, offline recovery codes, revocable sessions, and login protection are implemented; see [account security](20-account-security.md). SMTP and production key/proxy configuration remain deployment tasks.
 - Tested backup/restore and data export.
 - Merchant/category rules and saved CSV column mappings are implemented; safe import undo/correction is also implemented.
 
@@ -36,9 +36,10 @@ Statement checkpoints and account reconciliation are implemented; see
 
 ## Agreed V1 completion scope
 
-Savings funds are the final planned finance feature. Remaining V1 work is account
-security (password recovery/change, sessions, login protection) and tested backup,
-restore, and export. Other refinements above are post-V1. After these, focus on
-infrastructure, container self-hosting, and hosted deployment. Per-household databases
+Savings funds and the account-security implementation are complete. Remaining V1
+feature work is tested backup, restore, and export. Recovery email needs SMTP
+configuration and deployment validation. Other refinements above are post-V1.
+After these, focus on
+infrastructure, container self-hosting (including an explicit server recovery command), and hosted deployment. Per-household databases
 and client-side encryption/shared household keys are architecture ideas to evaluate
 before hosting; no zero-knowledge privacy claim is currently implemented.

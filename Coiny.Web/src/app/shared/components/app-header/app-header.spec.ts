@@ -51,19 +51,13 @@ describe('AppHeader profile menu', () => {
     open();expect(fixture.nativeElement.querySelector('[role="menu"]').textContent).toContain('Alerts 3');
     expect(alerts.start).toHaveBeenCalledOnce();
   });
-  it('opens Settings from the avatar menu and closes after saving preferences', async () => {
+  it('opens the Settings page from the avatar menu without a dialog', async () => {
     loadProfile(); open();
     const settings = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].find((item: unknown) => (item as HTMLElement).textContent?.trim() === 'Settings') as HTMLButtonElement;
     settings.click(); fixture.detectChanges(); await fixture.whenStable();
-    expect(fixture.componentInstance.menuOpen()).toBe(false);
-    http.expectOne(r => r.url.endsWith('/users/me/preferences')).flush({ includeMortgageInNetWorth: true }); fixture.detectChanges(); await fixture.whenStable();
-    http.expectOne(r=>r.url.endsWith('/recurring-expenses/settings')).flush({enabled:false,lastScanDate:null,editVersion:0}); fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Settings');
-    const toggle = fixture.nativeElement.querySelector('[role="switch"]') as HTMLInputElement; toggle.click(); fixture.detectChanges();
-    fixture.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    const save = http.expectOne(r => r.method === 'PUT'); expect(save.request.body).toEqual({ includeMortgageInNetWorth: false });
-    save.flush({ includeMortgageInNetWorth: false }); fixture.detectChanges();
-    expect(auth.currentUser()?.includeMortgageInNetWorth).toBe(false); expect(fixture.nativeElement.querySelector('dialog')).toBeNull();
+    expect(fixture.componentInstance.menuOpen()).toBe(false); expect(navigate).toHaveBeenCalledWith(['/settings']);
+    expect(fixture.nativeElement.querySelector('dialog')).toBeNull();
+    http.expectNone(r => r.url.endsWith('/users/me/preferences'));
   });
   it('shows the current initial, name and email and toggles the menu', () => {
     loadProfile();
@@ -99,7 +93,9 @@ describe('AppHeader profile menu', () => {
   });
   it('logs out locally, clears the profile, closes the menu and replaces the login route', async () => {
     loadProfile(); open();
-    await fixture.componentInstance.logout(); fixture.detectChanges();
+    await fixture.componentInstance.logout();
+    http.expectOne(r=>r.url.endsWith('/auth/logout') && r.method==='POST').flush(null);
+    fixture.detectChanges();
     expect(auth.getToken()).toBeNull();
     expect(auth.currentUser()).toBeNull();
     expect(auth.isAuthenticated()).toBe(false);
@@ -118,15 +114,10 @@ describe('AppHeader profile menu', () => {
     expect(avatar().textContent?.trim()).toBe('?');
     expect(fixture.nativeElement.textContent).toContain('Profile unavailable');
     expect(fixture.nativeElement.querySelector('.logout-button:last-child').textContent).toBe('Log out');
-  });  it('opens Household as an in-place modal and returns focus to the avatar on close', async () => {
-    loadProfile(); open(); fixture.nativeElement.querySelector('[role="menuitem"]').click(); fixture.detectChanges();
-    expect(navigate).not.toHaveBeenCalled();
-    http.expectOne(r => r.url.endsWith('/households/me')).flush({ id: 1, name: 'Ross', role: 'Member' }); await Promise.resolve();
-    http.expectOne(r => r.url.endsWith('/members')).flush([{ id: 1, firstName: 'Alex', email: profile.email, role: 'Member', isCurrentUser: true }]);
-    await vi.waitFor(() => expect(fixture.nativeElement.querySelector('dialog')).not.toBeNull()); fixture.detectChanges();
-    const close = fixture.nativeElement.querySelector('[aria-label="Close dialog"]') as HTMLButtonElement;
-    close.click(); fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('dialog')).toBeNull(); expect(document.activeElement).toBe(avatar());
+  });  it('consolidates Household, Settings, and Security into one Settings destination', () => {
+    loadProfile(); open();
+    const labels = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].map((item: any) => item.textContent.trim());
+    expect(labels).toEqual(['Categories', 'Merchant rules', 'Alerts', 'Settings', 'Log out']);
   });
 
   it('opens the compact navigation, includes every destination, and restores focus on Escape', () => {
@@ -135,7 +126,7 @@ describe('AppHeader profile menu', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');expect(fixture.componentInstance.menuOpen()).toBe(false);
     expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.navigation-link'));
     const mobile=fixture.nativeElement.querySelector('.mobile-profile');
-    for(const text of ['Alex','alex@example.test','Household','Categories','Settings','Log out'])expect(mobile.textContent).toContain(text);
+    for(const text of ['Alex','alex@example.test','Categories','Settings','Log out'])expect(mobile.textContent).toContain(text);
     document.activeElement!.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));fixture.detectChanges();
     expect(fixture.componentInstance.mobileOpen()).toBe(false);expect(document.activeElement).toBe(toggle);
   });
@@ -145,14 +136,13 @@ describe('AppHeader profile menu', () => {
     vi.spyOn(TestBed.inject(Router),'navigateByUrl').mockResolvedValue(true);
     c.openMobile();fixture.nativeElement.querySelector('.navigation-link').click();fixture.detectChanges();expect(c.mobileOpen()).toBe(false);
   });
-  it('opens Settings from mobile navigation and returns focus to its toggle on dismissal', async () => {
-    loadProfile();const c=fixture.componentInstance;c.openMobile();fixture.detectChanges();
-    const settings=Array.from(fixture.nativeElement.querySelectorAll('.mobile-profile button') as NodeListOf<HTMLButtonElement>).find(b=>b.textContent?.trim()==='Settings')!;
-    settings.click();fixture.detectChanges();await fixture.whenStable();
-    expect(c.mobileOpen()).toBe(false);http.expectOne(r=>r.url.endsWith('/users/me/preferences')).flush({includeMortgageInNetWorth:true});fixture.detectChanges();await fixture.whenStable();
-    http.expectOne(r=>r.url.endsWith('/recurring-expenses/settings')).flush({enabled:false,lastScanDate:null,editVersion:0}); fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Settings');
-    fixture.nativeElement.querySelector('[aria-label="Close dialog"]').click();fixture.detectChanges();expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.mobile-toggle'));
+  it('opens the same Settings page from mobile navigation and closes the menu', async () => {
+    loadProfile(); const c = fixture.componentInstance; c.openMobile(); fixture.detectChanges();
+    const settings = Array.from(fixture.nativeElement.querySelectorAll('.mobile-profile button') as NodeListOf<HTMLButtonElement>).find(b => b.textContent?.trim() === 'Settings')!;
+    settings.click(); fixture.detectChanges(); await fixture.whenStable();
+    expect(c.mobileOpen()).toBe(false); expect(navigate).toHaveBeenCalledWith(['/settings']); expect(fixture.nativeElement.querySelector('dialog')).toBeNull();
+    const labels = [...fixture.nativeElement.querySelectorAll('.mobile-profile button')].map((item: any) => item.textContent.trim());
+    expect(labels).not.toContain('Household'); expect(labels).not.toContain('Security');
   });
   it('clears mobile state when resizing to desktop', () => {
     loadProfile();const c=fixture.componentInstance;c.openMobile();vi.stubGlobal('innerWidth',1024);c.onResize();expect(c.mobileOpen()).toBe(false);

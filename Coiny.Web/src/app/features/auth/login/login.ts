@@ -54,8 +54,8 @@ export class Login {
       error: error => {
         this.submitting.set(false);
         this.errorMessage.set(error.status === 401
-          ? 'Email or password is incorrect. Please try again.'
-          : 'We couldn’t sign you in. Please try again in a moment.');
+          ? 'Email or password is incorrect. After several attempts, wait 15 minutes before trying again.'
+          : error.status === 429 ? 'Too many attempts. Please wait before trying again.' : 'We couldn’t sign you in. Please try again in a moment.');
       }
 
     });

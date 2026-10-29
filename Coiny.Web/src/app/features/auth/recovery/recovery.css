@@ -1,0 +1,5 @@
+fieldset{border:0;padding:0;margin:0;display:grid;gap:1rem;min-width:0}.text-button{display:block;margin-top:1rem}p,small{line-height:1.5}small{margin-top:.4rem;color:var(--color-text-muted)}.login-button{justify-self:center}.login-logo{margin-bottom:1.5rem}
+.page-title { margin:0 0 .75rem; line-height:1.3; }
+.recovery-intro { margin:0 0 1.5rem; color:var(--color-text-muted); }
+
+.recovery-support{font-size:.85rem;color:var(--color-text-muted);margin:1rem 0 0}.recovery-code-link{font-weight:600}#saved-recovery-code{font-family:monospace;letter-spacing:.03em}

@@ -12,6 +12,11 @@ public static class ApplicationServceExtensions
         services.AddSingleton<TimeProvider>(TimeProvider.System);
         services.AddScoped<DemoDataSeeder>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<AccountSecurityService>();
+        services.AddScoped<RecoveryCodesService>();
+        services.AddSingleton<PasswordRecoveryEmail>();
+        services.AddSingleton<IPasswordRecoveryEmail>(services => services.GetRequiredService<PasswordRecoveryEmail>());
+        services.AddHostedService(services => services.GetRequiredService<PasswordRecoveryEmail>());
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<IHouseholdInvitationService, HouseholdInvitationService>();
         services.AddScoped<IHouseholdService, HouseholdService>();
