@@ -51,6 +51,15 @@ describe('AppHeader profile menu', () => {
     open();expect(fixture.nativeElement.querySelector('[role="menu"]').textContent).toContain('Alerts 3');
     expect(alerts.start).toHaveBeenCalledOnce();
   });
+  it('opens institution cards from the avatar menu without navigating', async () => {
+    loadProfile(); open();
+    const item = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].find((item: unknown) => (item as HTMLElement).textContent?.trim() === 'Institutions') as HTMLButtonElement;
+    item.click(); fixture.detectChanges();
+    http.expectOne(r => r.url.endsWith('/institutions')).flush([{id:1,name:'Demo bank',website:null,isActive:true}]);
+    http.expectOne(r => r.url.endsWith('/accounts')).flush([]); fixture.detectChanges(); await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Institutions');
+    expect(fixture.nativeElement.textContent).toContain('Demo bank'); expect(fixture.componentInstance.menuOpen()).toBe(false); expect(navigate).not.toHaveBeenCalled();
+  });
   it('opens the Settings page from the avatar menu without a dialog', async () => {
     loadProfile(); open();
     const settings = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].find((item: unknown) => (item as HTMLElement).textContent?.trim() === 'Settings') as HTMLButtonElement;
@@ -117,7 +126,7 @@ describe('AppHeader profile menu', () => {
   });  it('consolidates Household, Settings, and Security into one Settings destination', () => {
     loadProfile(); open();
     const labels = [...fixture.nativeElement.querySelectorAll('[role="menuitem"]')].map((item: any) => item.textContent.trim());
-    expect(labels).toEqual(['Categories', 'Merchant rules', 'Alerts', 'Settings', 'Log out']);
+    expect(labels).toEqual(['Institutions', 'Categories', 'Merchant rules', 'Alerts', 'Settings', 'Log out']);
   });
 
   it('opens the compact navigation, includes every destination, and restores focus on Escape', () => {

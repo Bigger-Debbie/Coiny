@@ -1,0 +1,26 @@
+<p class="intro">Your household’s financial institutions and the accounts linked to each one.</p>
+@if (loading()) { <p role="status">Loading institutions…</p> }
+@else {
+  <div class="institution-list">
+    @for (institution of institutions(); track institution.id) {
+      <article class="institution-card">
+        <header>
+          <span class="institution-avatar" aria-hidden="true">{{ institution.name.slice(0,1).toUpperCase() }}</span>
+          <div class="institution-heading"><h3>{{ institution.name }}</h3><button class="accounts-toggle" type="button" [attr.aria-expanded]="expanded().has(institution.id)" [attr.aria-controls]="'institution-accounts-'+institution.id" [attr.aria-label]="(expanded().has(institution.id)?'Hide':'Show')+' accounts for '+institution.name" (click)="toggleAccounts(institution.id)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>@if(!institution.isActive){<small>Archived</small>}</div>
+          <button type="button" class="button-outline edit-button" [disabled]="busy()||editing()!==null" (click)="edit(institution)">Edit</button>
+        </header>
+        <section class="linked-accounts" [id]="'institution-accounts-'+institution.id" [hidden]="!expanded().has(institution.id)" [attr.aria-label]="institution.name + ' accounts'">
+          @if (websiteLink(institution.website); as url) { <a class="institution-website" [href]="url" target="_blank" rel="noopener noreferrer">{{ institution.website }}</a> }@else if(institution.website) { <p class="institution-website">{{institution.website}}</p> }
+          <h4>Linked accounts · {{ accountsFor(institution.id).length }}</h4><ul>@for (account of accountsFor(institution.id); track account.id) {<li><span>{{account.name}}</span><small>{{accountType(account.accountType)}}@if(!account.isActive){ · Closed }</small></li>}@empty{<li>No linked accounts.</li>}</ul>
+        </section>
+        @if (editing()?.id === institution.id) {
+          <form #form="ngForm" (ngSubmit)="save(form)"><fieldset [disabled]="busy() || stale()">
+            <div class="field"><div class="field-label"><label [for]="'institution-name-'+institution.id">Institution name</label>@if((nameInput.touched||form.submitted)&&!name.trim()){<small class="error">Enter a name.</small>}</div><input [id]="'institution-name-'+institution.id" name="name" [(ngModel)]="name" #nameInput="ngModel" required maxlength="100" /></div>
+            <div class="field"><div class="field-label"><label [for]="'institution-website-'+institution.id">Website (optional)</label>@if((websiteInput.dirty||websiteInput.touched||form.submitted)&&!websiteValid){<small class="error">Use https:// or http://.</small>}</div><input [id]="'institution-website-'+institution.id" name="website" [(ngModel)]="website" #websiteInput="ngModel" maxlength="250" placeholder="https://example.com" type="url" /></div>
+          </fieldset><p class="hint">Updates the institution across its linked accounts.</p><footer><button type="button" class="button-outline" [disabled]="busy()" (click)="cancel()">Cancel</button><button type="submit" class="button-primary" [disabled]="busy()||stale()||!dirty">{{busy()?'Saving…':'Save institution'}}</button></footer></form>
+        }
+      </article>
+    } @empty { <p>No institutions yet. Add one when creating or editing an account.</p> }
+  </div>
+}
+@if(error()){<p class="error" role="alert">{{error()}}</p><button type="button" class="button-ghost" [disabled]="busy()" (click)="load()">Reload institutions</button>}

@@ -1,3 +1,4 @@
+import { Institutions } from '../../../features/institutions/institutions';
 import { SpinningCoin } from './spinning-coin';
 import { MerchantRules } from '../../../features/merchant-rules/merchant-rules';
 import { AlertsService } from '../../../core/services/alerts.service';
@@ -12,7 +13,7 @@ import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [SpinningCoin, MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, CategoryManagement],
+  imports: [Institutions, SpinningCoin, MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, CategoryManagement],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })
@@ -57,6 +58,8 @@ export class AppHeader implements OnInit {
   }
   readonly merchantRulesOpen = signal(false);
   openMerchantRules() { this.prepareModal(); this.merchantRulesOpen.set(true); }
+  readonly institutionsOpen = signal(false);
+  openInstitutions() { this.prepareModal(); this.institutionsOpen.set(true); }
   readonly categoriesOpen = signal(false);
   openCategories() { this.prepareModal(); this.categoriesOpen.set(true); }
   openSettings() { this.menuOpen.set(false); this.closeMobile(); void this.router.navigate(['/settings']); }

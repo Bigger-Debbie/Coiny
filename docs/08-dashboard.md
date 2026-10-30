@@ -384,3 +384,10 @@ position. The lettering stays still; reduced-motion preferences disable the spin
 When the dashboard panels sit side by side, the transactions panel sets their
 height. Extra accounts scroll inside their list, keeping the Accounts heading
 visible. On narrower screens the panels stack and accounts flow normally.
+
+The avatar menu’s **Institutions** modal shows one card per household institution,
+collapsed to its avatar, name, and Edit button. The arrow beside the name expands
+its website and linked accounts, including closed accounts. Edit the name or
+website within the card. Saving refreshes institution details on the Accounts page
+and dashboard; account links and financial records remain unchanged. Stale edits
+require reloading before another save.

@@ -4,6 +4,7 @@ namespace Coiny.API.Interfaces;
 
 public interface IInstitutionService
 {
+    Task<InstitutionResponse> UpdateInstitutionAsync(int id, UpdateInstitutionRequest request);
     Task<List<InstitutionResponse>> GetInstitutionsAsync();
     Task<InstitutionResponse> CreateInstitutionAsync(CreateInstitutionRequest request);
 }

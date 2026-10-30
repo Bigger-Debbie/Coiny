@@ -49,6 +49,7 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/households/invitations/redeem` | 200 | Confirm and join as a member |
 | GET | `/api/institutions` | 200 | Household institutions |
 | POST | `/api/institutions` | 201 | Create institution |
+| PUT | `/api/institutions/{id}` | 200 | Update a household institution’s name and website |
 | GET | `/api/accounts` | 200 | Accounts, opening dates, and current balances |
 | POST | `/api/accounts` | 201 | Create account and opening-day snapshot |
 | GET | `/api/accounts/{accountId}/trend` | 200 | Daily balance trend for one owned account |
@@ -272,7 +273,14 @@ membership and returns 409 for a user who already belongs to a household.
 ```
 
 Name is required, maximum 100 characters; website is optional, maximum 250.
-Institution responses contain `id`, `name`, `website`, and `isActive`.
+Institution responses contain `id`, `name`, `website`, and `isActive`. Names and
+websites are trimmed; websites must use HTTP or HTTPS and cannot contain credentials.
+
+`PUT /api/institutions/{id}` accepts `name`, nullable `website`, `expectedName`,
+and nullable `expectedWebsite`. Both expected fields are required and must match
+the previously loaded values. Returns 404 for a missing or foreign institution,
+409 for stale values, and 400 for invalid input. Updates preserve account links,
+balances, and transaction history; there is no database schema change.
 
 ## Account payload
 

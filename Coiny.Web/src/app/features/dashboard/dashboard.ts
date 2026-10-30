@@ -1,3 +1,4 @@
+import { InstitutionService } from '../../core/services/institution.service';
 import { CategoryService } from '../../core/services/category.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
@@ -24,6 +25,7 @@ import { TransactionList } from './transaction-list/transaction-list';
   styleUrl: './dashboard.css',
 })
 export class Dashboard implements OnInit {
+  private readonly institutionService = inject(InstitutionService);
   private readonly categoryService = inject(CategoryService);
   private readonly dashboardService = inject(DashboardService);
   private readonly preferences = inject(UserPreferencesService);
@@ -61,6 +63,7 @@ export class Dashboard implements OnInit {
   });
 
   ngOnInit(): void {
+    this.institutionService.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadSummary());
     this.categoryService.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadSummary());
     this.loadSummary();
     this.loadTrend();

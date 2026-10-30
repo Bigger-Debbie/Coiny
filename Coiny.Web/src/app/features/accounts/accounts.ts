@@ -158,6 +158,7 @@ export class Accounts implements OnInit {
   readonly hasFilters = signal(false);
 
   ngOnInit(): void {
+    this.institutionService.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadOverview(true));
     this.categoryService.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadOverview(true));
     const requestedRange = this.route.snapshot.queryParamMap.get('range') as TrendRange;
     if (this.ranges.includes(requestedRange)) this.range.set(requestedRange);
