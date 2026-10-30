@@ -116,8 +116,9 @@ Legacy storage cannot resolve the hybrid recovery service. The installation-wide
 maintenance admission wrapper still applies to these routes.
 
 This feature restores one household's finances. Full central/PostgreSQL recovery,
-users/security recovery, scheduled/offsite backups, secret custody, host encryption,
-proxy/TLS configuration, disaster drills and old-node fencing remain deployment work.
+users/security recovery, scheduled/offsite backups, key custody, and old-node
+isolation are covered by the [operator runbook](../tools/operations/README.md).
+The [Docker setup](../Docker/README.md) configures Caddy HTTPS and proxy trust.
 It does not implement client-held encryption or a zero-knowledge hosted service:
 the server processes backup plaintext/passwords during the authenticated operation.
 
@@ -136,16 +137,3 @@ Primary references:
 - [Microsoft Data Protection](https://learn.microsoft.com/en-us/aspnet/core/security/data-protection/).
 - [OWASP password derivation guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 - [OWASP cryptographic storage](https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html).
-
-The completed focused run passed 21 PostgreSQL/API recovery checks plus two
-crypto/CSV unit tests. The separate backend regression run passed 290 tests; the
-frontend passed all 386 tests and its production-style build. Deployed synthetic
-smoke verified both download modes, both restore previews, readable CSV downloads
-and identity exclusion without applying a live restore. The personal review site
-was updated without replacing its finances; its source installation stayed untouched.
-
-A [fresh local recovery lab](../deploy/recovery-lab/README.md) on port 6082 is available for the user-driven registration/new-household/portable-restore rehearsal. It does not share source keys or prepopulate accounts.
-
-The user-driven portable restore into a new user/household in that independent lab
-was subsequently completed successfully. Its retained volumes now contain private
-data; the initial empty-bootstrap state is historical, not its current state.

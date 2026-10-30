@@ -1,0 +1,87 @@
+name: coiny
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: coiny
+      POSTGRES_USER: coiny
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - control-data:/var/lib/postgresql/data
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U coiny -d coiny"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  api:
+    image: coiny-api:${COINY_VERSION:-local}
+    build:
+      context: ..
+      dockerfile: Docker/Api.Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_HTTPS_PORT: "443"
+      AllowedHosts: ${COINY_HOST:?Set COINY_HOST to your domain}
+      ReverseProxy__KnownProxy: ${COINY_PROXY_IP:-172.30.16.3}
+      HybridStorage__Enabled: "true"
+      HybridStorage__ControlConnection: Host=postgres;Database=coiny;Username=coiny;Password=${POSTGRES_PASSWORD};Pooling=false;GSS Encryption Mode=Disable
+      HybridStorage__DataRoot: /data/households
+      HybridStorage__Node: primary
+      Operations__ScheduledJobsEnabled: "true"
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
+      Jwt__Issuer: Coiny
+      Jwt__Audience: CoinyUsers
+      Jwt__ExpirationMinutes: "120"
+      RecoveryEmail__AppUrl: https://${COINY_HOST}
+      RecoveryEmail__Host: ${SMTP_HOST:-}
+      RecoveryEmail__Port: ${SMTP_PORT:-587}
+      RecoveryEmail__EnableSsl: "true"
+      RecoveryEmail__From: ${SMTP_FROM:-}
+      RecoveryEmail__Username: ${SMTP_USERNAME:-}
+      RecoveryEmail__Password: ${SMTP_PASSWORD:-}
+      Logging__LogLevel__Default: Warning
+    volumes:
+      - household-data:/data
+      - protection-keys:/home/app/.aspnet/DataProtection-Keys
+    networks: [proxy, database]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ulimits:
+      core: 0
+  web:
+    image: coiny-web:${COINY_VERSION:-local}
+    build:
+      context: ..
+      dockerfile: Docker/Web.Dockerfile
+    restart: unless-stopped
+    environment:
+      COINY_HOST: ${COINY_HOST}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL in .env}
+    ports:
+      - "${COINY_BIND_IP:-0.0.0.0}:${COINY_HTTP_PORT:-80}:80"
+      - "${COINY_BIND_IP:-0.0.0.0}:${COINY_HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      proxy:
+        ipv4_address: ${COINY_PROXY_IP:-172.30.16.3}
+    depends_on: [api]
+volumes:
+  control-data:
+  household-data:
+  protection-keys:
+  caddy-data:
+  caddy-config:
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: ${COINY_PROXY_SUBNET:-172.30.16.0/24}
+  database:
+    internal: true

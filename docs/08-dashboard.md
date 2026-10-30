@@ -1,7 +1,5 @@
 # Dashboard and Frontend
 
-[Documentation index](../README.md#documentation)
-
 ## Layout and data loading
 
 The dashboard has a hero/chart on the left, a welcome/balance sidebar on the
@@ -235,7 +233,7 @@ movement. Slice hit areas remain stationary to avoid hover jitter.
 The chart supports complete single-category rings, loading, empty-period, and
 error/retry states. Superseded requests are cancelled.
 
-## Current routes and remaining UI work
+## Routes
 
 | Route | Status |
 | --- | --- |
@@ -265,29 +263,6 @@ initial opens a profile menu with name/email, a Settings page destination,
 category/rule/alert dialogs, and logout, including keyboard navigation and outside-click dismissal. Logout
 revokes its server session; password change/recovery and session revocation are
 implemented. See [account security](20-account-security.md).
-
-## Components and styling
-
-- `Dashboard`: loading, summary/profile requests, and hero date selection.
-- `Accounts`: account selection, scoped history, filters, and server-side transaction pagination.
-- `CategoryBreakdownPanel`: independent income/expense aggregation loading and toggle state.
-- `DonutChart`: reusable SVG slices, linked legend, tooltips, and keyboard/touch interaction.
-- `CreateAccount`: opening balance/date and optional institution.
-- `CreateCategory`: household category name and Income/Expense type.
-- `SelectMenu`: shared styled, keyboard-accessible form selector.
-- `Modal`: shared native-dialog shell for account, transaction, and category creation.
-- `TrendChart`: reusable dated-value plot and interaction.
-- `AccountList`: account rows and favorable/unfavorable trend presentation.
-- `TransactionList`: recent ledger rows and signed category amounts.
-- `Icon`: shared SVG shapes, including the supplied up/down assets.
-- `AppHeader`: shared profile state, accessible menu, Settings navigation, and session logout.
-- `SettingsPage`: Household, Preferences, and Security cards, with pending-change protection.
-- `AppFooter`: shared copyright and horizontal logo in the protected app layout.
-
-Reuse the existing CSS tokens in `src/styles/variables.css`. Keep business signs,
-calendar rules, and API contracts consistent with the backend. See
-[frontend commands](../Coiny.Web/README.md) for build/test entry points.
-
 
 ## Transaction corrections
 

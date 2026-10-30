@@ -1,0 +1,16 @@
+**
+!Coiny.API/
+!Coiny.API/**
+!Docker/
+!Docker/initialize.sh
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/.env*
+**/appsettings.Development.json
+**/.DS_Store

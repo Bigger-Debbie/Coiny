@@ -1,58 +1,20 @@
-# Project Vision
+# Project vision
 
-[Documentation index](../README.md#documentation)
+Coiny helps households understand their money and plan what each paycheck needs
+to cover. It brings accounts, spending, budgets, and savings goals into one view.
 
-## Purpose
+The main questions are:
 
-Coiny helps individuals, couples, and families understand their finances and plan
-for the future. Its long-term purpose extends beyond expense tracking: bring
-balances, activity, budgets, and financial goals into one clear household view.
-
-The household is the shared financial space. The current implementation provides
-shared accounts, budgets, savings funds, and financial history. Owner-generated
-join codes and member removal are implemented; leaving/switching and role changes
-remain later refinements.
-
-## Questions the product should answer
-
-- How much money do we have, and how much do we owe?
-- How has our financial position changed?
+- What do we have, and what do we owe?
 - Where is our money going?
-- Are we staying within our budget?
-- Can we afford a purchase, and what should we save toward it?
-- Are we making progress toward our goals?
+- Are we following the plan?
+- What can we set aside, and how do we reach a goal?
 
-Accounts and dashboards answer the balance/history questions. Published budgets,
-actuals/forecasts, available-cash outlooks, and savings component goals now support
-planning and affordability. These are estimates based on recorded data and the
-household plan, not predictions of spending habits or guaranteed future income.
+Show useful answers first, with calculations and supporting activity available
+when needed. Keep labels plain and reinforce colors with amounts, signs, or icons.
 
-## Product pillars
+Financial accuracy comes from the opening balances and ledger. Forecasts and
+savings schedules explain what the recorded plan can support; they do not predict
+spending or guarantee future income.
 
-| Pillar | Product direction |
-| --- | --- |
-| Understand | Balances, debt, net worth, and financial history |
-| Organize | Accounts, institutions, categories, and household activity |
-| Plan | Budgets, savings goals, debt payoff, and future purchases |
-| Analyze | Spending trends, cash flow, comparisons, and forecasting |
-| Improve | Make useful financial decisions through clarity and feedback |
-
-## How Coiny should feel
-
-The interface should be approachable, readable, and useful at a glance. Show the
-financial picture first, with details available through interaction. Color should
-support meaning, with labels, signs, and icons providing additional context.
-
-Financial accuracy matters more than visual polish: the opening balance and
-transaction ledger are authoritative. Calculated summaries and snapshots must be
-explainable and consistent with that history.
-
-## Delivery approach
-
-Build small, functional milestones. Agree on behavior before implementation,
-keep documentation alongside the code, and avoid speculative infrastructure.
-The [development principles](01-development-principles.md) describe this approach.
-
-The [root README](../README.md#current-status) tracks implemented versus planned
-features. This document describes the enduring vision rather than claiming every
-product pillar is already available.
+See the [feature overview](../README.md#features) and [release checklist](11-roadmap.md).

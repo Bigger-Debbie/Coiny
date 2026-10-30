@@ -835,14 +835,14 @@ changes, and neutral direction. Full calculation and carry-forward rules are in
 
 The inventory describes implemented contracts. Remaining release work and
 post-v1 refinements are tracked in the
-[root README](../README.md#current-status).
+[root README](../README.md#release-status).
 
 
 ## Household budgeting
 
 All routes require a bearer token and current household membership. Household IDs
 are resolved from the authenticated user; clients do not supply them. Apply the
-pending budget migrations with the [database setup command](06-development-setup.md#restore-and-initialize)
+pending budget migrations with the [database setup command](06-development-setup.md#configure-and-start)
 before testing these endpoints. No sample budget is seeded.
 
 | Method | Route | Success | Purpose |
@@ -1452,8 +1452,6 @@ and `protectedPayments`. Validation returns 400, stale definitions or a saved
 wizard draft return 409, unauthenticated requests return 401, and missing household
 membership returns 403. Re-fetch management after every successful save. Changes
 cannot predate today or the latest scheduled published update.
-
-[Documentation index](../README.md#documentation)
 
 
 ## Allocation forecast points

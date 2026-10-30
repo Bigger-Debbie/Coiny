@@ -1,7 +1,5 @@
 # Account reconciliation
 
-[Documentation index](../README.md#documentation)
-
 Select an individual account on **Accounts**, then choose **Reconcile Account**.
 Enter the statement ending date and balance. For a credit card or loan, enter the
 amount owed as a positive number; a credit balance can be negative.

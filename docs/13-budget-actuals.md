@@ -1,7 +1,5 @@
 # Planned versus actual allocations
 
-[Documentation index](../README.md#documentation)
-
 The budgeting dashboard defaults to comparing each published budget item with
 recorded activity for the selected household income period. Monthly plan view
 retains the monthly comparison. It shows **Planned**, **Actual**, and **Remaining** (planned minus actual),
@@ -109,7 +107,7 @@ Income-period comparisons use `/api/budgets/actuals/period?asOf=...`; scheduled 
 set-asides enter the planned line on the household period's last day. Monthly
 spending allowances use exact prorated portions. Cross-month category rules are
 resolved per transaction posting month; category rule editing remains monthly.
-See [income-period budgeting](09-household-budgeting.md#income-period-budgeting).
+See [income-period budgeting](09-household-budgeting.md#monthly-and-paycheck-views).
 
 Linked payments carry their scheduled due date as `paymentDueDate`. Item totals
 include `priorPeriodActual` and `futurePeriodActual` for linked transactions whose

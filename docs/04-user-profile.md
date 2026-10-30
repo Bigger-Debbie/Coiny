@@ -1,7 +1,5 @@
 # Authentication and User Profile
 
-[Documentation index](../README.md#documentation)
-
 ## Implemented authentication
 
 ASP.NET Core Identity stores users and password hashes. The API issues signed

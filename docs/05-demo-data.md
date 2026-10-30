@@ -1,8 +1,6 @@
 # Development Demo Data
 
-[Documentation index](../README.md#documentation)
-
-Complete [local configuration](06-development-setup.md#configure-the-api) first.
+Complete [local configuration](06-development-setup.md#configure-and-start) first.
 The seed command is explicit, runs only in `Development`, applies pending
 migrations, and exits without starting the HTTP server. Normal API startup never
 creates sample data. A populated database is rejected rather than overwritten.
@@ -14,7 +12,7 @@ sources, or allocations yet.
 This guide applies to the default legacy `CoinyContext` development database.
 Hybrid household provisioning uses its own migration chain; the fresh recovery
 lab does not seed demo users. Never use these reset commands against a retained
-personal review or recovery installation. See [setup modes](06-development-setup.md#storage-modes).
+personal review or recovery installation. See [setup modes](06-development-setup.md#hybrid-storage-and-test-helpers).
 
 ## Seed an empty database
 

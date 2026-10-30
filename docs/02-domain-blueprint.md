@@ -1,7 +1,5 @@
 # Domain Blueprint
 
-[Documentation index](../README.md#documentation)
-
 This blueprint describes the implemented model. Planned concepts are listed
 separately below. EF models live in `Coiny.API/Models/` and are registered through
 `CoinyContext` in default legacy mode. In opt-in hybrid mode, `ControlContext`

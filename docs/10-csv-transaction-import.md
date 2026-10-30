@@ -1,7 +1,5 @@
 # CSV transaction import
 
-[Documentation index](../README.md#documentation)
-
 Work is isolated on `feature/csv-transaction-import`, based on the merged account
 transfer feature. Accounts → Import CSV opens a lazy-loaded upload and mapping
 and review screen. Raw file contents are read locally in the browser. Reviewed
@@ -9,7 +7,7 @@ normalized rows are sent to the authenticated validation/import API; the raw CSV
 and source account-number columns are not stored. Confirmed batches create
 transactions, daily snapshots, and import history atomically.
 
-## Agreed workflow
+## workflow
 
 1. Choose one account and a CSV file.
 2. Confirm column mappings, date format, and money-in/out conventions.
@@ -82,15 +80,6 @@ arbitrary headers, locale formats, preambles, encoding recovery, and account fil
   review reuses those edits if nothing changed; changing a mapping resets them.
   A refresh cannot restore the in-memory file and returns to the mapping step.
 - Text is treated as data, never evaluated as HTML or spreadsheet formulas.
-
-The supplied AccountHistory export was checked locally without copying personal
-data into the repository: 56 rows, 54 included posted rows, 2 excluded pending
-rows, 28 preserved Transfer classifications, and no mapping errors when the
-opening date is October 1, 2026 and the selected date format is MM/DD/YYYY.
-
-## Next milestones
-
-- Confirmed transfer matching across imports, followed by saved mapping conveniences.
 
 ## Review and batch persistence
 

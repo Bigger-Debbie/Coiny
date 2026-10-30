@@ -58,6 +58,16 @@
                   "with": "src/environments/environment.container-test.ts"
                 }
               ]
+            },
+            "container": {
+              "optimization": true,
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.container-test.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"

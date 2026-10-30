@@ -1,0 +1,16 @@
+**
+!Coiny.Web/
+!Coiny.Web/**
+!Docker/
+!Docker/Caddyfile
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/.env*
+**/appsettings.Development.json
+**/.DS_Store

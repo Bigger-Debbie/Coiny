@@ -178,6 +178,6 @@ and a production CSP remain deployment concerns. MFA, email-address changes, and
 email-verification workflows are outside this pass. This feature does not provide
 end-to-end encryption or zero-knowledge storage.
 
-Implementation uses ASP.NET Core Identity's password hashing, reset tokens,
-security stamps, and lockout rather than custom password/token cryptography. See
-[Microsoft's Identity guidance](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-api-authorization?view=aspnetcore-10.0).
+Implementation uses Identity password hashing/reset tokens, Data Protection,
+revocable sessions, and explicit rate limits. Tests cover these workflows in
+[the backend suite](../Coiny.API.Tests/README.md).

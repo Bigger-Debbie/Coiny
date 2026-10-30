@@ -1,0 +1,17 @@
+**
+!Coiny.API/
+!Coiny.API/**
+!Coiny.API.Tests/
+!Coiny.API.Tests/**
+!tools/
+!tools/operations/
+!tools/operations/**
+**/__pycache__
+**/bin
+**/obj
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/.env*
+**/appsettings.Development.json
+**/.DS_Store

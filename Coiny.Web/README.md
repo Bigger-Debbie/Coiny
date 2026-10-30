@@ -19,8 +19,7 @@ npm test -- --watch=false
 `dist/Coiny.Web` (browser assets in `browser/`). Tests use Angular's unit-test builder with Vitest/jsdom.
 There is no configured end-to-end runner.
 
-The full frontend suite passes, including the corrected app bootstrap test. For
-verification baselines and focused dashboard/accounts commands, see
+For test commands and setup details, see
 [verification](../docs/06-development-setup.md#verification).
 
 ## Container build

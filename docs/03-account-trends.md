@@ -1,7 +1,5 @@
 # Account Balances, Snapshots, and Trends
 
-[Documentation index](../README.md#documentation)
-
 ## Financial rules
 
 An account's opening balance is its balance at the **start** of

@@ -29,6 +29,7 @@ var seedDemo = args.Contains("--seed-demo");
 var migrateDockerTest = args.Contains("--migrate-docker-test");
 var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--seed-demo" && argument != "--migrate-docker-test").ToArray());
 
+builder.Services.AddTrustedReverseProxy(builder.Configuration);
 builder.Services.AddDatabase(builder.Configuration);
 var hybrid = builder.Configuration.GetValue<bool>("HybridStorage:Enabled");
 builder.Services.AddIdentityServices(hybrid);
@@ -103,6 +104,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+if (!string.IsNullOrWhiteSpace(builder.Configuration["ReverseProxy:KnownProxy"])) app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAngularDevClient");
