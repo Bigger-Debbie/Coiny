@@ -225,3 +225,12 @@ Savings funds use the additive `AddSavingsFunds` and `SplitSavingsWizardSteps` m
 Account security requires `20261028162624_AddAuthSessions`. Back up SQLite, apply the additive migration, and restart the API. Sign in again after upgrading: legacy tokens are rejected. Configure SMTP for recovery email; password changes and session controls work independently. See [account security setup](20-account-security.md).
 
 Offline recovery codes require `20261028165724_AddAuthRecoveryCodes`. Back up SQLite, apply the additive migration, and restart the API. Users generate their own codes from Security; no codes are created automatically. Code recovery works without SMTP. The server recovery command is deferred to container packaging.
+
+## Isolated hybrid Docker testing
+
+The `feature/hybrid-hosting` worktree has a separate [Docker test group](../deploy/docker-test/README.md)
+at localhost:6080. Its explicit experimental hybrid mode stores identity and
+membership in PostgreSQL and finances in per-household SQLite files. This does not
+change the default local connection or migrate the original development database.
+Use the documented migration/deployment helper for test cutovers; do not manually
+point the primary app at these volumes or remove storage-mode guards.

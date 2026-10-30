@@ -34,7 +34,6 @@ export class CategoryBreakdownPanel implements OnChanges {
     this.request?.unsubscribe();
     this.loading.set(true);
     this.error.set(false);
-    this.breakdown.set(null);
     this.request = this.service.getCategoryBreakdown({
       accountId: this.accountId ?? undefined, startDate: this.startDate, endDate: this.endDate, categoryType: this.type(),
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

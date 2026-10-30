@@ -284,6 +284,9 @@ public class AccountSecurityApiTests
             builder.Services.AddSingleton<TimeProvider>(TimeProvider.System); builder.Services.AddScoped<ITokenService, TokenService>(); builder.Services.AddScoped<AccountSecurityService>(); builder.Services.AddScoped<RecoveryCodesService>();
             var mail = new Mail(); builder.Services.AddSingleton<IPasswordRecoveryEmail>(mail);
             builder.Services.AddControllers().AddApplicationPart(typeof(AuthController).Assembly);
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
             var app = builder.Build(); using (var scope = app.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<CoinyContext>().Database.EnsureCreatedAsync();
             app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter(); app.MapControllers(); await app.StartAsync();
             return new Host(app, connection, app.GetTestClient(), mail);

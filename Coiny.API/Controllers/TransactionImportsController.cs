@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace Coiny.API.Controllers;
 
 [ApiController, Authorize, ImportApiExceptionFilter, Route("api/transaction-imports")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class TransactionImportsController(ITransactionImportService imports) : ControllerBase
 {
     [HttpPost("validate")]

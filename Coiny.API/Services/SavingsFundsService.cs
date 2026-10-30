@@ -8,7 +8,7 @@ using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 
-public class SavingsFundsService(CoinyContext db, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
+public class SavingsFundsService(IFinancialContext db, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
 {
     private DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).DateTime);
     private static SavingsPlan Plan(SavingsFund f) => JsonSerializer.Deserialize<SavingsPlan>(f.PlanJson)!;
@@ -256,7 +256,7 @@ public class SavingsFundsService(CoinyContext db, ICurrentUserService user, IBud
         try {await db.SaveChangesAsync();await unit.CommitAsync();}catch(DbUpdateException){throw new BudgetConflictException("This fund changed. Reload before recording activity.");}
         return View(fund);
     }
-    internal static async Task SynchronizePaymentAsync(CoinyContext db,int household,Guid key,DateOnly due,BillPayment payment,List<Transaction> entries,DateOnly today)
+    internal static async Task SynchronizePaymentAsync(IFinancialContext db,int household,Guid key,DateOnly due,BillPayment payment,List<Transaction> entries,DateOnly today)
     {
         var fund=await db.Set<SavingsFund>().Include(f=>f.Activities).SingleOrDefaultAsync(f=>f.HouseholdId==household && f.SourceKey==key);
         if(fund is null) return;

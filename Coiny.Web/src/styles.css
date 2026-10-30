@@ -6,3 +6,8 @@
 @import "./styles/forms.css";
 @import "./styles/helper-text.css";
 @import "./styles/alerts.css";
+
+/* Local data switches retain their content and fade back in without the page loader. */
+.content-transition { transition:opacity 180ms ease; }
+.content-transition.is-updating { opacity:.35; }
+@media (prefers-reduced-motion:reduce) { .content-transition { transition:none; } }

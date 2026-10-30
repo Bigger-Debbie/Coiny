@@ -9,7 +9,7 @@ using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 
-public class ImportSessionService(CoinyContext context, ICurrentUserService user, ITransactionImportService imports, ITransferService transfers, TimeProvider clock)
+public class ImportSessionService(IFinancialContext context, ICurrentUserService user, ITransactionImportService imports, ITransferService transfers, TimeProvider clock)
 {
     public async Task<ImportSessionValidation> ValidateAsync(ImportSessionRequest request)
     {

@@ -31,6 +31,9 @@ public class TransactionManagementApiTests
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => {}); builder.Services.AddAuthorization();
         builder.Services.AddScoped<CoinyContext>(_ => db.Context()); builder.Services.AddScoped<ICurrentUserService, User>();
         builder.Services.AddScoped<IAccountBalanceSnapshotService, AccountBalanceSnapshotService>(); builder.Services.AddScoped<TransactionManagementService>();
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync();
         using var client = app.GetTestClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/transactions/1")).StatusCode);

@@ -5,7 +5,7 @@ using Coiny.API.Interfaces;
 using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
-public class SavedCsvMappingsService(CoinyContext context,ICurrentUserService user) {
+public class SavedCsvMappingsService(IFinancialContext context,ICurrentUserService user) {
     private static readonly JsonSerializerOptions Json=new(JsonSerializerDefaults.Web);
     private static SavedCsvMappingResponse Response(SavedCsvMapping p)=>new(p.Id,p.Name,p.AccountType,p.InstitutionId,JsonSerializer.Deserialize<CsvMappingSettings>(p.SettingsJson,Json)!,p.EditVersion);
     public async Task<IReadOnlyList<SavedCsvMappingResponse>> ListAsync(){var h=await user.GetCurrentHouseholdIdAsync();var rows=await context.SavedCsvMappings.AsNoTracking().Where(p=>p.HouseholdId==h).OrderBy(p=>p.Name).ToListAsync();return rows.Select(Response).ToArray();}

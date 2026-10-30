@@ -102,3 +102,40 @@ and HTTP access/binding contracts.
 `ImportUndoTests` verifies rollback, idempotent retries, stale-preview rejection, imported versus pre-existing transfer handling, old/edited row acknowledgments, payment/assignment cleanup, checkpoint preservation/invalidation, and balance history recalculation. HTTP import tests also exercise authenticated review and undo.
 
 SavingsGoalTests and SavingsFundsTests verify goal calculations, account-purpose allocations, version/ownership checks, draft and published budget integration, corrections, and funded-spending actuals.
+
+## Hybrid PostgreSQL/SQLite integration
+
+Run `python3 deploy/docker-test/test-stack.py integration` from the repository root.
+This executes `HybridStorageIntegrationTests` in Docker against real PostgreSQL
+with generated disposable databases and the actual split-context migrations.
+These checks are explicitly skipped in ordinary runs without `COINY_TEST_POSTGRES`;
+the Docker command supplies it privately. The tests reject non-test database
+configuration and never use an existing household financial database.
+
+`HybridRecoveryIntegrationTests` extends that profile with rich financial output
+comparisons across three interrupted migrations, malformed-source rejection,
+financial-only recovery preserving central revocation, and actual PostgreSQL
+17 dump/restore into fresh database/storage. See the [rehearsal evidence](../docs/22-migration-recovery-rehearsal.md)
+for scope and production limitations.
+
+Encrypted recovery additionally uses `age` and Python 3 in the integration image.
+Five actual-encryption operator tests run during its build. The thirteen PostgreSQL
+integration tests include general offline migration planning/apply and full recovery
+exclusively from a decrypted, validated backup bundle. See
+[operator commands](../deploy/operations/README.md) for limits and key custody.
+
+Maintenance expands the real-provider integration suite to 17 tests. It covers
+cross-instance admission/draining, durable cancellation/restart behavior, explicit
+matching-operation reopening, missing-state rejection, HTTP central/financial routes,
+and encrypted recovery that remains paused until security checks finish. The local
+`maintenance-smoke` action additionally stops/restarts the actual test API while
+paused, then explicitly reopens it and runs normal deployment smoke checks.
+
+The household-scoped extraction rehearsal adds an eighteenth integration test. It
+selects only one synthetic household/member set, proves unrelated data is absent,
+keeps the source digest unchanged, migrates the selected snapshot, and compares
+account/budget/forecast/cash/fund/reconciliation output groups at a fixed date.
+
+Household data tools add two crypto/CSV unit tests and three real-provider HTTP
+tests for restore safety, portable imports across installation/household IDs, owner
+permissions and unsafe schema rejection. See [household backups](../docs/23-household-backup-restore-export.md).

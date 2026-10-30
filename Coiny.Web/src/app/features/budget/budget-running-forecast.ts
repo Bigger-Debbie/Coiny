@@ -24,7 +24,7 @@ export class BudgetRunningForecast implements OnChanges {
   select(months:number) { if (months===this.months()) return; this.months.set(months); this.load(); }
   load() {
     if (!this.asOf) return;
-    this.request?.unsubscribe(); this.loading.set(true); this.error.set(''); this.data.set(null);
+    this.request?.unsubscribe(); this.loading.set(true); this.error.set('');
     this.request=this.api.forecast(this.asOf,this.months()).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next:data=>{ this.data.set(data); this.loading.set(false); },
       error:e=>{ this.error.set(e.error?.detail || 'The running forecast couldn’t load. Try again.'); this.loading.set(false); },

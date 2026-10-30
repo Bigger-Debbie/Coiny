@@ -238,7 +238,6 @@ export class Accounts implements OnInit {
 
   loadTrend(): void {
     this.trendRequest?.unsubscribe();
-    this.trend.set(null);
     this.trendLoading.set(true);
     this.trendError.set(false);
     const { startDate, endDate } = this.dates();
@@ -266,7 +265,6 @@ export class Accounts implements OnInit {
   loadTransactions(page = this.currentPage()): void {
     this.transactionRequest?.unsubscribe();
     this.currentPage.set(page);
-    this.page.set(null);
     this.transactionLoading.set(true);
     this.transactionError.set(false);
     const filters = this.appliedFilters;

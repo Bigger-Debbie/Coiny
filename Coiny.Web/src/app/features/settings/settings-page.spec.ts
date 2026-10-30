@@ -15,6 +15,7 @@ describe('SettingsPage', () => {
     fixture = TestBed.createComponent(SettingsPage); http = TestBed.inject(HttpTestingController); fixture.detectChanges();
     http.expectOne(r => r.url.endsWith('/households/me')).flush({id: 1, name: 'Our household', role: 'Member'});
     http.expectOne(r => r.url.endsWith('/users/me/preferences')).flush({includeMortgageInNetWorth: true});
+    http.expectOne(r => r.url.endsWith('/household-data/capabilities')).flush({enabled: true, owner: false, maximumFileBytes: 67108864});
     http.expectOne(r => r.url.endsWith('/auth/sessions')).flush([]);
     http.expectOne(r => r.url.endsWith('/auth/recovery-codes')).flush({remaining: 0});
     await Promise.resolve();
@@ -27,7 +28,7 @@ describe('SettingsPage', () => {
   afterEach(() => {http.verify(); vi.restoreAllMocks();});
   it('shows Household, Preferences, and Security together without a modal', () => {
     const headings = [...fixture.nativeElement.querySelectorAll('.section-heading h2')].map((node: any) => node.textContent.trim());
-    expect(headings).toEqual(['Household', 'Preferences', 'Security']);
+    expect(headings).toEqual(['Household', 'Preferences', 'Security', 'Backup & export']);
     expect(fixture.nativeElement.textContent).toContain('Our household');
     expect(fixture.nativeElement.textContent).toContain('Recovery codes');
     expect(fixture.nativeElement.querySelector('dialog')).toBeNull();
@@ -40,7 +41,7 @@ describe('SettingsPage', () => {
     http.expectOne(r => r.url.endsWith('/users/me/preferences')).flush({includeMortgageInNetWorth: true}); fixture.detectChanges();
     http.expectOne(r => r.url.endsWith('/recurring-expenses/settings')).flush({enabled: true, lastScanDate: null, editVersion: 5});
     fixture.detectChanges(); await fixture.whenStable();
-    expect(fixture.nativeElement.querySelectorAll('.settings-section')).toHaveLength(3); expect(preferences.hasChanges).toBe(false);
+    expect(fixture.nativeElement.querySelectorAll('.settings-section')).toHaveLength(4); expect(preferences.hasChanges).toBe(false);
     preferences.recurring!.enabled = false; preferences.save();
     const second = http.expectOne(r => r.method === 'PUT'); expect(second.request.body.recurringDetection).toEqual({enabled: false, expectedEditVersion: 5});
     second.flush({}, {status: 409, statusText: 'Conflict'}); expect(preferences.hasChanges).toBe(true);

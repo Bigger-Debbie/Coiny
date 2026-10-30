@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 [ApiController, Authorize, BudgetApiExceptionFilter, Route("api/budgets/bills/{key:guid}/{date}")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class BillPaymentsController(BillPaymentService payments) : ControllerBase
 {
     [HttpPut("payment")]

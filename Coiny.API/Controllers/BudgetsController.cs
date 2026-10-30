@@ -13,6 +13,7 @@ namespace Coiny.API.Controllers;
 [BudgetApiExceptionFilter]
 [Authorize]
 [Route("api/budgets")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class BudgetsController(IBudgetService budgets) : ControllerBase
 {
     [HttpGet("management")]

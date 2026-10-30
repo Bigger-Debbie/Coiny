@@ -7,9 +7,9 @@ namespace Coiny.API.Services;
 
 public class AccountBalanceService : IAccountBalanceService
 {
-    private readonly CoinyContext _context;
+    private readonly IFinancialContext _context;
 
-    public AccountBalanceService(CoinyContext context)
+    public AccountBalanceService(IFinancialContext context)
     {
         _context = context;
     }

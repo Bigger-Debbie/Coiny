@@ -7,7 +7,7 @@ using Coiny.API.Interfaces;
 using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
-public class MerchantRulesService(CoinyContext context,ICurrentUserService user)
+public class MerchantRulesService(IFinancialContext context,ICurrentUserService user)
 {
     public static string Normalize(string text)=>Regex.Replace(text.Normalize(NormalizationForm.FormKC).ToUpperInvariant(),@"[^\p{L}\p{N}]+"," ").Trim();
     private static MerchantRuleResponse Response(MerchantCategoryRule r)=>new(r.Id,r.MatchType,r.Pattern,r.CategoryId,r.Category.Name,r.Category.CategoryType,r.Category.IsActive,r.IsActive,r.EditVersion);

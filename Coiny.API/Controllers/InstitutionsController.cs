@@ -8,6 +8,7 @@ namespace Coiny.API.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class InstitutionsController : ControllerBase
 {
     private readonly IInstitutionService _institutionService;

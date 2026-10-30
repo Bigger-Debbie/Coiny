@@ -15,7 +15,7 @@ public class InvitationPermissionException() : InvalidOperationException("Only a
 public class InvalidInvitationException() : InvalidOperationException("This join code is invalid or has expired. Ask the household owner for a new code.");
 public class HouseholdMembershipConflictException() : InvalidOperationException("You already belong to a household.");
 
-public class HouseholdInvitationService(CoinyContext context, ICurrentUserService currentUser, TimeProvider clock) : IHouseholdInvitationService
+public class HouseholdInvitationService(IControlContext context, ICurrentUserService currentUser, TimeProvider clock) : IHouseholdInvitationService
 {
     private const string Alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private long Now => clock.GetUtcNow().UtcTicks;
@@ -104,7 +104,7 @@ public class HouseholdInvitationService(CoinyContext context, ICurrentUserServic
         if (consumed != 1) throw new InvalidInvitationException();
         context.HouseholdMembers.Add(new() { UserId = UserId, HouseholdId = invitation.HouseholdId, Role = HouseholdRole.Member });
         try { await context.SaveChangesAsync(); }
-        catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 })
+        catch (DbUpdateException ex) when (DatabaseConflicts.IsUniqueViolation(ex))
         { throw new HouseholdMembershipConflictException(); }
         await transaction.CommitAsync();
         return new() { Id = invitation.HouseholdId, Name = invitation.Household.Name, Role = HouseholdRole.Member };

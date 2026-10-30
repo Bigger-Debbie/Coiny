@@ -12,6 +12,7 @@ namespace Coiny.API.Controllers;
 [Authorize]
 [BudgetApiExceptionFilter]
 [Route("api/[controller]")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class AccountsController : ControllerBase
 {
     private readonly IAccountService _accountService;

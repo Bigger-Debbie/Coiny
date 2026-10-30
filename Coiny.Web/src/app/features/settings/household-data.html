@@ -1,0 +1,36 @@
+@if(loading()){<p class="muted">Loading household data tools…</p>}
+@if(error() && !action()){<p role="alert" class="error">{{error()}}</p>}
+@if(message()){<p role="status" class="success">{{message()}}</p>}
+@if(!loading() && !enabled() && !error()){<p class="muted">Backup and export are not enabled on this installation yet.</p>}
+@if(enabled()){
+ @if(!owner()){<p class="muted">A household owner can download backups, export data, or restore this household.</p>}
+ @else{
+  <div class="data-grid"><article><h3>Encrypted backup</h3><p>Save a complete copy of your household’s financial data and history.</p><p class="muted">Keep it installation-linked, or add a password for a portable backup.</p><button class="btn btn-primary" type="button" [disabled]="busy()" (click)="open('backup')">Download backup</button></article><article><h3>CSV export</h3><p>Download readable files for accounts, transactions, budgets, and savings funds.</p><p class="muted">Exports are not encrypted and cannot be used to restore Coiny.</p><button class="btn btn-outline" type="button" [disabled]="busy()" (click)="open('export')">Export CSV files</button></article></div>
+  <div class="restore-block"><div><h3>Restore household data</h3><p class="muted">Review a backup before replacing this household’s financial data. Current users, passwords, and memberships stay in place.</p></div><button class="btn btn-outline" type="button" [disabled]="busy()" (click)="open('restore')">Choose backup</button></div>
+  @if(safety().length){<div class="safety"><h3>Safety backups</h3><p class="muted">Created before each restore. These require this installation’s recovery keys.</p>@for(backup of safety();track backup.id){<div class="safety-row"><span>Before restore · {{backup.createdAt | date:'medium'}}</span><button class="btn btn-outline" type="button" [disabled]="busy()" (click)="open('safety',backup.id)">Download</button></div>}</div>}
+ }
+}
+@if(action()){
+ <app-modal [title]="action()==='restore'?(preview()?'Review restore':'Choose a backup'):action()==='export'?'Export household data':action()==='safety'?'Download safety backup':'Download encrypted backup'" [busy]="busy()" (dismiss)="close()">
+  @if(error()){<p role="alert" class="error">{{error()}}</p>}
+  <form (ngSubmit)="action()==='restore'?(preview()?restore():review()):download()">
+   @if(action()==='backup'){
+    <label class="toggle"><input type="checkbox" name="passwordProtected" [(ngModel)]="passwordProtected" [disabled]="busy()">Protect with a password</label>
+    <div class="explanation"><strong>{{passwordProtected?'Portable password-protected backup':'Installation-linked backup'}}</strong><p>{{passwordProtected?'Restore on any compatible Coiny installation using this backup password. It cannot be reset; changing your Coiny password does not change this file.':'Encrypted using this installation’s recovery keys. Restore here, or on a replacement server with those keys preserved.'}}</p></div>
+    @if(passwordProtected){<label>Backup password<input type="password" name="backupPassword" [(ngModel)]="backupPassword" required minlength="12" maxlength="1024" autocomplete="new-password" [disabled]="busy()"></label><label>Confirm backup password<input type="password" name="confirmPassword" [(ngModel)]="confirmPassword" required autocomplete="new-password" [disabled]="busy()"></label>}
+   }
+   @if(action()==='export'){<p class="explanation">This ZIP contains readable CSV files, without encryption. Store it privately. Account passwords and household memberships are not included.</p>}
+   @if(action()==='safety'){<p class="explanation">This safety backup contains the financial data from before the restore and requires this installation’s recovery keys.</p>}
+   @if(action()==='restore' && !preview()){
+    <label>Coiny backup file<input type="file" accept=".coiny" (change)="chooseFile($event)" required [disabled]="busy()"></label><label>Backup password (if password-protected)<input type="password" name="backupPassword" [(ngModel)]="backupPassword" autocomplete="off" [disabled]="busy()"></label><p class="muted">Choose a backup you trust. Installation-linked backups must belong to this household; portable backups can come from another installation. Nothing is replaced during preview.</p>
+   }
+   @if(preview();as review){
+    <p>Backup created {{review.backupCreatedAt | date:'medium'}} · {{review.portable?'Portable':'Installation-linked'}}</p>
+    <table><thead><tr><th>Data</th><th>Current</th><th>After restore</th></tr></thead><tbody><tr><th>Accounts</th><td>{{review.currentAccounts}}</td><td>{{review.backupAccounts}}</td></tr><tr><th>Transactions</th><td>{{review.currentTransactions}}</td><td>{{review.backupTransactions}}</td></tr></tbody></table>
+    <p class="explanation">This replaces all financial data for your current household, including budgets, savings funds, imports, and reconciliation history. An encrypted safety backup is saved first. Current users and memberships are kept; restored alerts will be unread.</p><p class="muted">Preview expires {{review.expiresAt | date:'shortTime'}}. If household data changes, you’ll need a new preview.</p><label class="toggle"><input type="checkbox" name="replacement" [(ngModel)]="confirmReplacement" required [disabled]="busy()">I understand this replaces this household’s financial data.</label>
+   }
+   <label>Current Coiny password<input type="password" name="currentPassword" [(ngModel)]="currentPassword" required autocomplete="current-password" [disabled]="busy()"></label>
+   <div class="actions"><button class="btn btn-outline" type="button" [disabled]="busy()" (click)="close()">Cancel</button><button class="btn btn-primary" type="submit" [disabled]="busy() || !currentPassword || (action()==='restore' && (preview()?!confirmReplacement:!file))">{{busy()?'Please wait…':action()==='restore'?(preview()?'Restore household data':'Review backup'):'Download'}}</button></div>
+  </form>
+ </app-modal>
+}

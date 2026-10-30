@@ -33,6 +33,9 @@ public class AccountReconciliationApiTests
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => { }); builder.Services.AddAuthorization();
         builder.Services.AddScoped<CoinyContext>(_ => db.Context()); builder.Services.AddScoped<ICurrentUserService, User>();
         builder.Services.AddSingleton<TimeProvider>(db.Clock); builder.Services.AddScoped<AccountReconciliationService>();
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync(); using var client = app.GetTestClient();
         const string url = "/api/accounts/1/reconciliations";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(url)).StatusCode);

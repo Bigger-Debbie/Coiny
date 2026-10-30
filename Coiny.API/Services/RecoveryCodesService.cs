@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 
-public class RecoveryCodesService(CoinyContext db, UserManager<ApplicationUser> users,
+public class RecoveryCodesService(IControlContext db, UserManager<ApplicationUser> users,
     AccountSecurityService security, TimeProvider clock)
 {
     public const int BatchSize = 10;

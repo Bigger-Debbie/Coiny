@@ -1,5 +1,5 @@
 <div class="settings-page">
-  <header class="settings-heading"><h1 class="page-title">Settings</h1><p>Manage your household, preferences, and account security.</p></header>
+  <header class="settings-heading"><h1 class="page-title">Settings</h1><p>Manage your household, preferences, security, and backups.</p></header>
   <section class="settings-section" aria-labelledby="household-heading">
     <header class="section-heading"><h2 id="household-heading">Household</h2><p>Your members and invitations.</p></header>
     <app-household-settings />
@@ -11,5 +11,8 @@
   <section class="settings-section" aria-labelledby="security-heading">
     <header class="section-heading"><h2 id="security-heading">Security</h2><p>Manage your password, recovery codes, and signed-in sessions.</p></header>
     <app-account-security />
+  </section>
+  <section class="settings-section" aria-labelledby="data-heading">
+    <header class="section-heading"><h2 id="data-heading">Backup &amp; export</h2><p>Keep a private copy of your household’s financial data.</p></header><app-household-data />
   </section>
 </div>

@@ -1,4 +1,5 @@
-@if (loading()) { <strong aria-label="Available cash loading">—</strong><small role="status">Calculating available cash…</small> }
+<div class="content-transition" [class.is-updating]="loading()" [attr.aria-busy]="loading()">
+@if (loading() && !data()) { <strong aria-label="Available cash loading">—</strong><small role="status">Calculating available cash…</small> }
 @else if (error()) {
   <strong aria-label="Available cash unavailable">—</strong><small role="alert">{{ error() }}</small>
   <div class="actions"><button type="button" class="button-ghost" (click)="load()">Try again</button><button type="button" class="button-ghost" (click)="load(null,true)">Reset accounts</button></div>
@@ -7,6 +8,7 @@
   <small>Today's selected balances, less card debt and remaining allocations, plus upcoming scheduled income.</small>
   @if (result.expectedRemaining === null) { <small>Choose funding accounts using Accounts & calculation.</small> }
 }
+</div>
 @if (detailsOpen()) {
   <app-modal title="Available cash · Accounts & calculation" [busy]="loading()" (dismiss)="detailsOpen.set(false)">
     @if (loading()) { <p role="status">Updating available cash…</p> }

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Coiny.API.Services;
 
-public partial class BudgetActualsService(CoinyContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
+public partial class BudgetActualsService(IFinancialContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
 {
     private static void ValidateMonth(DateOnly month)
     {

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 [ApiController,Authorize,BudgetApiExceptionFilter,Route("api/csv-mappings")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class SavedCsvMappingsController(SavedCsvMappingsService service):ControllerBase {
     [HttpGet]public async Task<ActionResult<IReadOnlyList<SavedCsvMappingResponse>>> List()=>Ok(await service.ListAsync());
     [HttpPost]public async Task<ActionResult<SavedCsvMappingResponse>> Create(SaveCsvMappingRequest input)=>Ok(await service.SaveAsync(null,input));

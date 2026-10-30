@@ -55,8 +55,8 @@
         </div>
       </aside>
       <div class="trend-panel">
-        <div class="chart" [attr.aria-busy]="trendLoading()">
-          @if (trendLoading()) { <p class="chart-state" role="status">Loading balance history…</p> }
+        <div class="chart content-transition" [class.is-updating]="trendLoading()" [attr.aria-busy]="trendLoading()">
+          @if (trendLoading() && !trend()) { <p class="chart-state" role="status">Loading balance history…</p> }
           @else if (trendError()) {
             <div class="chart-state" role="status"><p>Your trend couldn’t load.</p><button (click)="loadTrend()">Retry trend</button></div>
           } @else if (trend(); as result) {
@@ -108,8 +108,8 @@
         </form>
       }
       @if (hasFilters() && !filterOpen()) { <p class="filter-summary">Filters applied <button class="button-ghost" (click)="clearFilters()">Clear filters</button></p> }
-      <div class="transaction-content" [attr.aria-busy]="transactionLoading()">
-        @if (transactionLoading()) { <p role="status">Loading transactions…</p> }
+      <div class="transaction-content content-transition" [class.is-updating]="transactionLoading()" [attr.inert]="transactionLoading() ? '' : null" [attr.aria-busy]="transactionLoading()">
+        @if (transactionLoading() && !page()) { <p role="status">Loading transactions…</p> }
         @else if (transactionError()) {
           <div role="status"><p>Your transactions couldn’t load.</p><button (click)="loadTransactions()">Retry transactions</button></div>
         } @else if (page(); as result) {

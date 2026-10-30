@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 
 [ApiController, Authorize, BudgetApiExceptionFilter, Route("api/budgets/actuals")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class BudgetActualsController(BudgetActualsService service) : ControllerBase
 {
     [HttpPost("/api/budgets/available-cash")]

@@ -1,7 +1,7 @@
-<section class="fund-panel" aria-label="Savings funds">
+<section class="fund-panel content-transition" [class.is-updating]="loading()" [attr.aria-busy]="loading()" [attr.inert]="loading() ? '' : null" aria-label="Savings funds">
  <header class="section-heading"><div><h3>{{ accountId ? 'What this savings account holds' : 'Savings funds & goals' }}</h3><p class="hint">Give your savings a purpose, then plan what to set aside from each paycheck.</p></div><button type="button" class="button-outline" [disabled]="busy() || loading() || !accounts().length" (click)="edit()">+ Create fund</button></header>
  @if(error()&&!dialog()){<p class="error" role="alert">{{error()}}</p><button class="button-ghost" (click)="load()">Try again</button>}
- @if(loading()){<p role="status">Loading savings funds…</p>}
+ @if(loading() && !accounts().length){<p role="status">Loading savings funds…</p>}
  @for(account of accounts();track account.accountId){
   <article class="account-funds"><header><h4>{{account.name}}</h4><strong>{{account.balance|currency}}</strong></header>
    <div class="fund-bar" role="img" [attr.aria-label]="account.name+' fund allocation; '+account.allocated+' allocated; '+account.unallocated+' unallocated'">

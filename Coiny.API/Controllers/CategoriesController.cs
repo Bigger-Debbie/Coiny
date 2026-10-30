@@ -10,6 +10,7 @@ namespace Coiny.API.Controllers;
 [Authorize]
 [BudgetApiExceptionFilter]
 [Route("api/[controller]")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class CategoriesController : ControllerBase
 {
     private readonly ICategoryService _categoryService;
@@ -47,7 +48,7 @@ public class CategoriesController : ControllerBase
     }
     [HttpPut("{id:int:min(1)}")]
     public async Task<IActionResult> UpdateCategory(int id, UpdateCategoryRequest request,
-        [FromServices] Coiny.API.Data.CoinyContext context,
+        [FromServices] Coiny.API.Data.IFinancialContext context,
         [FromServices] ICurrentUserService user)
     {
         var household = await user.GetCurrentHouseholdIdAsync();

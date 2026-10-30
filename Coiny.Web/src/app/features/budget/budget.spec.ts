@@ -176,7 +176,10 @@ describe('Budget setup', () => {
     oldRequest.flush(month); await older;
     expect(c.projection()!.month).toBe('2026-12-01');
     expect(c.selectedMonth()).toBe('2026-12-01');
+    const retained = c.projection();
     const failed = c.loadPublished('2027-01-01');
+    expect(c.projection()).toBe(retained);
+    expect(c.monthLoading()).toBe(true);
     http.expectOne(r => r.url.endsWith('/month')).flush({}, { status: 500, statusText: 'Unavailable' });
     await failed;
     expect(c.monthError()).toBe(true); expect(c.projection()).toBeNull(); expect(c.monthLoading()).toBe(false);

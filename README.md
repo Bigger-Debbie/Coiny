@@ -61,6 +61,8 @@ package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 | [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
 | [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
 | [CSV transaction import](docs/10-csv-transaction-import.md) | Agreed import workflow, parsing foundation, and delivery sequence |
+| [Migration and recovery rehearsal](docs/22-migration-recovery-rehearsal.md) | Verified migration interruption, financial comparisons and database recovery; remaining production gates |
+| [Hybrid storage and Azure delivery](docs/21-hybrid-storage-and-azure.md) | Database split, migration safeguards, container packaging and hosted cutover gates |
 | [Product roadmap](docs/11-roadmap.md) | Remaining work and improvements to existing features |
 | [Account reconciliation](docs/12-account-reconciliation.md) | Statement checks, verified checkpoints, and later-change review flags |
 | [Budget actuals](docs/13-budget-actuals.md) | Posting-month comparisons, category defaults, and transaction assignments |
@@ -91,3 +93,7 @@ Savings accounts support [account-backed funds and component goals](docs/19-savi
 Account security: [passwords, sessions, login protection, and recovery email configuration](docs/20-account-security.md).
 
 The avatar menu’s **Settings** item opens one page containing Household, Preferences, and Security.
+
+Household data: [encrypted downloads, restore previews/safety backups, and CSV export](docs/23-household-backup-restore-export.md).
+
+Manual cross-installation restore: [fresh recovery lab on localhost:6082](deploy/recovery-lab/README.md).

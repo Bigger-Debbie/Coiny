@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 public record AlertResponse(int Id,string Merchant,string Frequency,decimal TypicalAmount,DateOnly NextExpected,DateTime UpdatedAt,bool Unread,int Version);
 public record AlertsResponse(int UnreadCount,int Total,int Page,IReadOnlyList<AlertResponse> Items);
-public class HouseholdAlertsService(CoinyContext context,ICurrentUserService user)
+public class HouseholdAlertsService(IFinancialContext context,ICurrentUserService user)
 {
     public async Task<int> CountAsync() {
         var household=await user.GetCurrentHouseholdIdAsync();var uid=user.GetUserId()??throw new UnauthorizedAccessException();

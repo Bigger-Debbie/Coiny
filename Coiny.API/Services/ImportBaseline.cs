@@ -5,7 +5,7 @@ namespace Coiny.API.Services;
 public record ImportOriginalState(int Id,int EditVersion,int? PairedTransactionId);
 internal static class ImportBaseline
 {
-    public static async Task Capture(CoinyContext context,IReadOnlyCollection<int> ids)
+    public static async Task Capture(IFinancialContext context,IReadOnlyCollection<int> ids)
     {
         var rows=await context.Transactions.AsNoTracking().Where(t=>t.ImportBatchId.HasValue && ids.Contains(t.ImportBatchId.Value))
             .Select(t=>new {BatchId=t.ImportBatchId!.Value,State=new ImportOriginalState(t.Id,t.EditVersion,t.PairedTransactionId)}).ToListAsync();

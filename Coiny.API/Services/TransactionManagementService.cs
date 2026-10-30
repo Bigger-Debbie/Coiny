@@ -9,7 +9,7 @@ namespace Coiny.API.Services;
 public sealed class TransactionNotFoundException() : Exception("Transaction not found in your household.");
 public sealed class TransactionConflictException(string message) : Exception(message);
 
-public class TransactionManagementService(CoinyContext context, ICurrentUserService user, IAccountBalanceSnapshotService snapshots)
+public class TransactionManagementService(IFinancialContext context, ICurrentUserService user, IAccountBalanceSnapshotService snapshots)
 {
     public async Task<TransactionEditDetails> GetAsync(int id)
     {

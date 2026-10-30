@@ -94,7 +94,7 @@ export class Dashboard implements OnInit {
     this.trendRequest?.unsubscribe();
     this.trendLoading.set(true);
     this.trendError.set(false);
-    this.trend.set(null);
+
     const dates = getTrendDates(this.selectedRange());
     this.trendRequest = this.dashboardService.getNetWorthTrend(dates.startDate, dates.endDate)
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

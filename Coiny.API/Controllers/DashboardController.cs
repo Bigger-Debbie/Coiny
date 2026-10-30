@@ -11,6 +11,7 @@ namespace Coiny.API.Controllers;
 [BudgetApiExceptionFilter]
 [Authorize]
 [Route("api/[controller]")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;

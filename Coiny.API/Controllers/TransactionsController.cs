@@ -8,6 +8,7 @@ namespace Coiny.API.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class TransactionsController : ControllerBase
 {
     private readonly ITransactionService _transactionService;

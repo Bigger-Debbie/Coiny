@@ -6,7 +6,7 @@ using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 
-public class BillPaymentService(CoinyContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
+public class BillPaymentService(IFinancialContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
 {
     private DateOnly Today => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), TimeZoneInfo.FindSystemTimeZoneById("America/New_York")).DateTime);
     private async Task<BudgetScheduledEvent> Occurrence(Guid key, DateOnly date)

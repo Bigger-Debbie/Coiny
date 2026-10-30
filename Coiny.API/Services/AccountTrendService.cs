@@ -9,14 +9,14 @@ namespace Coiny.API.Services;
 public class AccountTrendService : IAccountTrendService
 {
     private static readonly TimeZoneInfo ApplicationTimeZone = TimeZoneInfo.FindSystemTimeZoneById("America/New_York");
-    private readonly CoinyContext _context;
+    private readonly IFinancialContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAccountBalanceSnapshotService _snapshotService;
     private readonly ITrendService _trendService;
     private readonly TimeProvider _timeProvider;
 
     public AccountTrendService(
-        CoinyContext context,
+        IFinancialContext context,
         ICurrentUserService currentUserService,
         IAccountBalanceSnapshotService snapshotService,
         ITrendService trendService,

@@ -91,11 +91,11 @@ export class Budget implements OnInit {
   async loadPublished(month: string) {
     if (!validDate(month) || !month.endsWith('-01')) return;
     const version = ++this.monthRequest;
-    this.selectedMonth.set(month); this.monthLoading.set(true); this.monthError.set(false); this.projection.set(null);
+    this.selectedMonth.set(month); this.monthLoading.set(true); this.monthError.set(false);
     try {
       const result = await this.request(this.api.month(month));
       if (version === this.monthRequest) this.projection.set(result);
-    } catch { if (version === this.monthRequest) this.monthError.set(true); }
+    } catch { if (version === this.monthRequest) { this.monthError.set(true); this.projection.set(null); } }
     finally { if (version === this.monthRequest) this.monthLoading.set(false); }
   }
   async start() {

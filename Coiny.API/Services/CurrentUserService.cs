@@ -10,11 +10,11 @@ public class HouseholdMembershipRequiredException() : InvalidOperationException(
 public class CurrentUserService : ICurrentUserService
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
-    private readonly CoinyContext _context;
+    private readonly IControlContext _context;
 
     public CurrentUserService(
         IHttpContextAccessor httpContextAccessor,
-        CoinyContext context)
+        IControlContext context)
     {
         _httpContextAccessor = httpContextAccessor;
         _context = context;

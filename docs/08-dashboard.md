@@ -373,3 +373,23 @@ Canceled/failed navigation dismisses it, and an eight-second safety deadline
 prevents a stalled request from trapping the user. Late responses from an older
 route cannot delay or dismiss the new route's loader. Reduced-motion preferences
 disable coin rotation and the fade animation.
+
+### Page loading and modal refreshes
+
+The shared page-loading overlay runs on initial entry and navigation to a different
+routed page. Same-page query parameter or fragment updates (including modal-close
+refreshes, account selection and import review steps) do not replay it. API refreshes
+after a modal closes do not independently start the overlay.
+
+### In-page data transitions
+
+Month and income-period switches retain the previous budget layout while the
+replacement loads. The same approach covers home and account history ranges,
+account transaction filters/pagination, category breakdowns, running forecasts,
+available cash, calendar periods/months, savings refreshes, category management,
+and import history/review refreshes. These use the shared `content-transition`
+style: content dims while busy and returns over 180 milliseconds. Reduced-motion
+preferences disable the fade. Interactive data regions are inert while stale;
+navigation controls remain available or use their existing loading guards.
+Initial loads retain their loading messages, and errors retain their retry paths.
+The budget month arrows align with the date input below its label.

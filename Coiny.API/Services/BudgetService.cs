@@ -13,7 +13,7 @@ public class BudgetConflictException(string message) : InvalidOperationException
 public class BudgetDraftNotFoundException() : InvalidOperationException("Draft not found in the current household, or already published.");
 
 public partial class BudgetService(
-    CoinyContext context,
+    IFinancialContext context,
     ICurrentUserService currentUser,
     IBudgetScheduleService schedules,
     TimeProvider clock) : IBudgetService

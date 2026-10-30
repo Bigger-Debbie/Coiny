@@ -52,10 +52,20 @@ describe('BudgetDashboard', () => {
     expect(f.nativeElement.querySelector('.remaining-total').classList.contains('over')).toBe(true);
     expect(f.debugElement.query(By.directive(BudgetActualsStub)).componentInstance.periodAsOf).toBe('2026-10-30');
     expect(f.debugElement.query(By.directive(BudgetCalendarStub)).componentInstance.controlledPeriod).toEqual(period);
-    f.componentInstance.navigatePeriod(1); const next=http.expectOne(r=>r.url.endsWith('/income-period'));
+    const incomeCard = f.nativeElement.querySelector('.income-total');
+    const savingsPanel = f.debugElement.query(By.directive(SavingsFundsStub)).componentInstance;
+    f.componentInstance.navigatePeriod(1); f.detectChanges();
+    expect(f.nativeElement.querySelector('.income-total')).toBe(incomeCard);
+    expect(f.debugElement.query(By.directive(SavingsFundsStub)).componentInstance).toBe(savingsPanel);
+    expect(f.nativeElement.querySelector('.budget-content').getAttribute('aria-busy')).toBe('true');
+    expect(f.nativeElement.querySelector('.budget-content').hasAttribute('inert')).toBe(true);
+    const next=http.expectOne(r=>r.url.endsWith('/income-period'));
     expect(next.request.params.get('asOf')).toBe('2026-11-13'); next.flush({ ...period,asOf:'2026-11-13',startDate:'2026-11-13',endDate:'2026-11-26' }); f.detectChanges();
     http.expectOne(r=>r.url.endsWith('/forecast')).flush({ points:[{ date:'2026-11-26',planned:500,actual:450,forecast:null }] }); f.detectChanges();
     expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('$450.00');
+    expect(f.nativeElement.querySelector('.income-total')).toBe(incomeCard);
+    expect(f.nativeElement.querySelector('.budget-content').hasAttribute('inert')).toBe(false);
+    expect(f.nativeElement.querySelector('.budget-content').classList.contains('is-updating')).toBe(false);
     f.debugElement.query(By.directive(BudgetActualsStub)).componentInstance.refreshed.emit();
     http.expectOne(r=>r.url.endsWith('/forecast')).flush({ points:[{ date:'2026-11-26',planned:500,actual:400,forecast:null }] }); f.detectChanges();
     expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('$400.00');
@@ -63,6 +73,22 @@ describe('BudgetDashboard', () => {
     expect(f.nativeElement.querySelector('.remaining-total strong').textContent).toContain('—');
     expect(f.nativeElement.querySelector('.remaining-total').textContent).toContain('Forecast couldn’t load');
     f.componentInstance.selectMode('month'); f.detectChanges(); expect(f.componentInstance.displayPlan).toEqual(plan); expect(f.nativeElement.querySelector('.unlinked-reserve')).toBeNull(); http.verify();
+  });
+  it('keeps monthly cards and child panels mounted while the next month loads', () => {
+    const f = render();
+    const card = f.nativeElement.querySelector('.income-total');
+    const calendar = f.debugElement.query(By.directive(BudgetCalendarStub)).componentInstance;
+    f.componentRef.setInput('selectedMonth', '2026-11-01');
+    f.componentRef.setInput('loading', true); f.detectChanges();
+    expect(f.nativeElement.querySelector('.income-total')).toBe(card);
+    expect(f.debugElement.query(By.directive(BudgetCalendarStub)).componentInstance).toBe(calendar);
+    expect(f.nativeElement.querySelector('.budget-content').getAttribute('aria-busy')).toBe('true');
+    expect(f.nativeElement.querySelector('.budget-content').hasAttribute('inert')).toBe(true);
+    f.componentRef.setInput('month', {...plan, month:'2026-11-01', expectedIncome:6000});
+    f.componentRef.setInput('loading', false); f.detectChanges();
+    expect(f.nativeElement.querySelector('.income-total')).toBe(card);
+    expect(card.textContent).toContain('$6,000.00');
+    expect(f.nativeElement.querySelector('.budget-content').hasAttribute('inert')).toBe(false);
   });
   it('restores the chosen outlook and accounts for this user and household', () => {
     const key='coiny.cash-outlook.cash-user.3';

@@ -60,6 +60,7 @@ public class HouseholdsController : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+        catch (Coiny.API.Data.Hybrid.HouseholdStorageUnavailableException) { throw; }
         catch (InvalidOperationException ex)
         {
             return BadRequest(ex.Message);

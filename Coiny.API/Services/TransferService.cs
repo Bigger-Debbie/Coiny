@@ -10,7 +10,7 @@ namespace Coiny.API.Services;
 public sealed class TransferNotFoundException() : Exception("Transfer entry not found.");
 public sealed class TransferConflictException(string message) : Exception(message);
 
-public class TransferService(CoinyContext context, ICurrentUserService currentUser,
+public class TransferService(IFinancialContext context, ICurrentUserService currentUser,
     IAccountBalanceSnapshotService snapshots) : ITransferService
 {
     public async Task<List<TransactionResponse>> GetCreationCandidatesAsync(CreateTransferRequest request)

@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 namespace Coiny.API.Controllers;
 [ApiController, Authorize, BudgetApiExceptionFilter, Route("api/accounts/{id:int:min(1)}/loan-subtype")]
-public class LoanSubtypeController(CoinyContext context, ICurrentUserService user) : ControllerBase
+[Coiny.API.Data.Hybrid.HouseholdStorage]
+public class LoanSubtypeController(IFinancialContext context, ICurrentUserService user) : ControllerBase
 {
     [HttpPut] public async Task<IActionResult> Save(int id, LoanSubtypeRequest request)
     {

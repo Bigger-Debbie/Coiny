@@ -43,6 +43,9 @@ public class TransactionImportApiTests
         builder.Services.AddScoped<IAccountBalanceSnapshotService, AccountBalanceSnapshotService>();
         builder.Services.AddScoped<ITransactionImportService, TransactionImportService>();
         builder.Services.AddScoped<ImportUndoService>();
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync();
         using var client = app.GetTestClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/transaction-imports")).StatusCode);

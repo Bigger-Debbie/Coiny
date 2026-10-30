@@ -32,6 +32,9 @@ public class ImportSessionApiTests
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions,TestAuth>("Test",_=>{});builder.Services.AddAuthorization();
         builder.Services.AddScoped<CoinyContext>(_=>db.Context());builder.Services.AddScoped<ICurrentUserService,User>();builder.Services.AddScoped<IAccountBalanceService,AccountBalanceService>();builder.Services.AddScoped<IAccountBalanceSnapshotService,AccountBalanceSnapshotService>();
         builder.Services.AddScoped<ITransactionImportService,TransactionImportService>();builder.Services.AddScoped<ITransferService,TransferService>();builder.Services.AddScoped<ImportSessionService>();builder.Services.AddSingleton<TimeProvider>(new TestClock());
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
         await using var app=builder.Build();app.UseAuthentication();app.UseAuthorization();app.MapControllers();await app.StartAsync();using var client=app.GetTestClient();
         const string path="/api/transaction-imports/sessions";
         Assert.Equal(HttpStatusCode.Unauthorized,(await client.PostAsJsonAsync(path,new{})).StatusCode);

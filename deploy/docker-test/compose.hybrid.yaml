@@ -1,0 +1,11 @@
+# Activated only by the explicit, verified local test migration command.
+services:
+  api:
+    environment:
+      HybridStorage__Enabled: "true"
+      HybridStorage__ControlConnection: Host=postgres;Database=coiny_test_control;Username=coiny_test;Password=${TEST_POSTGRES_PASSWORD};Pooling=false;GSS Encryption Mode=Disable
+      HybridStorage__DataRoot: /data/households
+      HybridStorage__Node: coiny-test-node
+    depends_on:
+      postgres:
+        condition: service_healthy

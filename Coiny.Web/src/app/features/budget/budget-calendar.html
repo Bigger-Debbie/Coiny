@@ -1,6 +1,6 @@
 <section class="calendar-layout" aria-label="Budget calendar and current income period">
   <aside class="period-shell">
-  <div class="panel period-panel">
+  <div class="panel period-panel content-transition" [class.is-updating]="loading()" [attr.aria-busy]="loading()">
     <h2>{{ periodTitle }}</h2>
     @if (!controlledPeriod) {
     <nav class="period-navigation" aria-label="Income period navigation">
@@ -12,7 +12,7 @@
     <app-select-menu inputId="income-period-source" label="Income schedule" [options]="sourceOptions" [ngModel]="sourceKey()" (ngModelChange)="selectSource($event)" />
     <p class="hint">Household income starts a new period on each distinct payday. Individual schedules use that source’s paydays.</p>
     }
-    @if (loading()) { <p role="status">Finding your income period…</p> }
+    @if (loading() && !period()) { <p role="status">Finding your income period…</p> }
     @else if (error()) { <div role="alert"><p>Your income period couldn’t load.</p><button class="button-outline" (click)="loadPeriod()">Try again</button>@if (sourceKey()) { <button class="button-ghost" (click)="resetSource()">Use household income</button> }</div> }
     @else if (period(); as p) {
       <p class="as-of">As of {{ p.asOf | date:'MMM d, yyyy':'UTC' }}</p>
@@ -21,7 +21,7 @@
         <small>Next payday: {{ p.nextPayday | date:'MMM d':'UTC' }}. Bills on that day belong to the next period.</small>
         <div class="period-total"><span>Remaining unpaid bills & contributions</span><strong>{{ ((p.unpaidBillsTotal ?? p.billsTotal) + (p.unpaidContributionsTotal ?? p.contributionsTotal)) | currency }}</strong><small>{{ (p.billsTotal + p.contributionsTotal) | currency }} total scheduled this period</small></div>
         <label class="completed-toggle"><input type="checkbox" role="switch" [ngModel]="showCompleted()" (ngModelChange)="showCompleted.set($event)" /><span>Show completed</span></label>
-        <div class="period-events" tabindex="0" role="region" aria-label="Bills and contributions this income period">
+        <div [attr.inert]="loading() ? '' : null" class="period-events" tabindex="0" role="region" aria-label="Bills and contributions this income period">
         @for (bill of visiblePayments(p.bills); track $index) {
           <div class="event-row" [class.paid-bill]="linkedPayment(bill)" [class.awaiting-payment]="awaitingTransaction(bill)">
             <span>@if (bill.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(bill)" [class.awaiting-icon]="awaitingTransaction(bill)" aria-hidden="true">{{ paymentMarker(bill) }}</span> }{{ bill.name }}<small>{{ bill.date | date:'MMM d':'UTC' }} · {{ status(bill) }}</small></span>
@@ -51,10 +51,10 @@
     }
   </div>
   </aside>
-  <article class="panel calendar-panel">
+  <article class="panel calendar-panel content-transition" [class.is-updating]="calendarLoading()" [attr.aria-busy]="calendarLoading()" [attr.inert]="calendarLoading() ? '' : null">
     <header><h2>Payment calendar</h2>@if (!controlledPeriod) { <button type="button" class="button-ghost" (click)="currentPeriod()">Current period</button> }</header>
     <div class="calendar-key"><span class="income">● Income</span><span class="bill">● Bills</span><span class="contribution">● Contributions</span><span class="awaiting-icon">◷ Awaiting transaction</span><span class="paid-check">✓ Linked</span><span>Shaded days: selected income period</span></div>
-    @if (calendarLoading()) { <p role="status">Loading calendar months…</p> }
+    @if (calendarLoading() && !calendars().length) { <p role="status">Loading calendar months…</p> }
     @else if (calendarError()) { <p role="alert">The calendar couldn’t load.</p><button type="button" class="button-outline" (click)="loadCalendars()">Retry calendar</button> }
     @else {
     <div class="calendar-months" [class.multiple-months]="calendars().length > 1">

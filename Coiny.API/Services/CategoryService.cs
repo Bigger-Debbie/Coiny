@@ -8,10 +8,10 @@ namespace Coiny.API.Services;
 
 public class CategoryService : ICategoryService
 {
-    private readonly CoinyContext _context;
+    private readonly IFinancialContext _context;
     private readonly ICurrentUserService _currentUserService;
 
-    public CategoryService (CoinyContext context, ICurrentUserService currentUserService)
+    public CategoryService (IFinancialContext context, ICurrentUserService currentUserService)
     {
         _context = context;
         _currentUserService = currentUserService;

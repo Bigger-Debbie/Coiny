@@ -1,7 +1,8 @@
 <div class="ranges" role="group" aria-label="Forecast range">
   @for (range of ranges; track range.months) { <button type="button" [class.selected]="months() === range.months" [attr.aria-pressed]="months() === range.months" (click)="select(range.months)">{{ range.label }}</button> }
 </div>
-@if (loading()) { <p role="status">Building the forecast across household pay periods…</p> }
+<div class="content-transition" [class.is-updating]="loading()" [attr.aria-busy]="loading()" [attr.inert]="loading() ? '' : null">
+@if (loading() && !data()) { <p role="status">Building the forecast across household pay periods…</p> }
 @else if (error()) { <p role="alert">{{ error() }}</p><button type="button" class="button-outline" (click)="load()">Try again</button> }
 @else if (data(); as outlook) {
   <p class="hint">{{ outlook.startDate | date:'MMM d, yyyy':'UTC' }} – {{ outlook.endDate | date:'MMM d, yyyy':'UTC' }} · Complete household income periods</p>
@@ -31,3 +32,5 @@
     </tbody></table></div>
   </details>
 }
+
+</div>

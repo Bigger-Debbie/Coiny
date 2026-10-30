@@ -14,10 +14,11 @@
     }
     </div>
   </header>
-  @if (mode() === 'period' && periodLoading()) { <p role="status">Loading income-period outlook…</p> }
+  <div class="budget-content content-transition" [class.is-updating]="mode() === 'period' ? periodLoading() || remainderLoading() : loading" [attr.aria-busy]="mode() === 'period' ? periodLoading() : loading" [attr.inert]="(mode() === 'period' ? periodLoading() : loading) && displayPlan ? '' : null">
+  @if (mode() === 'period' && periodLoading() && !displayPlan) { <p role="status">Loading income-period outlook…</p> }
   @else if (mode() === 'period' && periodError()) { <div role="alert"><p>The income period couldn’t load.</p><button type="button" class="button-outline" (click)="loadPeriod()">Try again</button></div> }
   @else if (mode() === 'period' && period() && !period()?.plan) { <div class="panel"><h3>No complete income period</h3><p>A published payday and a following payday are needed to calculate allocations. Review your income schedule, choose the next period, or view the monthly plan.</p><button type="button" class="button-outline" (click)="itemEditor.set({ selection: null })">Manage budget items</button></div> }
-  @else if (loading) { <p role="status">Loading the published plan for {{ selectedMonth | date:'MMMM yyyy':'UTC' }}…</p> }
+  @else if (loading && (!displayPlan || error)) { <p role="status">Loading the published plan for {{ selectedMonth | date:'MMMM yyyy':'UTC' }}…</p> }
   @else if (error) { <div class="panel" role="alert"><p>This month’s budget couldn’t load.</p><button class="button-outline" (click)="selectMonth.emit(selectedMonth)">Try again</button></div> }
   @else if (displayPlan; as plan) {
     @if (plan.revisionId === null) { <div class="panel"><h3>No published plan for this month</h3><p>Choose a month when your budget is in effect. Draft changes appear here after you publish them.</p></div> }
@@ -96,6 +97,7 @@
       <app-budget-calendar [controlledPeriod]="mode() === 'period' ? period() : null" [month]="mode() === 'period' ? month! : plan" [source]="periodSource()" (sourceChange)="periodSource.set($event)" (selectMonth)="selectMonth.emit($event)" (paymentChanged)="refreshActuals()" />
     }
   }
+  </div>
 <app-recurring-expenses (budgetChanged)="itemSaved()" />
 @if (itemEditor(); as editor) { <app-budget-item-editor [selection]="editor.selection" (manageFund)="openFund($event)" (dismiss)="itemEditor.set(null)" (saved)="itemSaved()" /> }
 </section>

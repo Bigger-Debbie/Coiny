@@ -70,7 +70,7 @@ export class BudgetActualsPanel implements OnChanges {
     return [{ value: 'default', label: this.editing()?.categoryType === 'Transfer' ? 'No contribution assignment' : 'Use category default' },
       { value: '', label: 'Leave unassigned' }, ...allowed.map(i => ({ value: i.allocationKey, label: i.name }))];
   }
-  ngOnChanges(changes: SimpleChanges) { this.closeItem(); if (changes['month'] || changes['periodAsOf']) this.report.set(null); this.page = 1; this.categoryChoices.clear(); this.editing.set(null); this.load(); }
+  ngOnChanges(changes: SimpleChanges) { this.closeItem(); this.page = 1; this.categoryChoices.clear(); this.editing.set(null); this.load(); }
   load(page = this.page) {
     this.request?.unsubscribe(); this.loading.set(true); this.error.set(''); this.page = page;
     this.request = (this.periodAsOf ? this.api.periodActuals(this.periodAsOf,this.view,this.type,page) : this.api.actuals(this.month, this.view, this.type, page)).pipe(takeUntilDestroyed(this.destroy)).subscribe({

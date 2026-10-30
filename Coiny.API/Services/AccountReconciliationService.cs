@@ -10,7 +10,7 @@ namespace Coiny.API.Services;
 
 public class ReconciliationNotFoundException() : Exception("Account not found.");
 public class ReconciliationConflictException() : Exception("The account changed after your check. Check the statement balance again before confirming.");
-public class AccountReconciliationService(CoinyContext context, ICurrentUserService user, TimeProvider clock)
+public class AccountReconciliationService(IFinancialContext context, ICurrentUserService user, TimeProvider clock, IControlContext? control = null)
 {
     public static AccountReconciliationResponse Response(AccountReconciliation record) => new(record.Id, record.StatementDate, record.StatementBalance, DateTime.SpecifyKind(record.CreatedAt, DateTimeKind.Utc), record.ConfirmedByName, record.InvalidatedAt.HasValue, record.InvalidatedAt is { } invalidated ? DateTime.SpecifyKind(invalidated, DateTimeKind.Utc) : null, record.InvalidationReason);
     public async Task<IReadOnlyList<AccountReconciliationResponse>> HistoryAsync(int accountId)
@@ -49,7 +49,7 @@ public class AccountReconciliationService(CoinyContext context, ICurrentUserServ
         var check = await CheckAsync(accountId, request);
         if (check.LedgerFingerprint != request.ReviewedFingerprint) throw new ReconciliationConflictException();
         if (!check.Matches) throw new ArgumentException("The statement and Coiny balances must match before this checkpoint can be confirmed.");
-        var actor = await context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == user.GetUserId()) ?? throw new UnauthorizedAccessException();
+        var actor = await (control ?? context as IControlContext ?? throw new InvalidOperationException("A control context is required.")).Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == user.GetUserId()) ?? throw new UnauthorizedAccessException();
         var existing = await context.AccountReconciliations.SingleOrDefaultAsync(r => r.AccountId == accountId && r.StatementDate == check.StatementDate && r.LedgerFingerprint == check.LedgerFingerprint && r.InvalidatedAt == null);
         if (existing is not null) return Response(existing);
         var account = await OwnedAccount(accountId);

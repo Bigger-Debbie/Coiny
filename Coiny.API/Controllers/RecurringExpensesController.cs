@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 [ApiController, Authorize, BudgetApiExceptionFilter, Route("api/recurring-expenses")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class RecurringExpensesController(RecurringExpenseService service) : ControllerBase
 {
     [HttpPost("scan")]

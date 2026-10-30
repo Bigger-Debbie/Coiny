@@ -18,10 +18,36 @@ export class AppLayout {
   constructor() {
     const destroy = inject(DestroyRef);
     this.loading.begin();
-    inject(Router).events.pipe(takeUntilDestroyed(destroy)).subscribe(event => {
-      if (event instanceof NavigationStart) this.loading.begin(true);
-      else if (event instanceof NavigationEnd) this.loading.ready();
-      else if (event instanceof NavigationCancel || event instanceof NavigationError || event instanceof NavigationSkipped) this.loading.cancel();
+    const router = inject(Router);
+    let loadingNavigation: number | undefined;
+    let initialLoad = true;
+    router.events.pipe(takeUntilDestroyed(destroy)).subscribe(event => {
+      if (event instanceof NavigationStart) {
+        // Modal refreshes and selection changes can update query parameters or
+        // fragments. Only a different routed page should cover the content.
+        const pagePath = (url: string) => {
+          const tree = router.parseUrl(url);
+          tree.queryParams = {};
+          tree.fragment = null;
+          return router.serializeUrl(tree);
+        };
+        const currentPage = pagePath(router.url);
+        const nextPage = pagePath(event.url);
+        if (currentPage !== nextPage) {
+          loadingNavigation = event.id;
+          this.loading.begin(true);
+        }
+      } else if (event instanceof NavigationEnd) {
+        if (initialLoad || loadingNavigation === event.id) this.loading.ready();
+        initialLoad = false;
+        if (loadingNavigation === event.id) loadingNavigation = undefined;
+      } else if (event instanceof NavigationCancel || event instanceof NavigationError || event instanceof NavigationSkipped) {
+        if (initialLoad || loadingNavigation === event.id) {
+          this.loading.cancel();
+          loadingNavigation = undefined;
+          initialLoad = false;
+        }
+      }
     });
     destroy.onDestroy(() => this.loading.cancel());
   }

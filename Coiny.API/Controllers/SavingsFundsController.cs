@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 [ApiController,Authorize,BudgetApiExceptionFilter,Route("api/savings-funds")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class SavingsFundsController(SavingsFundsService service) : ControllerBase
 {
     [HttpGet] public async Task<IActionResult> Get([FromQuery]int? accountId=null)=>Ok(await service.GetAsync(accountId));

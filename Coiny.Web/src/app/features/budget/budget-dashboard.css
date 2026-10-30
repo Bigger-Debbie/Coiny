@@ -93,3 +93,12 @@ button:disabled { opacity:.5; cursor:default; transform:none; }
 .totals > .income-total,.totals > .allocations-total{box-sizing:border-box}.outlook-footer .calculation-button{flex:0 1 auto}.outlook-footer .outlook-menu{flex:0 0 10.75rem}.remainder-heading{line-height:1.5}@media(max-width:550px){.totals > .income-total,.totals > .allocations-total{min-height:0}.outlook-footer{gap:.65rem}.outlook-footer .outlook-menu{flex-basis:10.75rem}.calculation-button{max-width:100%}}@media(max-width:380px){.outlook-footer{align-items:stretch}.outlook-footer .outlook-menu{flex:1 1 100%;width:100%;margin-left:0}}
 
 @media(min-width:1201px) { .totals:not(.period-totals) { align-items:stretch; } }
+
+/* Keep the label above the date field, with arrows centered on the field itself. */
+.month-picker { display:grid; grid-template-columns:auto minmax(0,1fr) auto; grid-template-rows:auto auto; align-items:center; }
+.month-picker > div { display:contents; }
+.month-picker label { grid-column:2; grid-row:1; margin:0; }
+.month-picker input { grid-column:2; grid-row:2; }
+.month-picker > button { grid-row:2; }
+.month-picker > button:first-child { grid-column:1; }
+.month-picker > button:last-child { grid-column:3; }

@@ -3,12 +3,17 @@ using Coiny.API.Interfaces;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 public record UserPreferences(bool IncludeMortgageInNetWorth);
-public class UserPreferencesService(CoinyContext context, ICurrentUserService user)
+public class UserPreferencesService(IControlContext context, ICurrentUserService user, IServiceProvider? services = null)
 {
     private async Task<Models.ApplicationUser> Current() => await context.Users.SingleOrDefaultAsync(u => u.Id == user.GetUserId()) ?? throw new UnauthorizedAccessException();
     public async Task<UserPreferences> GetAsync() => new((await Current()).IncludeMortgageInNetWorth);
     public async Task<UserPreferences> SaveWithRecurringAsync(bool includeMortgage, bool enabled, int version, RecurringAutomationService automation)
     {
+        var changes = services?.GetService<Coiny.API.Data.Hybrid.HybridPreferenceChanges>();
+        if (changes != null) {
+            await changes.SaveAsync(user.GetUserId() ?? throw new UnauthorizedAccessException(), await user.GetCurrentHouseholdIdAsync(), includeMortgage, enabled, version);
+            return new(includeMortgage);
+        }
         await using var transaction = await context.Database.BeginTransactionAsync();
         await automation.SaveAsync(await user.GetCurrentHouseholdIdAsync(), enabled, version);
         var result = await SaveAsync(includeMortgage);

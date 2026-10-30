@@ -7,11 +7,14 @@ namespace Coiny.API.Extensions;
 
 public static class ApplicationServceExtensions
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services, bool hybrid = false, bool scheduledJobs = true)
     {
         services.AddSingleton<TimeProvider>(TimeProvider.System);
-        services.AddScoped<DemoDataSeeder>();
+        if (!hybrid) services.AddScoped<DemoDataSeeder>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddDataProtection();
+        services.AddScoped<Coiny.API.Services.Recovery.BackupEncryption>();
+        if (hybrid) services.AddScoped<Coiny.API.Services.Recovery.HouseholdRecoveryService>();
         services.AddScoped<AccountSecurityService>();
         services.AddScoped<RecoveryCodesService>();
         services.AddSingleton<PasswordRecoveryEmail>();
@@ -44,7 +47,7 @@ public static class ApplicationServceExtensions
         services.AddScoped<RecurringExpenseService>();
         services.AddScoped<RecurringAutomationService>();
         services.AddScoped<HouseholdAlertsService>();
-        services.AddHostedService<RecurringScanWorker>();
+        if (scheduledJobs) services.AddHostedService<RecurringScanWorker>();
         services.AddScoped<TransactionManagementService>();
         services.AddScoped<UserPreferencesService>();
 

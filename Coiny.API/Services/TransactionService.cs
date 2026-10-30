@@ -9,11 +9,11 @@ namespace Coiny.API.Services;
 
 public class TransactionService : ITransactionService
 {
-    private readonly CoinyContext _context;
+    private readonly IFinancialContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IAccountBalanceSnapshotService _snapshotService;
 
-    public TransactionService (CoinyContext context, ICurrentUserService currentUserService,
+    public TransactionService (IFinancialContext context, ICurrentUserService currentUserService,
         IAccountBalanceSnapshotService snapshotService)
     {
         _context = context; 

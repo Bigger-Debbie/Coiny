@@ -10,7 +10,8 @@
   </div>
   <label class="archived"><input class="archived-toggle" type="checkbox" role="switch" [(ngModel)]="showArchived" [disabled]="busy()" /><span>Show archived categories</span></label>
   @if (error()) { <p role="alert">{{ error() }}</p> }
-  @if (loading()) { <p role="status">Loading categories…</p> }
+<div class="content-transition" [class.is-updating]="loading()" [attr.aria-busy]="loading()" [attr.inert]="loading() ? '' : null">
+  @if (loading() && !categories().length) { <p role="status">Loading categories…</p> }
   @else {
     @if (error() && !categories().length) { <button class="button-outline" type="button" (click)="load()">Try again</button> }
     <ul>
@@ -32,4 +33,5 @@
       } @empty { <p>No {{ type() === 'Expense' ? 'expense' : 'income' }} categories to show.</p> }
     </ul>
   }
+</div>
 }

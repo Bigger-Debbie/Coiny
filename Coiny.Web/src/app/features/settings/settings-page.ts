@@ -3,15 +3,17 @@ import { AuthService } from '../../core/services/auth.service';
 import { HouseholdSettings } from '../households/household-settings';
 import { UserSettings } from './user-settings';
 import { AccountSecurity } from './account-security';
+import { HouseholdData } from './household-data';
 
-@Component({selector: 'app-settings-page', imports: [HouseholdSettings, UserSettings, AccountSecurity],
+@Component({selector: 'app-settings-page', imports: [HouseholdSettings, UserSettings, AccountSecurity, HouseholdData],
   templateUrl: './settings-page.html', styleUrl: './settings-page.css'})
 export class SettingsPage {
   private readonly auth = inject(AuthService);
   @ViewChild(HouseholdSettings) household?: HouseholdSettings;
   @ViewChild(UserSettings) preferences?: UserSettings;
   @ViewChild(AccountSecurity) security?: AccountSecurity;
-  get busy() { return !!(this.household?.busy() || this.preferences?.busy() || this.security?.busy()); }
+  @ViewChild(HouseholdData) data?: HouseholdData;
+  get busy() { return !!(this.household?.busy() || this.preferences?.busy() || this.security?.busy() || this.data?.busy()); }
   get dirty() { return !!(this.preferences?.hasChanges || this.security?.recoveryCodes().length); }
   canLeave() {
     if (!this.auth.getToken()) return true;

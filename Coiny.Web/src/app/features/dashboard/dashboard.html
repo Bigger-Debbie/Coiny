@@ -36,8 +36,8 @@
           <button type="button" class="retry-button" (click)="loadSummary()">Retry balances</button>
         </div>
       }
-      <div class="net-worth-chart" [attr.aria-busy]="trendLoading()">
-        @if (trendLoading()) {
+      <div class="net-worth-chart content-transition" [class.is-updating]="trendLoading()" [attr.aria-busy]="trendLoading()">
+        @if (trendLoading() && !trend()) {
           <div class="chart-state" role="status"><span class="loading-line"></span><p>Loading your financial picture…</p></div>
         } @else if (trendError()) {
           <div class="chart-state" role="status"><h2>Your trend couldn’t load</h2><p>Please try again in a moment.</p><button type="button" class="retry-button" (click)="loadTrend()">Try again</button></div>
@@ -68,9 +68,9 @@
     </aside>
   </section>
   <div class="dashboard-columns">
-    <section class="accounts-section" aria-labelledby="accounts-heading" [attr.aria-busy]="summaryLoading()">
+    <section class="accounts-section content-transition" [class.is-updating]="summaryLoading()" [attr.inert]="summaryLoading() ? '' : null" aria-labelledby="accounts-heading" [attr.aria-busy]="summaryLoading()">
       <h2 id="accounts-heading">Accounts</h2>
-      @if (summaryLoading()) {
+      @if (summaryLoading() && !dashboard()) {
         <p class="text-muted" role="status">Loading your accounts…</p>
       } @else if (summaryError()) {
         <div role="status"><p>Your accounts couldn’t load.</p><button type="button" class="retry-button" (click)="loadSummary()">Retry accounts</button></div>
@@ -82,9 +82,9 @@
         }
       }
     </section>
-    <section class="transactions-section" aria-labelledby="transactions-heading" [attr.aria-busy]="summaryLoading()">
+    <section class="transactions-section content-transition" [class.is-updating]="summaryLoading()" [attr.inert]="summaryLoading() ? '' : null" aria-labelledby="transactions-heading" [attr.aria-busy]="summaryLoading()">
       <h2 id="transactions-heading">Recent Transactions</h2>
-      @if (summaryLoading()) {
+      @if (summaryLoading() && !dashboard()) {
         <p class="text-muted" role="status">Loading your transactions…</p>
       } @else if (summaryError()) {
         <div role="status"><p>Your transactions couldn’t load.</p><button type="button" class="retry-button" (click)="loadSummary()">Retry transactions</button></div>

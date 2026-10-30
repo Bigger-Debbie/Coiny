@@ -23,13 +23,13 @@ export class ImportHistory {
   load(){this.loading.set(true);this.error.set('');this.api.history(this.accountId).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:items=>{this.history.set(items);this.loading.set(false);},error:()=>{this.loading.set(false);this.error.set('Import history couldn’t load. Try again.');}});}
   open(batchId:number){if(this.busy() || this.loading())return;this.batchId=batchId;this.wholeSession=false;this.loadReview();}
   loadReview(){
-    if(this.batchId===null)return; this.loading.set(true);this.error.set('');this.preview.set(null);this.review.set(null);this.selected=new Set();
-    this.api.review(this.batchId).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:data=>{this.review.set(data);this.selected=new Set(data.removeTransactionIds);this.loading.set(false);},error:e=>{this.loading.set(false);this.error.set(e.error?.detail ?? 'Import review couldn’t load.');}});
+    if(this.batchId===null)return; this.loading.set(true);this.error.set('');this.preview.set(null);this.selected=new Set();
+    this.api.review(this.batchId).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:data=>{this.review.set(data);this.selected=new Set(data.removeTransactionIds);this.loading.set(false);},error:e=>{this.review.set(null);this.loading.set(false);this.error.set(e.error?.detail ?? 'Import review couldn’t load.');}});
   }
   scope(all:boolean){
     const current=this.review();if(!current || this.busy())return;this.wholeSession=all;this.loading.set(true);this.error.set('');this.selected=new Set();
     const ids=all?current.relatedFiles.map(f=>f.batchId):[this.batchId!];
-    this.api.previewUndo({batchIds:ids,removeTransactionIds:null}).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:data=>{this.review.set(data);this.selected=new Set(data.removeTransactionIds);this.loading.set(false);},error:e=>{this.loading.set(false);this.error.set(e.error?.detail ?? 'Import review couldn’t load.');}});
+    this.api.previewUndo({batchIds:ids,removeTransactionIds:null}).pipe(takeUntilDestroyed(this.destroy)).subscribe({next:data=>{this.review.set(data);this.selected=new Set(data.removeTransactionIds);this.loading.set(false);},error:e=>{this.review.set(null);this.loading.set(false);this.error.set(e.error?.detail ?? 'Import review couldn’t load.');}});
   }
   get rows(){const term=this.filter.trim().toLowerCase();return this.review()?.rows.filter(r=>!term || `${r.description} ${r.merchant ?? ''} ${r.accountName}`.toLowerCase().includes(term)) ?? [];}
   toggle(id:number,value:boolean){if(value)this.selected.add(id);else this.selected.delete(id);this.preview.set(null);this.pendingUndo=null;}

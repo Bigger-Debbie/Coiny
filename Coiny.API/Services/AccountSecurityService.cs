@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 namespace Coiny.API.Services;
 
-public class AccountSecurityService(CoinyContext db, UserManager<ApplicationUser> users,
+public class AccountSecurityService(IControlContext db, UserManager<ApplicationUser> users,
     ITokenService tokens, IOptions<JwtOptions> jwt, TimeProvider clock)
 {
     public async Task<AuthResponse> StartSessionAsync(ApplicationUser user, string device)

@@ -8,10 +8,10 @@ namespace Coiny.API.Services;
 
 public class InstitutionService : IInstitutionService
 {
-    private readonly CoinyContext _context;
+    private readonly IFinancialContext _context;
     private readonly ICurrentUserService _currentUserService;
 
-    public InstitutionService(CoinyContext context, ICurrentUserService currentUserService)
+    public InstitutionService(IFinancialContext context, ICurrentUserService currentUserService)
     {
         _context = context; 
         _currentUserService = currentUserService;

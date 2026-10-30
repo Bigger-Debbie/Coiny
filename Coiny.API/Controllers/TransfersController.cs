@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Controllers;
 
 [ApiController, Authorize, TransferApiExceptionFilter, Route("api/transfers")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class TransfersController(ITransferService transfers) : ControllerBase
 {
     [HttpPost("candidates")]

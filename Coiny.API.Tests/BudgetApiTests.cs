@@ -397,6 +397,9 @@ public class BudgetApiTests
                 ICurrentUserService user=household=="none"?new MissingHousehold():new HouseholdUser(int.Parse(household));
                 return new(db.Context(),user);
             });
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
             var app = builder.Build();
             app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
             await app.StartAsync();

@@ -49,6 +49,17 @@ describe('CategoryBreakdownPanel', () => {
     f.componentRef.setInput('refreshKey', 1); f.detectChanges();
     http.expectOne(isBreakdown).flush({ ...expenses, categoryType: 'Income' });
   });
+  it('retains the chart during a range refresh and replaces it when ready', () => {
+    const f = render(); http.expectOne(isBreakdown).flush(expenses); f.detectChanges();
+    const chart = f.nativeElement.querySelector('app-donut-chart');
+    f.componentRef.setInput('endDate','2026-10-20'); f.detectChanges();
+    expect(f.nativeElement.querySelector('app-donut-chart')).toBe(chart);
+    expect(f.nativeElement.querySelector('.chart-content').hasAttribute('inert')).toBe(true);
+    http.expectOne(isBreakdown).flush({...expenses,totalAmount:150}); f.detectChanges();
+    expect(f.nativeElement.querySelector('app-donut-chart')).toBe(chart);
+    expect(f.nativeElement.textContent).toContain('$150.00');
+    expect(f.nativeElement.querySelector('.chart-content').hasAttribute('inert')).toBe(false);
+  });
   it('shows empty, error, and retry states', () => {
     const f = render();
     http.expectOne(isBreakdown).flush({ categoryType: 'Expense', totalAmount: 0, transactionCount: 0, categories: [] });

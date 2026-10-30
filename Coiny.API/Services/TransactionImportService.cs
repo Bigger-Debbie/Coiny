@@ -16,7 +16,7 @@ public sealed class ImportValidationException(TransactionImportValidation valida
 { public TransactionImportValidation Validation { get; } = validation; }
 public sealed class ImportConflictException(string message = "This submission ID was already used for different data. Start a new reviewed batch.") : Exception(message);
 
-public class TransactionImportService(CoinyContext context, ICurrentUserService user,
+public class TransactionImportService(IFinancialContext context, ICurrentUserService user,
     IAccountBalanceSnapshotService snapshots, IAccountBalanceService balances, TimeProvider clock) : ITransactionImportService
 {
     public async Task<TransactionImportValidation> ValidateAsync(TransactionImportRequest request)

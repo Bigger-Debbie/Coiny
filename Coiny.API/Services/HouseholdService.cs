@@ -13,15 +13,18 @@ public class ProtectedHouseholdMemberException() : InvalidOperationException("Yo
 
 public class HouseholdService : IHouseholdService
 {
+    private readonly Coiny.API.Data.Hybrid.HouseholdDatabaseService? _storage;
     private readonly TimeProvider _clock;
-    private readonly CoinyContext _context;
+    private readonly IControlContext _context;
     private readonly ICurrentUserService _currentUserService;
 
     public HouseholdService(
-        CoinyContext context,
+        IControlContext context,
         ICurrentUserService currentUserService,
-        TimeProvider? clock = null)
+        TimeProvider? clock = null,
+        Coiny.API.Data.Hybrid.HouseholdDatabaseService? storage = null)
     {
+        _storage = storage;
         _clock = clock ?? TimeProvider.System;
         _context = context;
         _currentUserService = currentUserService;
@@ -110,9 +113,14 @@ public class HouseholdService : IHouseholdService
         _context.HouseholdMembers.Add(householdMember);
 
         try { await _context.SaveChangesAsync(); }
-        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.Sqlite.SqliteException { SqliteExtendedErrorCode: 2067 })
+        catch (DbUpdateException ex) when (DatabaseConflicts.IsUniqueViolation(ex))
         { throw new HouseholdMembershipConflictException(); }
+        if (_storage != null) {
+            _context.Add(new Coiny.API.Data.Hybrid.HouseholdDatabase { HouseholdId = household.Id, OwnerNode = _storage.Node });
+            await _context.SaveChangesAsync();
+        }
         await transaction.CommitAsync();
+        if (_storage != null) await _storage.ProvisionAsync(household.Id);
 
         return new HouseholdResponse
         {

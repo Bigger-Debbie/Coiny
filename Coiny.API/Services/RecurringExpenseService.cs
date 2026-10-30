@@ -5,7 +5,7 @@ using Coiny.API.Interfaces;
 using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
-public class RecurringExpenseService(CoinyContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
+public class RecurringExpenseService(IFinancialContext context, ICurrentUserService user, IBudgetService budgets, TimeProvider clock)
 {
     public async Task<RecurringScanResponse> ScanAsync()
     { return await ScanHouseholdAsync(await user.GetCurrentHouseholdIdAsync(), budgets); }

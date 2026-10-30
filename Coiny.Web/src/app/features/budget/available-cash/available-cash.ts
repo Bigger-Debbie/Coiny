@@ -26,7 +26,7 @@ export class AvailableCash implements OnChanges {
     if (changes['asOf'] || changes['refreshKey'] || !current || this.accountIds?.slice().sort().join(',') !== current.accountIds.slice().sort().join(',')) this.load(this.accountIds);
   }
   load(ids: number[] | null = this.accountIds, save = false) {
-    this.request?.unsubscribe(); this.loading.set(true); this.error.set(''); this.data.set(null); this.amountChanged.emit(null);
+    this.request?.unsubscribe(); this.loading.set(true); this.error.set(''); this.amountChanged.emit(null);
     this.request = this.api.availableCash(this.asOf,ids).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next: data => {
         this.data.set(data); this.draft = [...data.accountIds]; this.loading.set(false); this.amountChanged.emit(data.expectedRemaining);

@@ -103,6 +103,9 @@ public class HouseholdInvitationApiTests
             builder.Services.AddScoped<IHouseholdInvitationService>(services => new HouseholdInvitationService(
                 services.GetRequiredService<CoinyContext>(), services.GetRequiredService<ICurrentUserService>(), db.Clock));
             builder.Services.AddScoped<IHouseholdService, HouseholdService>();
+            builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+            builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
+
             var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.UseRateLimiter(); app.MapControllers(); await app.StartAsync();
             return new(db, app);
         }

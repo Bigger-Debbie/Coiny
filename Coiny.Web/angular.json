@@ -48,6 +48,16 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "container-test": {
+              "optimization": true,
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.container-test.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"

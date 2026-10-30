@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Controllers;
 
 [ApiController, Authorize, BudgetApiExceptionFilter, ReconciliationApiExceptionFilter, Route("api/accounts/{accountId:int:min(1)}/reconciliations")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class AccountReconciliationsController(AccountReconciliationService service) : ControllerBase
 {
     [HttpGet] public async Task<ActionResult<IReadOnlyList<AccountReconciliationResponse>>> History(int accountId) => Ok(await service.HistoryAsync(accountId));

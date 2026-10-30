@@ -9,7 +9,7 @@ using Coiny.API.Models;
 using Microsoft.EntityFrameworkCore;
 namespace Coiny.API.Services;
 
-public class ImportUndoService(CoinyContext context,ICurrentUserService user,IAccountBalanceSnapshotService snapshots,TimeProvider clock)
+public class ImportUndoService(IFinancialContext context,ICurrentUserService user,IAccountBalanceSnapshotService snapshots,TimeProvider clock)
 {
     private static string Hash(object value)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value))));
     private static ImportConflictException Changed()=>new("The import or affected accounts changed. Refresh the undo preview before confirming.");

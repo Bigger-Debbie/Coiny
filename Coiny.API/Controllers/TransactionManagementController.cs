@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 namespace Coiny.API.Controllers;
 [ApiController, Authorize, TransactionManagementExceptionFilter, Route("api/transactions")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class TransactionManagementController(TransactionManagementService transactions) : ControllerBase
 {
     [HttpGet("{id:int:min(1)}")]

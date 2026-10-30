@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Coiny.API.Controllers;
 [ApiController,Authorize,BudgetApiExceptionFilter,Route("api/merchant-rules")]
+[Coiny.API.Data.Hybrid.HouseholdStorage]
 public class MerchantRulesController(MerchantRulesService service):ControllerBase {
     [HttpGet]public async Task<ActionResult<IReadOnlyList<MerchantRuleResponse>>> List()=>Ok(await service.ListAsync());
     [HttpPost]public async Task<ActionResult<MerchantRuleResponse>> Create(MerchantRuleInput input)=>Ok(await service.SaveAsync(null,input));
