@@ -81,6 +81,10 @@ export class AuthService {
         localStorage.setItem(this.tokenKey, token);
     }
 
+    renewSession(token: string): void {
+        localStorage.setItem(this.tokenKey, token);
+    }
+
     getToken(): string | null {
         return localStorage.getItem(this.tokenKey);
     }

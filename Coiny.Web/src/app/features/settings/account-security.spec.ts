@@ -4,15 +4,16 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, Router } from '@angular/router';
 import { NgForm } from '@angular/forms';
 import { AccountSecurity } from './account-security';
+import { ToastService } from '../../core/services/toast.service';
 import { AuthService } from '../../core/services/auth.service';
-const valid = {valid: true, invalid: false} as NgForm;
+const valid = {valid: true, invalid: false, resetForm: vi.fn()} as unknown as NgForm;
 describe('AccountSecurity', () => {
   let fixture: ComponentFixture<AccountSecurity>; let http: HttpTestingController;
-  const logout = vi.fn(); const navigate = vi.fn();
+  const logout = vi.fn(); const renewSession = vi.fn(); const navigate = vi.fn();
   beforeEach(async () => {
-    logout.mockReset(); navigate.mockReset().mockResolvedValue(true);
+    logout.mockReset(); renewSession.mockReset(); navigate.mockReset().mockResolvedValue(true);
     TestBed.configureTestingModule({imports: [AccountSecurity], providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]),
-      {provide: AuthService, useValue: {logout}}, {provide: Router, useValue: {navigate}}]});
+      {provide: AuthService, useValue: {logout, renewSession}}, {provide: Router, useValue: {navigate}}]});
     fixture = TestBed.createComponent(AccountSecurity); http = TestBed.inject(HttpTestingController); fixture.detectChanges();
     http.expectOne(r => r.url.endsWith('/auth/sessions')).flush([
       {id: 'this', device: 'Browser A', createdAt: '2026-10-28T12:00:00Z', expiresAt: '2026-10-28T14:00:00Z', isCurrent: true},
@@ -28,13 +29,26 @@ describe('AccountSecurity', () => {
     fixture.componentInstance.revoke(); http.expectOne(r => r.url.endsWith('/sessions/other') && r.method === 'DELETE').flush(null);
     http.expectOne(r => r.url.endsWith('/sessions')).flush([]); expect(fixture.componentInstance.pendingSession()).toBeNull();
   });
-  it('blocks mismatched passwords and only signs out after a successful change', () => {
+  it('updates the password without leaving settings and refreshes the current session', () => {
     const c = fixture.componentInstance; c.currentPassword = 'old'; c.newPassword = 'New-password1!'; c.confirmPassword = 'wrong';
     c.changePassword(valid); http.expectNone(r => r.method === 'POST'); expect(c.error()).toContain('match');
     c.confirmPassword = c.newPassword; c.changePassword(valid); c.changePassword(valid);
     const request = http.expectOne(r => r.url.endsWith('/change-password')); expect(request.request.body.currentPassword).toBe('old');
-    expect(logout).not.toHaveBeenCalled(); request.flush({}); expect(logout).toHaveBeenCalledOnce(); expect(c.newPassword).toBe('');
-    expect(navigate).toHaveBeenCalledWith(['/login'], {replaceUrl: true});
+    expect(logout).not.toHaveBeenCalled(); request.flush({token:'renewed-session',email:'alex@example.test'});
+    expect(renewSession).toHaveBeenCalledWith('renewed-session'); expect(c.newPassword).toBe('');
+    expect(logout).not.toHaveBeenCalled(); expect(navigate).not.toHaveBeenCalled();
+    expect(c.codeCount()).toBe(0);
+    expect(TestBed.inject(ToastService).messages().at(-1)?.message).toBe('Password updated successfully.');
+    http.expectOne(r => r.url.endsWith('/sessions')).flush([{id:'renewed',isCurrent:true}]);
+  });
+  it('keeps password fields and the existing session when a change fails', () => {
+    const c = fixture.componentInstance; c.currentPassword='old'; c.newPassword=c.confirmPassword='New-password1!';
+    c.changePassword(valid);
+    http.expectOne(r=>r.url.endsWith('/change-password')).flush({message:'Your current password could not be verified.'},{status:400,statusText:'Bad Request'});
+    expect(c.busy()).toBe(false); expect(c.currentPassword).toBe('old');
+    expect(c.error()).toContain('could not be verified');
+    expect(renewSession).not.toHaveBeenCalled(); expect(logout).not.toHaveBeenCalled(); expect(navigate).not.toHaveBeenCalled();
+    expect(TestBed.inject(ToastService).messages()).toHaveLength(0);
   });
   it('keeps the session on rejection and allows retry', () => {
     const c = fixture.componentInstance; c.signOutPassword = 'incorrect'; c.signOutAll(valid);

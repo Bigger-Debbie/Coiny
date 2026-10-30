@@ -33,7 +33,7 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/auth/recovery-codes/revoke` | 204 | Verify password and revoke owned codes |
 | POST | `/api/auth/forgot-password` | 200 | Request a reset email; generic confirmation |
 | POST | `/api/auth/reset-password` | 200 | Redeem single-use reset link |
-| POST | `/api/auth/change-password` | 200 | Change password and end all sessions |
+| POST | `/api/auth/change-password` | 200 | Change password, renew this browser, revoke old sessions |
 | GET | `/api/auth/sessions` | 200 | Current user's active sessions |
 | DELETE | `/api/auth/sessions/{id}` | 204 | Revoke an owned session |
 | POST | `/api/auth/logout` | 204 | Revoke current session |

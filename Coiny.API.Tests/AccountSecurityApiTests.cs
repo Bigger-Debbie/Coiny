@@ -58,7 +58,14 @@ public class AccountSecurityApiTests
         await using var host = await Host.Create(); var first = await host.Register(); var second = await host.Login(); host.Use(first);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/auth/change-password", new { currentPassword = "wrong", newPassword = NewPassword })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/auth/change-password", new { currentPassword = Password, newPassword = "weakpass" })).StatusCode);
-        (await host.Client.PostAsJsonAsync("/api/auth/change-password", new { currentPassword = Password, newPassword = NewPassword })).EnsureSuccessStatusCode();
+        var changed = await host.Client.PostAsJsonAsync("/api/auth/change-password", new { currentPassword = Password, newPassword = NewPassword });
+        changed.EnsureSuccessStatusCode();
+        var renewed = (await changed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+        Assert.NotEqual(first, renewed); Assert.NotEqual(second, renewed);
+        host.Use(renewed);
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/auth/me")).StatusCode);
+        var active = await host.Client.GetFromJsonAsync<JsonElement>("/api/auth/sessions");
+        Assert.Single(active.EnumerateArray()); Assert.True(active[0].GetProperty("isCurrent").GetBoolean());
         foreach (var token in new[] { first, second }) { host.Use(token); Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/auth/me")).StatusCode); }
         Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = Email, password = Password })).StatusCode);
         host.Use(await host.Login(password: NewPassword)); Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/auth/me")).StatusCode);
@@ -255,6 +262,20 @@ public class AccountSecurityApiTests
         Assert.Equal(10, (await host.Client.GetFromJsonAsync<JsonElement>("/api/auth/recovery-codes")).GetProperty("remaining").GetInt32());
         using (var scope = host.App.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<CoinyContext>().Database.ExecuteSqlRawAsync("DROP TRIGGER RejectSessionRevocation;");
         Assert.NotEmpty(await host.Login()); (await Redeem(host, codes[0])).EnsureSuccessStatusCode();
+    }
+    [Fact]
+    public async Task FailedPasswordSessionRenewalPreservesPasswordTokensAndRecoveryCodes()
+    {
+        await using var host = await Host.Create(); var token = await host.Register(); host.Use(token);
+        await GenerateCodes(host);
+        using (var scope = host.App.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<CoinyContext>().Database.ExecuteSqlRawAsync(
+            "CREATE TRIGGER RejectSessionCreation BEFORE INSERT ON AuthSessions BEGIN SELECT RAISE(ABORT, 'Simulated renewal failure'); END;");
+        await Assert.ThrowsAnyAsync<Exception>(() => host.Client.PostAsJsonAsync("/api/auth/change-password", new {currentPassword=Password,newPassword=NewPassword}));
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(10, (await host.Client.GetFromJsonAsync<JsonElement>("/api/auth/recovery-codes")).GetProperty("remaining").GetInt32());
+        using (var scope = host.App.Services.CreateScope()) await scope.ServiceProvider.GetRequiredService<CoinyContext>().Database.ExecuteSqlRawAsync("DROP TRIGGER RejectSessionCreation;");
+        Assert.NotEmpty(await host.Login());
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new {email=Email,password=NewPassword})).StatusCode);
     }
     private sealed class Mail : IPasswordRecoveryEmail {
         public bool IsConfigured { get; set; } = true;

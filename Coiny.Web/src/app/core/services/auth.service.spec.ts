@@ -30,6 +30,13 @@ describe('AuthService shared profile', () => {
     expect(auth.currentUser()).toEqual(user);
     http.expectNone(r => r.url.endsWith('/auth/me'));
   });
+  it('renews the same user session without clearing the displayed profile', () => {
+    auth.setToken('old-token'); auth.getCurrentUser().subscribe();
+    http.expectOne(r=>r.url.endsWith('/auth/me')).flush(user);
+    auth.renewSession('new-token');
+    expect(auth.getToken()).toBe('new-token'); expect(auth.currentUser()).toEqual(user);
+    auth.getCurrentUser().subscribe(); http.expectNone(r=>r.url.endsWith('/auth/me'));
+  });
   it('cancels pending profile data on logout rather than allowing stale user state', () => {
     auth.setToken('old-token');
     const next = vi.fn();

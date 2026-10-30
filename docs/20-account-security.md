@@ -3,8 +3,9 @@
 The profile menu’s **Settings** item opens `/settings` on desktop and mobile. Its
 **Security** section appears alongside Household and Preferences. Users can change
 their password, manage offline recovery codes, inspect active sessions, revoke another browser, or sign out
-everywhere. Password changes and signing out everywhere require the current
-password and invalidate all existing sessions, including the current browser.
+everywhere. Both actions require the current password. A password change renews
+this browser’s session and shows a success toast, while revoking other sessions.
+Sign out everywhere still ends the current browser session too.
 
 The login page links to password recovery. Reset links expire after 30 minutes,
 are single-use after a successful reset, and are invalidated by a password change
@@ -145,7 +146,10 @@ Authenticated routes:
   set, 204. Shares the authenticated password operation rate limit.
 
 - `POST /api/auth/change-password`: `{ currentPassword, newPassword }`; 200 on
-  success. Sign in again afterward.
+  success with a fresh `{ token, email }` for this browser. Replace the current
+  token before further API requests; stay on Settings and show a success toast.
+  All previous tokens and other sessions are revoked, and saved recovery codes
+  are invalidated. Password, revocations, and the replacement session commit together.
 - `GET /api/auth/sessions`: active rows with `id`, `device`, `createdAt`,
   `expiresAt`, and `isCurrent`.
 - `DELETE /api/auth/sessions/{id}`: revoke an owned session; idempotent 204.

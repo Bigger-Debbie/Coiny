@@ -1,4 +1,5 @@
 using Coiny.API.DTOs.Auth;
+using Coiny.API.Data;
 using Coiny.API.Models;
 using Coiny.API.Services;
 using Coiny.API.Extensions;
@@ -111,16 +112,19 @@ public class AuthController(UserManager<ApplicationUser> users, SignInManager<Ap
         return Ok(new { message = "Your password has been reset. Sign in with your new password." });
     }
     [Authorize, HttpPost("change-password"), EnableRateLimiting(AccountSecurityRateLimits.Login)]
-    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request)
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, [FromServices] IControlContext db)
     {
         var user = await users.GetUserAsync(User); if (user is null) return Unauthorized();
         if (!await VerifyPasswordAsync(user, request.CurrentPassword))
             return BadRequest(new { message = "Your current password could not be verified. After several attempts, wait 15 minutes and try again." });
         if (request.CurrentPassword == request.NewPassword) return BadRequest(new { message = "Choose a different password." });
+        await using var transaction = await db.Database.BeginTransactionAsync();
         var result = await users.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded) return BadRequest(new { message = string.Join(" ", result.Errors.Select(e => e.Description)) });
         await security.MarkAllRevokedAsync(user.Id);
-        return Ok(new { message = "Password changed. Sign in again on each device." });
+        var session = await security.StartSessionAsync(user, Request.Headers.UserAgent.ToString());
+        await transaction.CommitAsync();
+        return Ok(session);
     }
     [Authorize, HttpGet("sessions")]
     public async Task<IActionResult> Sessions() => Ok(await security.SessionsAsync(users.GetUserId(User)!, AccountSecurityService.SessionId(User)));

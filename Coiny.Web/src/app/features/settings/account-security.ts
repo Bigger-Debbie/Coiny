@@ -4,6 +4,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ToastService } from '../../core/services/toast.service';
 import { AuthService } from '../../core/services/auth.service';
 import { environemnt } from '../../../environments/environment';
 interface Session { id: string; device: string; createdAt: string; expiresAt: string; isCurrent: boolean; }
@@ -11,6 +12,7 @@ interface Session { id: string; device: string; createdAt: string; expiresAt: st
 export class AccountSecurity implements OnInit {
   private readonly http = inject(HttpClient); private readonly destroy = inject(DestroyRef);
   private readonly auth = inject(AuthService); private readonly router = inject(Router);
+  private readonly toasts = inject(ToastService);
   private readonly url = `${environemnt.apiUrl}/auth`;
   readonly closed = output<void>(); readonly busy = signal(false); readonly loading = signal(false);
   readonly sessions = signal<Session[]>([]); readonly error = signal(''); readonly message = signal('');
@@ -65,7 +67,23 @@ export class AccountSecurity implements OnInit {
   changePassword(form: NgForm) {
     if (form.invalid || this.busy()) return;
     if (this.newPassword !== this.confirmPassword) { this.showError('The new passwords must match.'); return; }
-    this.mutate('change-password', { currentPassword: this.currentPassword, newPassword: this.newPassword });
+    this.busy.set(true); this.error.set(''); this.message.set('');
+    this.http.post<{token: string}>(`${this.url}/change-password`, {
+      currentPassword: this.currentPassword, newPassword: this.newPassword
+    }).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+      next: response => {
+        this.auth.renewSession(response.token);
+        this.currentPassword = this.newPassword = this.confirmPassword = '';
+        form.resetForm(); this.busy.set(false);
+        ++this.codesStatusVersion; this.recoveryCodes.set([]); this.codeCount.set(0);
+        this.pendingSession.set(null); this.load();
+        this.toasts.success('Password updated successfully.');
+      },
+      error: response => {
+        this.busy.set(false);
+        this.showError(response.status === 429 ? 'Too many attempts. Please wait before trying again.' : response.error?.message || 'Your password couldn’t be updated. Please try again.');
+      }
+    });
   }
   signOutAll(form: NgForm) { if (form.valid && !this.busy()) this.mutate('logout-all', { currentPassword: this.signOutPassword }); }
   private mutate(path: string, body: object) {
