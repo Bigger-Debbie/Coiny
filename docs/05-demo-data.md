@@ -11,6 +11,11 @@ The current seed does not create a household budget. On a fresh seed, migrations
 create the budget tables, but the household has no budget revisions, income
 sources, or allocations yet.
 
+This guide applies to the default legacy `CoinyContext` development database.
+Hybrid household provisioning uses its own migration chain; the fresh recovery
+lab does not seed demo users. Never use these reset commands against a retained
+personal review or recovery installation. See [setup modes](06-development-setup.md#storage-modes).
+
 ## Seed an empty database
 
 Run from the repository root. An explicit connection string ensures the CLI and
@@ -28,7 +33,7 @@ local test database, recreate its schema, and seed it:
 
 ```sh
 export ConnectionStrings__DefaultConnection="Data Source=$PWD/Coiny.API/coiny.db"
-dotnet ef database drop --force --project Coiny.API
+dotnet ef database drop --force --context CoinyContext --project Coiny.API
 dotnet run --project Coiny.API --launch-profile http -- --seed-demo
 ```
 
@@ -81,7 +86,7 @@ authenticated context when it finishes.
 
 This is a useful UI/behavior fixture, not complete household accounting. Paired
 transfers and credit-card payments are omitted from this seed. The transfer backend
-and Add Transaction modal now support them separately; CSV import and matching UI
-are still being built.
+and Add Transaction modal support them separately; CSV import and explicit
+transfer matching are also implemented. This seed simply does not exercise them.
 To test in isolation, set `ConnectionStrings__DefaultConnection` to an absolute
 SQLite path in a separate disposable directory.

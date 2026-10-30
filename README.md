@@ -1,99 +1,115 @@
 # Coiny
 
-Coiny is a household finance app for understanding account balances, recent activity,
-and changes in net worth. It is built with ASP.NET Core, Entity Framework Core,
-SQLite, ASP.NET Core Identity, JWT authentication, and Angular.
+Coiny is a household finance app for tracking balances, transactions, budgets,
+savings funds, and net worth. It uses ASP.NET Core / EF Core 10, ASP.NET Core
+Identity, JWT authentication, and Angular 21.
 
 ## Current status
 
-Coiny has a working dashboard, accounts page, and household budget setup wizard.
-It is in active local development. Budget forecasts are available through one year;
-account security includes password recovery/change, offline recovery codes, revocable sessions, and login protection.
-Recovery codes work without email. Recovery email requires SMTP configuration; see [account security](docs/20-account-security.md).
+The agreed v1 feature scope is implemented and merged into `main`. Local integration,
+migration, and recovery rehearsals are complete; public hosting is not deployed.
+Release preparation now focuses on production packaging, Azure infrastructure,
+monitoring, scheduled offsite backups, and a reviewed live-data cutover.
+See the [roadmap](docs/11-roadmap.md) for release gates and deferred refinements.
 
-| Area | Implemented | Still planned |
-| --- | --- | --- |
-| Authentication | Registration/login APIs and screens, branded login screen with animated coins and password toggle, shared profile, personal net-worth settings, password recovery/change, offline recovery codes, revocable sessions, login lockout and rate limits, token storage and expiry handling | Hosting SMTP/proxy/key configuration; MFA and email verification are later refinements |
-| Households | Create/join setup, Settings page member cards, owner removal and expiring invitation codes, household-scoped financial services | Role changes, leaving/switching, email/text invitations |
-| Financial data | Create/list APIs, scoped trends and category breakdown; transaction edit/delete with recalculated history; manual transfers; CSV mapping, review/bulk categorization, duplicate checks, optional bank balance verification, atomic multi-account import and transfer matching, import history with review/correction and atomic undo, and account/category management and household merchant/category rules and saved CSV mappings | XLS/XLSX imports |
-| History | Opening-balance dates, daily closing snapshots, backdated recalculation, reusable trends, statement reconciliation with review flags | Intraday history and account-balance forecasts |
-| Dashboard | Interactive net-worth chart, mortgage/other-debt breakdown, account monthly trends, recent transactions, personalized greeting | Further reporting and navigation destinations |
-| Planning | Monthly budget setup, income-period outlook with period-surplus/available-cash views and allocation donut, breakdown, calendar, bill/contribution and goal set-aside tracking, and planned/actual/forecast allocation graphs, running pay-period remainders through one year, manual and optional daily recurring-expense scans, household alerts with personal unread badges, and review, and comparisons with category defaults and transaction assignments | Savings funds, individual account-balance forecasts |
+| Area | Implemented |
+| --- | --- |
+| Accounts and history | Account/category management, opening balances, daily snapshots, trends, debt/mortgage views, statement reconciliation and later-change review flags |
+| Transactions and imports | Manual entries/transfers, editing/deletion, multi-account CSV review, duplicate checks, transfer matching, merchant/category rules, saved mappings, import correction and safe undo |
+| Budgeting | Resumable initial setup, published item editing with effective dates, monthly and income-period views, calendar, multiple linked transactions per payment, skipped savings contributions, actuals and forecasts through one year |
+| Savings funds | Account-backed funds with component goals, recurring costs/reserves, existing-cash allocations, paycheck schedules, affordability reviews and fund activity |
+| Recurring activity | Manual and optional daily detection, reviewable suggestions, household alerts with personal unread counts |
+| Account security | Password change/reset, optional SMTP recovery, offline recovery codes, revocable sessions, lockout and rate limits; unified Household/Preferences/Security settings |
+| Household data | Owner-only encrypted backups, optional portable backup password, restore preview and safety backup, CSV ZIP export; available on hybrid storage |
+| Storage and local deployment | PostgreSQL identity/orchestration plus per-household SQLite finances, guarded migration/maintenance/operator recovery tools, Caddy/Compose review and recovery labs |
+
+Household files provide data separation; Coiny still processes financial data on
+the server. Client-held encryption keys and zero-knowledge privacy are not implemented.
 
 ## Get started
 
-Follow the [local setup guide](docs/06-development-setup.md) to configure the API,
-install dependencies, and start both applications. For a populated dashboard, use
-[development demo data](docs/05-demo-data.md).
+Choose the setup that matches your task:
 
-Default local URLs:
+- **Normal local development:** [setup guide](docs/06-development-setup.md), then
+  optional [demo data](docs/05-demo-data.md). The default remains one combined SQLite
+  database, with frontend `http://localhost:4200` and API `http://localhost:5298/api`.
+- **Fresh hybrid installation / portable recovery test:**
+  [recovery lab](deploy/recovery-lab/README.md) on `http://localhost:6082`.
+  Docker runs Caddy/web, API, and PostgreSQL containers with separate persistent volumes.
+- **Disposable synthetic integration tests:** [Docker test tooling](deploy/docker-test/README.md).
+  Its former persistent lab has been retired; running its commands may recreate it.
 
-- Frontend: `http://localhost:4200`
-- API: `http://localhost:5298/api`
-- Development OpenAPI document: `http://localhost:5298/openapi/v1.json`
+The private personal review installation on `http://localhost:6081` has separate
+configuration and data outside the repository. The recovery lab has also been used
+for a successful user-driven portable restore. Neither installation's volumes are
+now disposable test data. These loopback-only labs are not production templates.
+
+Hybrid mode is explicitly enabled by configuration; pulling the code does not
+migrate an existing SQLite database. Follow the [storage and delivery guide](docs/21-hybrid-storage-and-azure.md)
+and [operator runbook](deploy/operations/README.md). Never run two installations
+accepting writes against divergent copies of the same household.
 
 ## Repository layout
 
 ```text
-Coiny.API/       ASP.NET Core API, domain models, services, EF migrations
-Coiny.API.Tests/ Repeatable backend recurrence, workflow, and migration tests
-Coiny.Web/       Angular app, shared UI, styles, and frontend tests
+Coiny.API/       API, models, services, legacy and split-provider EF migrations
+Coiny.API.Tests/ Backend regression and real-provider integration tests
+Coiny.Web/       Angular app, shared UI, styles, frontend tests
 Coiny.slnx      .NET solution
-docs/           Product, domain, behavior, setup, and API documentation
+deploy/         Local Compose labs and offline migration/backup tooling
+experiments/    Retained synthetic architecture proof and historical evidence
+docs/           Product behavior, setup, API, architecture, and operations guides
 ```
 
-The API targets .NET 10; the frontend uses Angular 21 and TypeScript. Exact
-package versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
+Exact versions are in [Coiny.API.csproj](Coiny.API/Coiny.API.csproj),
 [package.json](Coiny.Web/package.json), and the frontend lockfile.
 
 ## Documentation
 
 | Guide | Purpose |
 | --- | --- |
-| [Project vision](docs/00-project-vision.md) | Audience, product goals, and future direction |
+| [Project vision](docs/00-project-vision.md) | Audience, goals, and product direction |
 | [Development principles](docs/01-development-principles.md) | Engineering and collaboration conventions |
-| [Domain blueprint](docs/02-domain-blueprint.md) | Implemented entities, relationships, and planned concepts |
+| [Domain blueprint](docs/02-domain-blueprint.md) | Entities, ownership, and storage boundaries |
 | [Balances, snapshots, and trends](docs/03-account-trends.md) | Financial rules and service responsibilities |
-| [Authentication and user profile](docs/04-user-profile.md) | Current authentication behavior and personalization |
-| [Demo data](docs/05-demo-data.md) | Development login, seed command, and database reset |
-| [Development setup](docs/06-development-setup.md) | Configuration, startup, checks, and troubleshooting |
-| [API and Postman reference](docs/07-api-reference.md) | All current endpoints, payloads, and testing workflow |
-| [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, component structure, and date ranges |
-| [Household budgeting](docs/09-household-budgeting.md) | Agreed budget/schedule rules, schema foundation, and delivery sequence |
-| [CSV transaction import](docs/10-csv-transaction-import.md) | Agreed import workflow, parsing foundation, and delivery sequence |
-| [Migration and recovery rehearsal](docs/22-migration-recovery-rehearsal.md) | Verified migration interruption, financial comparisons and database recovery; remaining production gates |
-| [Hybrid storage and Azure delivery](docs/21-hybrid-storage-and-azure.md) | Database split, migration safeguards, container packaging and hosted cutover gates |
-| [Product roadmap](docs/11-roadmap.md) | Remaining work and improvements to existing features |
-| [Account reconciliation](docs/12-account-reconciliation.md) | Statement checks, verified checkpoints, and later-change review flags |
-| [Budget actuals](docs/13-budget-actuals.md) | Posting-month comparisons, category defaults, and transaction assignments |
-| [Recurring detection and alerts](docs/14-recurring-detection.md) | Manual/daily scans, review decisions, household settings, and personal unread status |
-| [Merchant/category rules](docs/15-merchant-category-rules.md) | Rule management, preview examples, and import suggestions |
-| [Saved CSV mappings](docs/16-saved-csv-mappings.md) | Reusable household bank layouts, header matching, and import confirmation rules |
-| [Available cash outlook](docs/17-available-cash-outlook.md) | Period surplus and a forecast based on selected cash and credit-card balances |
-| [Import undo/correction](docs/18-import-undo-correction.md) | Import review, atomic undo, transfer/payment handling, and reconciliation audit history |
-| [Frontend commands](Coiny.Web/README.md) | Angular-specific commands and source layout |
+| [Authentication and user profile](docs/04-user-profile.md) | Sign-in, personalization, and household membership |
+| [Demo data](docs/05-demo-data.md) | Legacy development seed and reset instructions |
+| [Development setup](docs/06-development-setup.md) | Configuration, startup, verification, troubleshooting |
+| [API reference](docs/07-api-reference.md) | Endpoints, payloads, and Postman workflow |
+| [Dashboard and frontend](docs/08-dashboard.md) | UI behavior, charts, and page/data transitions |
+| [Household budgeting](docs/09-household-budgeting.md) | Setup, schedules, publication, and item management |
+| [CSV import](docs/10-csv-transaction-import.md) | Mapping, review, multi-account sessions, and transfer matching |
+| [Roadmap](docs/11-roadmap.md) | Release preparation and post-v1 work |
+| [Account reconciliation](docs/12-account-reconciliation.md) | Statement checkpoints and later-change review flags |
+| [Budget actuals](docs/13-budget-actuals.md) | Assignments, forecasts, and potential savings |
+| [Recurring detection and alerts](docs/14-recurring-detection.md) | Manual/daily scans, review, and unread status |
+| [Merchant/category rules](docs/15-merchant-category-rules.md) | Rule management and import suggestions |
+| [Saved CSV mappings](docs/16-saved-csv-mappings.md) | Reusable bank layouts and confirmation rules |
+| [Available cash outlook](docs/17-available-cash-outlook.md) | Selected cash/card balances and remaining commitments |
+| [Import undo/correction](docs/18-import-undo-correction.md) | Atomic undo, payments, transfers, reconciliation audit |
+| [Savings funds](docs/19-savings-funds.md) | Account makeup, component goals, funding and budget integration |
+| [Account security](docs/20-account-security.md) | Passwords, sessions, recovery codes, SMTP configuration |
+| [Hybrid storage and Azure](docs/21-hybrid-storage-and-azure.md) | Implemented split runtime and remaining delivery gates |
+| [Migration/recovery evidence](docs/22-migration-recovery-rehearsal.md) | Synthetic and private-copy verification boundaries |
+| [Household backups/export](docs/23-household-backup-restore-export.md) | Encrypted downloads, restore safety, portability, CSV |
+| [Frontend commands](Coiny.Web/README.md) | Angular commands, configurations, source layout |
+| [Backend tests](Coiny.API.Tests/README.md) | Regression and PostgreSQL integration coverage |
+| [Operator runbook](deploy/operations/README.md) | Maintenance, offline migration, installation backups/recovery |
+| [Recovery lab](deploy/recovery-lab/README.md) | Independent fresh-instance restore rehearsal |
+
+## Verification
+
+The latest local verification passed **386 frontend tests**, **290 backend regression
+tests**, the frontend container build, and both local lab smoke checks. A separate
+focused run passed **21 PostgreSQL/API integration checks plus two crypto/CSV unit
+tests**; five operator packaging tests run during integration-image builds.
+The old Angular starter-test failure is fixed. There is no automated browser
+end-to-end suite; local smoke checks and the manual portable restore complement
+unit/integration coverage. See [verification details](docs/06-development-setup.md#verification).
 
 ## Next milestones
 
-Household budgeting, dated item editing, planned/actual comparisons, pay-period
-forecasts, recurring-expense detection, and household alerts are implemented.
-Signup/household setup, account/category management, transaction corrections,
-reconciliation, and multi-account CSV imports are also implemented.
-
-Next areas include savings funds, backup/restore and export, import correction, and authentication/session improvements. See the
-[roadmap](docs/11-roadmap.md) for the remaining work.
-
-For current development limitations and test status, see the
-[setup guide](docs/06-development-setup.md#verification).
-
-CSV import supports multi-account sessions with independent file mapping, per-account spreadsheet review, explicit transfer matching across files or existing entries, and one atomic final save. The same flow handles a single file, hiding file-switching controls and skipping transfer matching when there are no suggestions.
-
-Savings accounts support [account-backed funds and component goals](docs/19-savings-funds.md), with paycheck contribution schedules and budget affordability reviews.
-
-Account security: [passwords, sessions, login protection, and recovery email configuration](docs/20-account-security.md).
-
-The avatar menu’s **Settings** item opens one page containing Household, Preferences, and Security.
-
-Household data: [encrypted downloads, restore previews/safety backups, and CSV export](docs/23-household-backup-restore-export.md).
-
-Manual cross-installation restore: [fresh recovery lab on localhost:6082](deploy/recovery-lab/README.md).
+Complete a final release review, production Compose/proxy/secret configuration,
+Azure VM and domain/HTTPS setup, scheduled offsite backups with tested recovery,
+monitoring, and update/rollback instructions before a small tester rollout.
+No Azure resources or public deployment have been created by the local rehearsals.

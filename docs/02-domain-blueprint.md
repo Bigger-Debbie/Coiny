@@ -4,7 +4,12 @@
 
 This blueprint describes the implemented model. Planned concepts are listed
 separately below. EF models live in `Coiny.API/Models/` and are registered through
-`CoinyContext`; Identity contributes its own user and role tables.
+`CoinyContext` in default legacy mode. In opt-in hybrid mode, `ControlContext`
+stores Identity, households/membership and orchestration in PostgreSQL;
+`HouseholdContext` stores finance in one SQLite file per household. Services use
+`IControlContext` / `IFinancialContext`. Identity contributes its own user/role
+tables; cross-store references use IDs and explicit ownership checks rather than
+cross-database foreign keys. See [storage architecture](21-hybrid-storage-and-azure.md).
 
 ## Implemented entities
 
@@ -24,12 +29,35 @@ separately below. EF models live in `Coiny.API/Models/` and are registered throu
 | `BudgetIncomeSource` | Expected take-home amount per occurrence and required owned schedule |
 | `BudgetAllocation` | Planned use of income with monthly amount or per-occurrence amount plus optional schedule |
 
-Domain entities inherit integer `Id` and UTC `CreatedAt` from `BaseEntity`.
-`ApplicationUser` inherits Identity's string ID instead.
+Additional implemented entities:
+
+| Entity | Purpose |
+| --- | --- |
+| `AuthSession`, `AuthRecoveryCode` | Revocable login sessions and hashed offline recovery codes |
+| `HouseholdInvitation` | Expiring, single-use hashed join code |
+| `AccountReconciliation` | Statement checkpoint with preserved review/invalidation history |
+| `BillPayment`, `BillPaymentTransaction` | Paid/skipped occurrence state and additional transaction links |
+| `BudgetCategoryRule`, `TransactionBudgetAssignment` | Effective category defaults and individual actuals assignments |
+| `TransactionImportSession`, `TransactionImportUndo` | Atomic multi-file import receipts and reviewed undo audit |
+| `MerchantCategoryRule`, `SavedCsvMapping` | Reviewable category suggestions and saved bank column layouts |
+| `HouseholdRecurringSetting`, `RecurringExpenseReview` | Daily detection preference and reviewed recurring patterns |
+| `HouseholdAlert`, `HouseholdAlertRead` | Shared alerts with per-user read state |
+| `SavingsFund`, `SavingsActivity` | Account purpose/component plans and allocation/contribution/spending activity |
+
+Hybrid-only operational metadata also tracks household registry/file identity,
+legacy import progress, maintenance admission, and resumable preference changes.
+`StorageModelOwnership` is the explicit domain ownership inventory; provider
+migration snapshots define the complete physical schema.
+
+Most financial/domain rows inherit integer `Id` and UTC `CreatedAt` from
+`BaseEntity`. `ApplicationUser` inherits Identity's string ID; `AuthSession` uses a
+string session ID and `AuthRecoveryCode` uses a GUID. Operational types have their
+own keys; consult the provider model snapshots for exact types.
 `BudgetSchedule` is an owned value with frequency, date bounds, and monthly day
 numbers; it has no independent table or public ID. Budget services implement
-recurrence, draft/publication, and monthly projections, but are not exposed
-through an API yet. See [household budgeting](09-household-budgeting.md).
+recurrence, draft/publication, monthly and income-period projections, dated item
+changes, and authenticated API workflows. Savings component plans are stored in
+`SavingsFund.PlanJson`, not as independent goal rows. See [household budgeting](09-household-budgeting.md).
 
 ```mermaid
 erDiagram
@@ -73,9 +101,9 @@ liabilities; the other types are treated as assets by current calculations.
 start of that date. Current balance is derived, not an editable stored total.
 See [financial rules](03-account-trends.md) for debt signs and historical behavior.
 
-`IsActive` flags exist on accounts, institutions, and categories. There are no
-activation-management endpoints, and account listing/dashboard totals do not
-currently filter inactive accounts.
+`IsActive` flags exist on accounts, institutions, and categories. Category management supports archive/restore through its update endpoint.
+Account/institution activation management is not exposed, and account listing/
+dashboard totals do not currently filter inactive accounts.
 
 ## Constraints and current model boundaries
 
@@ -83,7 +111,9 @@ currently filter inactive accounts.
 - Categories uniquely index `(HouseholdId, Name)`; the creation service also
   checks duplicate names case-insensitively.
 - Account and transaction monetary columns are mapped as `decimal(18,2)`.
-  Application-level cent rounding/scale enforcement is not implemented.
+  Public financial-write workflows validate monetary scale and/or round derived
+  allocations to cents; legacy migration compares decimal values without changing
+  their meaning. Consult each workflow for its validation rules.
 - Transactions require a category. Account/category deletion is restricted while
   transactions reference them; snapshots also restrict account deletion.
 - An account can have no institution. Its configured institution relationship uses
@@ -91,18 +121,13 @@ currently filter inactive accounts.
 - Transactions do not currently store a creator-user audit reference.
 - Categories do not currently have parent/child relationships.
 
-## Planned concepts
+## Later refinements
 
-| Concept | Intended purpose |
-| --- | --- |
-| Budget workflows | Resumable setup, publication, effective-month selection, planned allocations and calendar |
-| Goal | Savings target, debt payoff, or other financial objective |
-| Recurring transaction | Scheduled income or expense pattern |
-| Category hierarchy | Parent/child classifications |
-| Transaction audit | Attribution and designed correction history |
-
-These are design directions, not existing entities or API capabilities.
-
+Budget workflows, savings component goals, recurring detection, and reviewed import
+undo are implemented. Debt-payoff planning, category hierarchies, and a universal
+creator/change audit across every manual transaction remain later refinements.
+Separate household files do not provide client-side encryption or zero-knowledge
+privacy.
 
 Loan accounts have a nullable `LoanSubtype` (Mortgage, Auto, Personal, Student,
 Other); non-loans have no subtype. Existing loans default to Other and require

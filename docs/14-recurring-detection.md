@@ -69,7 +69,10 @@ Under **Avatar menu → Settings → Preferences → Recurring detection · Hous
 **Scan daily for recurring expenses**. It is off by default. Any household member
 may change it; it is shared with the household, while the mortgage preference
 remains personal. Both toggles are staged until **Save settings** in the shared footer. Personal and
-household changes save together in one transaction; **Reset changes** discards unsaved edits.
+household changes use one transaction in legacy mode. Hybrid mode uses a durable
+PostgreSQL intent and SQLite receipt, completing or retrying the two local commits
+without applying the setting twice; it is not a distributed transaction.
+**Reset changes** discards unsaved edits.
 Stale setting versions return a conflict and require reload. The last successful
 scan date appears below it.
 
@@ -77,7 +80,9 @@ A hosted API worker checks enabled households on startup and every 15 minutes.
 It runs at most one successful scan per household per America/New_York calendar
 day, persisting that date so restarting the API does not repeat the scan. Failed
 scans are retried on a later check, and one household failure does not stop others.
-The API must be running; this is not an external cron or email service. Disabling
+The API must be running and `Operations:ScheduledJobsEnabled` must be true
+(the normal default); retained review/recovery labs explicitly disable it. This
+is not an external cron or email service. Disabling
 stops future automatic scans; existing alerts remain available. Manual scans
 remain on demand and read-only, and do not consume the daily scan or create alerts.
 

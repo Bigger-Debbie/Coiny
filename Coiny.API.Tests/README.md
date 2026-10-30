@@ -7,8 +7,9 @@ dotnet restore Coiny.slnx
 dotnet test Coiny.API.Tests/Coiny.API.Tests.csproj
 ```
 
-These xUnit tests use EF Core's SQLite provider with isolated in-memory
-connections. They do not use or reset `Coiny.API/coiny.db`, require an externally running API
+The regression tests use EF Core's SQLite provider with isolated in-memory
+connections. Hybrid integration tests use disposable real PostgreSQL databases and
+temporary household SQLite files, and skip unless test configuration is supplied. They do not use or reset `Coiny.API/coiny.db`, require an externally running API
 server or configured JWT signing key, or change the development user's data.
 
 Coverage includes:
@@ -52,13 +53,18 @@ Coverage includes:
 - Published revision selection, preserved history, scheduled future revisions,
   unassigned income, over-budget plans, and calendar-event projections.
 - HTTP save/resume/preview/publication, required JSON fields and query parameters,
-  authentication, household isolation, and expected error status codes. The in-process
-  test host uses test authentication; it does not exercise JWT token issuance.
+  authentication, household isolation, and expected error status codes. Those
+  budget test hosts use test authentication; the separate account-security suite
+  exercises real Identity/JWT behavior.
 - Setup status for unpublished, current, and future plans; previews without publication.
 - Migration apply/rollback/reapply with ledger data and existing budget
   definitions preserved.
 
-The current suite has 219 passing tests. Build output and TestResults are ignored
+The latest non-hybrid regression run passed **290 tests**, including two crypto/CSV
+unit checks. The separate focused run passed **21 PostgreSQL/API integration tests
+plus those two unit checks** (23 total). Five operator packaging tests run during
+integration-image builds. The milestone counts below are historical subsets, not
+the current full-suite baseline. Build output and TestResults are ignored
 inside this project. Frontend tests run separately from `Coiny.Web`.
 
 See [budget rules](../docs/09-household-budgeting.md) for behavior and the

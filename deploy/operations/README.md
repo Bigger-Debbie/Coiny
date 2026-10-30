@@ -257,3 +257,18 @@ email unconfigured and use fresh JWT/Data Protection material, so the isolated c
 cannot send mail or reuse original installation sessions. A review site is not a
 live cutover: changes made there do not synchronize back to the original. A later
 cutover must stop the original writer and take a fresh final snapshot.
+
+## Scope and retained local environments
+
+These commands operate on installation/control snapshots and reviewed household
+copies. They are distinct from the owner's Settings backup/upload tools; see
+[household recovery](../../docs/23-household-backup-restore-export.md). The
+`--recovery-security` operator command invalidates historical credentials in a
+recovered copy; it does not issue a login reset link. A server account-reset command
+remains release work.
+
+The private review site (6081) and the recovery lab (6082) are retained. A portable
+restore was manually completed in the latter; preserve its volumes as private data.
+Old synthetic/POC groups were retired, while their tooling remains reproducible.
+See the [release roadmap](../../docs/11-roadmap.md) for production backup scheduling,
+key custody, disk retention/cleanup, Azure setup, and live-cutover gates.

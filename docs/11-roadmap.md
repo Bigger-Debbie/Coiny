@@ -1,73 +1,77 @@
-# Remaining product work
+# Roadmap and release readiness
 
-## Recurring transactions and subscriptions
+[Documentation index](../README.md#documentation)
 
-Manual scans, daily opt-in household scanning, persistent alerts, and personal
-unread badges are implemented; see [recurring detection](14-recurring-detection.md).
-Future improvements include recognizing changing bank reference strings and
-patterns with missing cycles while keeping suggestions reviewable.
+## Agreed v1 feature scope: implemented
 
-## Savings funds and component goals
+Core financial workflows, published budget management, forecasts, savings funds,
+account security, and household backup/restore/export are implemented in `main`.
+This is the point to finish release preparation rather than add more product scope.
 
-Account-backed savings funds, component targets/recurring costs/reserves, paycheck
-contribution schedules, affordability reviews, account makeup, and budget integration
-are implemented; see [savings funds](19-savings-funds.md). Multiple-account funding
-remains deliberately outside the first version.
+- Accounts, transactions, transfers, category management, snapshots/trends, and
+  statement reconciliation with audit-preserving invalidation.
+- Multi-account CSV imports, merchant/category rules, saved mappings, correction,
+  and safe reviewed undo.
+- Monthly/income-period budgets, dated item changes, linked split payments,
+  actuals, potential savings, available cash, and forecasts through one year.
+- Account-backed savings funds, component goals, existing-cash allocation,
+  affordability reviews, contribution schedules, and period skipping.
+- Manual/daily recurring detection, household alerts, and personal unread counts.
+- Unified settings; password recovery/change, offline recovery codes, revocable
+  sessions, login lockout and rate limits.
+- Owner-only encrypted household downloads, optional portable backup passwords,
+  restore previews/safety copies, and CSV exports in hybrid installations.
 
-## Other planned areas
+Feature behavior is described in the linked guides in the [README](../README.md#documentation).
 
-- Individual account-balance forecasting and explicit paycheck/source matching. The zero-based
-  running remainder across complete household income periods is implemented for
-  this period and 1/3/6/12 months, carrying surpluses and shortfalls forward.
-  Allocation-detail forecasts, comparisons, category defaults, and individual
-  assignments are also implemented. The optional available-cash card now uses a
-  selected funding pool of cash accounts and credit cards; per-account future flows
-  and explicit paycheck matching remain future work.
-- Import review/correction and safe undo are implemented, including transfer/payment
-  links, reconciliation invalidation, and audit history. Future work can add bulk
-  correction tools and older-history pagination.
-- Additional budget-maintenance refinements; direct item editing with effective dates is implemented.
-- Password recovery/change, offline recovery codes, revocable sessions, and login protection are implemented; see [account security](20-account-security.md). SMTP and production key/proxy configuration remain deployment tasks.
-- Owner-only encrypted household downloads, restore preview/safety backups and CSV export are implemented; see [household data tools](23-household-backup-restore-export.md).
-- Merchant/category rules and saved CSV column mappings are implemented; safe import undo/correction is also implemented.
+## Architecture and local verification: implemented
 
-Statement checkpoints and account reconciliation are implemented; see
-[account reconciliation](12-account-reconciliation.md).
+The app supports opt-in PostgreSQL control storage and one SQLite financial file
+per household. Default non-container development retains the combined SQLite
+context. Migration never happens implicitly when the code is updated.
 
-## Agreed V1 completion scope
+Real-provider integration, resumable/checksum-bound migrations, cooperative
+maintenance/draining, encrypted operator recovery, and household data tools are
+implemented. Synthetic rehearsals and an approved household-only private copy
+verified financial outputs across migration and recovery. The user also completed
+a portable backup restore into a new user/household in an independent recovery lab.
 
-Savings funds, account security, and household backup/restore/export are implemented
-and tested in the isolated hybrid deployment. Recovery email needs SMTP
-configuration and deployment validation. Other refinements above are post-V1.
-After these, focus on
-infrastructure, container self-hosting (including an explicit server recovery command), and hosted deployment. Per-household databases
-and client-side encryption/shared household keys are architecture ideas to evaluate
-before hosting; no zero-knowledge privacy claim is currently implemented.
+The retained local deployments are the private personal review site (6081) and
+recovery lab (6082). The old synthetic `coiny-test` and architecture POC containers
+and volumes were removed; source/tooling remains available to recreate synthetic
+tests. Personal review/recovery stores must not be treated as disposable.
 
-## Hybrid storage and hosted delivery
+See [hybrid delivery](21-hybrid-storage-and-azure.md),
+[migration/recovery evidence](22-migration-recovery-rehearsal.md), and the
+[operator runbook](../deploy/operations/README.md).
 
-The synthetic PostgreSQL/per-household SQLite experiment is complete. Real-app
-integration, migration verification, recovery, Caddy/Compose packaging and Azure
-cutover follow the [delivery plan](21-hybrid-storage-and-azure.md). The main app
-currently still uses its original single SQLite context.
+## Remaining release gates
 
-The experimental split runtime is now enabled in the isolated `coiny-test` Docker
-group, with its existing test users/households migrated. Default local development
-and the original real database remain on the legacy model. Real-data migration,
-user-facing backup/restore/export and production deployment gates remain outstanding.
+1. Final workflow/mobile review and security/household-isolation release checks.
+   Automated browser end-to-end coverage is not yet configured.
+2. Production packaging: pinned release images, environment/proxy/HTTPS settings,
+   persistent PostgreSQL/SQLite/Caddy/Data Protection storage, migration/upgrade
+   instructions, secret custody, and operator account-recovery procedure.
+3. Scheduled encrypted off-VM backups, retention and disk monitoring, key recovery,
+   cleanup policy for old household files/safety backups, and fresh-host restore drill.
+4. Azure VM/data disk/network setup, domain and Caddy/Let's Encrypt, SMTP/reset-link
+   validation, reboot/persistence checks, health/backup/certificate alerts, and cost review.
+5. Reviewed final stopped-writer snapshot and live cutover, rollback/update runbook,
+   then a small tester rollout. The original database remains authoritative until
+   this cutover is explicitly completed; do not accept writes to both copies.
 
-A [synthetic migration and database recovery rehearsal](22-migration-recovery-rehearsal.md)
-now passes against the real models. [Offline operator tooling](../deploy/operations/README.md)
-adds encrypted snapshot packaging, verified recovery extraction, and general
-read-only migration plans/checksum-bound offline apply. Durable maintenance admission/drain is implemented with a required API/job stop
-before snapshots. Production packaging, secret recovery, scheduling/off-VM
-retention, export and user-facing backup/restore remain planned.
+The chosen target is one Linux VM running Compose with Caddy/web, API, and
+PostgreSQL containers. Hosted and self-hosted installations should share this
+storage model. Public production deployment and Azure provisioning are not complete.
 
-An approved household-only personal-data rehearsal has matched financial outputs
-before and after encrypted recovery in separate local stores. The original remains
-authoritative; user review and a fresh stopped-writer snapshot precede live cutover.
-Private data/artifacts are excluded from Git and image build contexts.
+## Post-v1 refinements
 
-The user-facing household data tools now provide both installation-linked and portable
-password-protected encrypted downloads. Production release/hosting, scheduled offsite
-backups, key custody/retention and reviewed live cutover remain infrastructure work.
+- Individual account-balance forecasts and explicit paycheck-to-transaction matching.
+- Multi-account funding for a single savings fund.
+- More tolerant recurring-pattern matching and older import-history pagination/bulk corrections.
+- XLS/XLSX import, richer reporting, household leaving/switching and role changes.
+- MFA, email verification, and refresh tokens.
+- Client-held encryption/shared household keys and zero-knowledge privacy require
+  a separate architecture design; separate household databases alone do not provide it.
+
+No additional product feature is required by the agreed v1 scope above.

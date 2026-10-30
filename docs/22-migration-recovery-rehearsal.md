@@ -1,8 +1,16 @@
 # Hybrid migration and database recovery rehearsal
 
-Status: verified locally on synthetic data, 2026-10-29. This extends the
-[hybrid delivery plan](21-hybrid-storage-and-azure.md). It does not migrate the
-original personal database or finish the user-facing backup/restore/export feature.
+Status: synthetic and household-only private-copy migration/recovery verified locally,
+2026-10-29; implementation merged into `main`. This document records the milestones
+and evidence behind the [hybrid delivery plan](21-hybrid-storage-and-azure.md).
+The original database was not migrated live and remains authoritative. User-facing
+[backup/restore/export](23-household-backup-restore-export.md) is also implemented,
+and a manual portable restore into the independent recovery lab succeeded.
+
+General offline migration, encrypted packaging, and maintenance controls are
+complete. The sections below retain historical test counts by increment; the latest
+baseline is in [verification](06-development-setup.md#verification). Public hosting,
+scheduled offsite backups/key custody, and final stopped-writer cutover remain.
 
 ## What now exists
 
@@ -25,14 +33,16 @@ schema history, integrity, foreign keys and checksum. A staged restore is publis
 only after validation; an exception before publication removes its staging file.
 It does not overwrite an active household file or restore central identities.
 
-These helpers are not exposed through public API endpoints or upload flows.
+These internal operator helpers are distinct from the owner-facing upload/restore
+service; the latter validates backups and replaces finance through a new file and
+registry swap, rather than invoking the full-installation restore helper.
 The Docker migration CLI still deliberately refuses other source paths, database
-names and hosts. A general migration CLI with dry-run/report/export modes is still
-required before a private real-data rehearsal.
+names and hosts. The general read-only migration plan/checksum-bound apply CLI
+and approved private rehearsal described later are now implemented.
 
 ## Reproduce the checks
 
-From the isolated feature worktree:
+From the repository root (merged `main`):
 
 ```sh
 python3 deploy/docker-test/test-stack.py integration

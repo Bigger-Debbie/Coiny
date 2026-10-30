@@ -1,5 +1,12 @@
 # Coiny hybrid database laboratory
 
+Historical architecture proof: its containers and test volumes were retired after
+real-app integration. The commands below explicitly recreate the synthetic POC;
+they are not required for normal development or the retained review/recovery labs.
+The implementation is now merged into `main`; see the
+[current storage guide](../../docs/21-hybrid-storage-and-azure.md).
+
+
 This is an isolated architecture experiment, not a replacement Coiny build.
 The main application, its SQLite database, and its existing migrations are not
 referenced, mounted, copied, or modified by the lab. All users and transactions

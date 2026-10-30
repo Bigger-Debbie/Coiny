@@ -145,3 +145,7 @@ and identity exclusion without applying a live restore. The personal review site
 was updated without replacing its finances; its source installation stayed untouched.
 
 A [fresh local recovery lab](../deploy/recovery-lab/README.md) on port 6082 is available for the user-driven registration/new-household/portable-restore rehearsal. It does not share source keys or prepopulate accounts.
+
+The user-driven portable restore into a new user/household in that independent lab
+was subsequently completed successfully. Its retained volumes now contain private
+data; the initial empty-bootstrap state is historical, not its current state.

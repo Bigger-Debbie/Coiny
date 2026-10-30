@@ -6,6 +6,15 @@ Commands below assume macOS/Linux with a POSIX-style shell and start from the
 repository root, unless a different directory is shown. They do not depend on a
 specific editor.
 
+## Storage modes
+
+The commands below use the default **combined SQLite** development mode. The code
+also supports opt-in hybrid storage: PostgreSQL for Identity/households/orchestration
+and one SQLite financial file per household. Updating the repository does not
+activate hybrid mode or migrate data. Use the [fresh recovery lab](../deploy/recovery-lab/README.md)
+for a new isolated hybrid installation, or the [operator runbook](../deploy/operations/README.md)
+for reviewed migration. Container labs require Docker Desktop / Docker Compose.
+
 ## Prerequisites
 
 - .NET 10 SDK for `Coiny.slnx` and `net10.0`.
@@ -64,7 +73,7 @@ export ConnectionStrings__DefaultConnection="Data Source=$PWD/Coiny.API/coiny.db
 Choose one initialization path:
 
 - For an empty application database, run
-  `dotnet ef database update --project Coiny.API`.
+  `dotnet ef database update --context CoinyContext --project Coiny.API`.
 - For an empty database populated with a demo household, follow
   [demo seeding](05-demo-data.md#seed-an-empty-database). Seeding applies migrations
   itself; there is no need to seed on every startup.
@@ -106,7 +115,7 @@ Using another port/origin requires a matching CORS configuration change.
 
 For a new user without demo data, use **Sign Up** on the login page. Create a
 household or enter a code from an existing owner. Owners generate codes through
-**Profile → Household**. New household creation opens the first-account form. See the [API workflow](07-api-reference.md#postman-workflow).
+**Avatar menu → Settings → Household**. New household creation opens the first-account form. See the [API workflow](07-api-reference.md#postman-workflow).
 
 ## Verification
 
@@ -144,32 +153,28 @@ npm test -- --watch=false \
   --include='src/app/shared/components/select-menu/**/*.spec.ts'
 ```
 
-Current verification baseline after budget actuals and assignment tracking:
+Latest verification baseline for the integrated `main` build (`8891ff1`):
 
-- Backend and frontend production builds pass.
-- The dashboard, accounts, budgeting wizard, creation-form, and shared-component tests pass.
-- Budget wizard tests cover save/resume, full-draft preservation, validation, stale
-  conflicts, unsaved navigation, publication, and future-only published plans.
-- Budget dashboard tests cover grouped allocations, unassigned/over-budget
-  presentation, separate payroll details, month navigation, retries, and stale responses.
-- The latest frontend run passed 326 tests, excluding the known starter test; that existing failure
-  is the known starter test described below.
-- The full frontend suite has a known starter test failure in `app.spec.ts`:
-  it still expects the generated “Hello, Coiny.Web” heading.
-- Existing backend build warnings include nullable properties in `HouseholdMember`.
-- Dashboard, accounts, import-review, budget-calendar, and budget-dashboard CSS exceed their 4 kB warning budgets
-  (about 4.73 kB, 4.65 kB, 4.58 kB, 5.38 kB, and 4.99 kB respectively). The initial bundle is about 608.70 kB against a
-  500 kB warning budget; the production build still passes. CSV import, the transaction editor, and reconciliation modal load lazily.
-- The backend suite has 219 passing xUnit tests for budget actuals, account reconciliation, transaction management, bill/contribution payments, batch imports, transfers, recurrence, household-scoped
-  draft/publication workflows, optimistic conflicts, atomic rollback, and
-  migration data preservation, and HTTP contracts/access checks. These use isolated in-memory SQLite databases.
-  See the [backend test guide](../Coiny.API.Tests/README.md).
-- There is no end-to-end browser suite yet. Earlier temporary backend checks are
-  separate from the repository tests; `dotnet build` does not run either.
-- Budget foundation verification used 29 isolated SQLite schema checks, including
-  migration apply/rollback/reapply, preservation of preexisting financial rows,
-  draft/revision constraints, recurrence fields, and exact decimal round trips.
-  See [household budgeting](09-household-budgeting.md) for implemented boundaries.
+- **386 frontend tests** passed across 63 files, including the app bootstrap test.
+  The old generated-heading starter failure has been fixed.
+- **290 backend regression tests** passed in the Docker integration image with
+  `FullyQualifiedName!~Hybrid`; this includes two crypto/CSV unit checks.
+- A separate focused run passed **21 PostgreSQL/API checks plus those two unit
+  checks**. These totals overlap; do not add them as independent suite totals.
+- Five `age` packaging tests run when building the integration image. PostgreSQL
+  tests skip without `COINY_TEST_POSTGRES`; ordinary SQLite-only runs do not prove
+  the hybrid provider or restore workflow. See the [backend test guide](../Coiny.API.Tests/README.md).
+- The optimized `container-test` frontend build passes. That configuration has no
+  production bundle-budget checks; default production builds retain the 500 kB
+  initial / 4 kB component warning budgets and may warn. See `angular.json` for limits.
+- Both retained local labs pass non-destructive UI/deep-link/API smoke checks.
+  The user manually restored a portable backup into a new recovery-lab household.
+- No automated browser end-to-end runner is configured. Smoke/manual checks do
+  not replace that coverage. Existing backend nullable warnings are separate
+  from test failures.
+
+Historical feature-specific migration checks are described in their guides; their
+older milestone counts are not the current full-suite baseline.
 
 ## Troubleshooting and repository housekeeping
 
@@ -226,11 +231,26 @@ Account security requires `20261028162624_AddAuthSessions`. Back up SQLite, appl
 
 Offline recovery codes require `20261028165724_AddAuthRecoveryCodes`. Back up SQLite, apply the additive migration, and restart the API. Users generate their own codes from Security; no codes are created automatically. Code recovery works without SMTP. The server recovery command is deferred to container packaging.
 
-## Isolated hybrid Docker testing
+## Hybrid Docker environments
 
-The `feature/hybrid-hosting` worktree has a separate [Docker test group](../deploy/docker-test/README.md)
-at localhost:6080. Its explicit experimental hybrid mode stores identity and
-membership in PostgreSQL and finances in per-household SQLite files. This does not
-change the default local connection or migrate the original development database.
-Use the documented migration/deployment helper for test cutovers; do not manually
-point the primary app at these volumes or remove storage-mode guards.
+The integration is merged into `main`; no special feature worktree is required.
+
+| Environment | URL | Purpose / current status |
+| --- | --- | --- |
+| Private personal review | `http://localhost:6081` | Household-only migrated copy; private Compose/configuration lives outside Git |
+| Recovery lab | `http://localhost:6082` | Independent hybrid installation; successful portable restore completed; retain its data |
+| Synthetic `coiny-test` | `http://localhost:6080` when recreated | Former persistent lab retired; tooling can recreate synthetic demo/integration stores |
+| Architecture POC | `http://localhost:6088` when recreated | Containers/volumes retired; source and historical evidence retained |
+
+Use the [recovery lab guide](../deploy/recovery-lab/README.md) for fresh initialization
+and data-preserving updates, and the [synthetic Docker guide](../deploy/docker-test/README.md)
+for disposable provider tests. These are loopback-only Development configurations.
+Do not recreate old labs merely to update a retained site's frontend.
+
+Hybrid EF contexts have separate provider migration chains. Always specify
+`--context CoinyContext` for legacy SQLite CLI operations. `ControlContext` and
+`HouseholdContext` use design-time factories intended for scaffolding; do not assume
+those placeholder connections point at a deployed installation. Bootstrap an empty
+lab with `--initialize-hybrid --offline` through its helper, and use the documented
+migration/maintenance workflow for existing data. Preserve node identity, household
+files, PostgreSQL, and Data Protection keys together.

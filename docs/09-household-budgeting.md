@@ -8,7 +8,10 @@ The backend models, migrations, recurrence calculator, and household-scoped
 draft/publish/month-projection services and authenticated HTTP endpoints are implemented.
 The frontend setup wizard and published allocation dashboard are implemented. Established budgets are managed directly from the breakdown; see “Manage an established budget” below.
 The current-income-period bill list, monthly calendar, and bill occurrence payment tracking are implemented.
-Richer editing and forecasting remain to be built.
+Dated item editing, actuals/forecasts through one year, available cash, and
+account-backed component savings goals are also implemented. See
+[actuals/forecasts](13-budget-actuals.md), [available cash](17-available-cash-outlook.md),
+and [savings funds](19-savings-funds.md).
 The existing account/category breakdown is a summary of recorded transactions;
 it is separate from the planned-income allocation chart described here.
 
@@ -213,21 +216,25 @@ server, JWT key, or live database required. See the
 3. A resumable household setup wizard and its API — implemented.
 4. The monthly income-allocation donut with Unassigned/over-budget presentation — implemented.
 5. Calendar and current-income-period bills/contributions — implemented.
-6. Budget overview/editing with effective-month changes.
-7. Forecasting and plan-versus-actual reporting later.
+6. Budget overview/editing with effective-date changes — implemented.
+7. Forecasting and plan-versus-actual reporting — implemented.
+8. Account-backed savings component goals and affordability reviews — implemented.
 
 
 ## Frontend setup and review
 
 The authenticated `/budget` route opens the household's setup status. New plans
 start only when **Set up your budget** is selected. **Continue setup** resumes the
-shared saved step and definitions. A published plan exposes **Edit budget**,
-which starts a draft copied from the applicable revision. A future-only published
+shared saved step and definitions. Published plans use the **Budget breakdown**
+and **Manage all items** for dated edits; they do not send users back through the
+initial wizard. Existing drafts can still be completed before item edits. A future-only published
 plan is shown for its first effective month; it does not restart onboarding.
 
-The five steps are Income, Housing & bills, Everyday spending, Savings & investing,
-and Review. Income is per paycheck; housing/bills require schedules. Spending is
-monthly. Savings/investing can be monthly or scheduled per contribution.
+The seven steps are Income, Housing & bills, Subscriptions, Everyday spending,
+Investments, Savings goals, and Review. Income is per paycheck; bills and
+subscriptions use schedules. Spending is monthly; investment contributions can be
+monthly or scheduled. Savings goals come last so their affordability review can
+use the rest of the draft. See [savings funds](19-savings-funds.md).
 The **Budget starts in** month input lives in the saved-draft summary panel
 throughout setup. Step-specific examples and guidance explain take-home pay,
 estimating changing bills, flexible monthly spending, and avoiding double-counting
@@ -260,29 +267,33 @@ Stale or missing drafts block further writes and offer **Reload household draft*
 reloading asks before discarding unsaved edits. The client never retries a stale
 save by silently replacing its edit version.
 
-Publication opens the monthly allocation dashboard described below. Planned calendar
-occurrences do not create transactions or imply payment completion. The calendar
-and current-income-period panel are described below; forecasting remains future work.
+Publication opens the income-period outlook with an optional Monthly plan view.
+Planned calendar occurrences do not create transactions or imply completion.
+The calendar and period panel are described below; actuals and forecast behavior
+are documented in [budget actuals](13-budget-actuals.md).
 
 
 ## Published monthly dashboard
 
-Published households open directly to **Your monthly outlook**; the shared-plan
-edit/resume block sits at the bottom of the page.
+Published households open to **Your income-period outlook**. **Monthly plan**
+switches to **Your monthly budget**. Item editing stays in the breakdown; there
+is no bottom Edit budget button.
 The initial month is the current America/New_York month when a plan applies, or
 the first published effective month for a future-only plan. Previous/next controls
 and a month input request `/api/budgets/month`; historical and future months are
-supported. A new edit defaults to the selected month if future, otherwise the
-current month. Existing drafts always resume their saved effective month.
+supported. Established item changes default to today and require reviewing their
+effective-date impact. Existing initial-setup drafts resume their saved effective month.
 
 Cards show take-home income, planned allocations, and either unassigned money or
 the amount over budget. The donut groups planned allocations into Housing, Bills,
-Everyday spending, Savings, and Investing, plus Unassigned. Group IDs and colors
+Subscriptions, Everyday spending, Savings, and Investing, plus Monthly remainder.
+Green is reserved for the remainder; each other group has a distinct fixed color.
+Group IDs and colors
 stay stable when groups disappear in different months. Zero-valued slices are
 omitted; no-payday/no-allocation months show an empty message.
 
 When allocations fit within income, slice percentages use take-home income as
-the denominator and include Unassigned. When allocations exceed income, the
+the denominator and include the remainder. When allocations exceed income, the
 center reads **Total planned**, percentages use total allocations, and an explicit
 warning reports the shortfall. There is no invented extra-income or shortfall
 slice. Payroll health-insurance and retirement details are shown separately;
@@ -293,9 +304,9 @@ Escape dismissal, and reduced-motion support. Budget mode uses unsigned amounts,
 monthly plan labels, and no transaction counts. Account category charts retain
 their signed income/expense amounts and transaction counts.
 
-The **Budget breakdown** pane has four native, keyboard-accessible collapsible
-sections matching the wizard: Income, Housing & bills, Everyday spending, and
-Savings & investing. Income starts expanded; the other sections start collapsed,
+The **Budget breakdown** pane has six native, keyboard-accessible collapsible
+sections: Income, Housing & bills, Subscriptions, Everyday spending, Investments,
+and Savings goals. Income starts expanded; the other sections start collapsed,
 with totals and item/source counts visible in each header. On desktop, the
 breakdown matches the donut card height and its contents scroll independently
 under the fixed heading. Stacked mobile layouts cap the breakdown height instead. Paycheck deductions are inside Income. Expanding sections
@@ -363,21 +374,26 @@ Linking an already-paid item preserves its payment date.
 
 Payment status and ledger linkage are independent. Unlinking keeps the paid
 status. Unchecking paid detaches the transaction on save. Neither operation creates
-ledger entries or changes account balances. Events use three derived states:
+ledger entries or changes account balances. The basic payment states are:
 
 - **Unpaid:** normal appearance and upcoming/due/overdue labels.
 - **Paid · Awaiting transaction:** a yellow rounded border and clock marker;
   **Link transaction** opens the picker directly while preserving the payment date.
 - **Paid · Linked:** a green rounded border and checkmark, with **View payment**.
 
+Savings also supports **Skipped this period** and **Funded · Allocated** states;
+these exclude skipped commitments or recognize existing fund allocations without
+inventing new bank activity. See [savings funds](19-savings-funds.md).
+
 These indicators appear in the current income-period list, selected-day details,
 calendar markers/tooltips, and payment modal. Removing a link or deleting its
 transaction returns a still-paid item to awaiting status. Previously marked-paid
 items without a link derive the same yellow state without rewriting stored data.
 The income-period summary counts awaiting items and totals their planned amounts;
-they remain excluded from unpaid bills/contributions. This distinction prepares
-future actuals to use linked transaction amounts, with paid-unlinked planned
-amounts available as labeled forecast estimates; reporting is not implemented yet.
+they remain excluded from unpaid bills/contributions. Actuals use linked
+transactions on their posting dates; the forecast reserves paid-unlinked planned
+amounts until linked. Such transactions may already appear as unassigned spending,
+which is why the remainder card explains awaiting links.
 
 A transaction may be
 linked to one scheduled occurrence. The two sides of a linked transfer count as
@@ -385,15 +401,17 @@ one movement and cannot be assigned to separate occurrences. Linking two
 previously unlinked entries requires resolving any conflicting payment assignments
 first. Contribution-linked transfers remain editable; deleting the ledger entry
 detaches it while preserving the independent paid status.
-This initial version marks the entire occurrence paid; partial payments, multiple
-transactions per bill, automatic matching, and transfer-based bill settlement are
-future work.
+Marking paid settles the occurrence independently of the linked total. Up to 50
+transactions can be linked to one payment, including split utility charges.
+Automatic settlement based on a partial-payment balance is not implemented.
+Housing/Bills/Subscriptions link expense entries; contributions can link qualifying
+expenses or transfers. Matching remains an explicit user decision.
 
 Income-period contributions retain their separate scheduled total and expose a
 remaining unpaid contribution total. They do not inflate the bills total. Only
-scheduled Housing, Bills, Subscriptions, Savings, and Investments occurrences are payable;
-unscheduled monthly allocations and payroll deduction visibility fields do not
-have payment occurrences. Existing payment storage/routes are reused, with no
+Housing, Bills, Subscriptions, Savings, and Investments payment occurrences are payable;
+unscheduled monthly Savings/Investments create period-end set-asides, while
+Spending and payroll deduction visibility fields do not have payment occurrences. Existing payment storage/routes are reused, with no
 new schema migration or financial-data rewrite.
 
 Occurrences use household + allocation `sourceKey` + scheduled date. Allocation
@@ -531,3 +549,11 @@ publication. Preview performs no persistent writes.
 Schema migration: `20261023162702_AddEffectiveBudgetDates` adds a nullable effective
 date and protected-payment JSON to revisions. Existing definitions and financial
 records are retained.
+
+## Data switching and layout
+
+Month and income-period switches retain the mounted budget cards/panels while new
+data loads, dim them, and fade them back over 180 ms. Stale interactive regions
+are temporarily inert. Monthly arrows align with the month field, below its label.
+These are local transitions and do not replay the full coin page overlay; reduced
+motion disables the fade. See [frontend transitions](08-dashboard.md#in-page-data-transitions).

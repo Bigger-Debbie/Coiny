@@ -111,11 +111,36 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/budgets/income-period` | 200 | Current household or individual income period and scheduled bills |
 | PUT | `/api/budgets/bills/{key}/{date}/payment` | 200 | Record or correct a scheduled bill/contribution payment and optional transaction link |
 | GET | `/api/budgets/bills/{key}/{date}/transactions` | 200 | Suggested household expense entries for bills; expense/transfer entries for contributions |
+| PUT | `/api/accounts/{id}` | 200 | Update account metadata/opening balance and rebuild history |
+| PUT | `/api/categories/{id}` | 200 | Rename or archive/restore a household category |
+| POST | `/api/transaction-imports/sessions/validate` | 200 | Review a multi-account session without writing |
+| POST | `/api/transaction-imports/sessions` | 200 | Commit reviewed files and transfer links atomically |
+| GET | `/api/transaction-imports/{batchId}/review` | 200 | Review remaining imported entries and original-state flags |
+| POST | `/api/transaction-imports/undo/preview` | 200 | Preview selected removals, balances, links, and checkpoints |
+| POST | `/api/transaction-imports/undo` | 200 | Apply acknowledged, fingerprint-validated undo atomically |
+| GET | `/api/transfers/entries/{transactionId}/candidates` | 200 | Find an existing counterpart for an unlinked entry |
+| POST | `/api/transfers/entries/{transactionId}/counterpart` | 201 | Create only a reviewed missing transfer side |
+| POST | `/api/budgets/available-cash` | 200 | Read-only outlook from selected cash/card balances |
+| GET | `/api/savings-funds` | 200 | Account makeup, funds, components and activity |
+| POST | `/api/savings-funds/preview` | 200 | Review contribution schedule and affordability |
+| POST | `/api/savings-funds` | 200 | Save reviewed fund and contribution plan |
+| GET | `/api/savings-funds/{key}/candidates` | 200 | Find eligible contribution/spending transactions |
+| POST | `/api/savings-funds/{key}/activity` | 200 | Record allocation, contribution, component move or use |
+| POST | `/api/savings-funds/{key}/activity/{operation}/correct` | 200 | Correct recorded fund activity with version checks |
+| POST | `/api/savings-funds/{key}/move` | 200 | Move allocated money between funds in one account |
+| POST | `/api/savings-funds/{key}/archive` | 204 | Archive a fund without deleting history |
+| GET | `/api/household-data/capabilities` | 200 | Hybrid availability, owner eligibility, upload limit |
+| POST | `/api/household-data/backup` | 200 file | Password-authorized encrypted `.coiny` download |
+| POST | `/api/household-data/export` | 200 file | Password-authorized financial CSV ZIP |
+| POST | `/api/household-data/restore/preview` | 200 | Validate/decrypt multipart backup; issue short-lived preview |
+| POST | `/api/household-data/restore/confirm` | 200 | Replace household finance after safety backup; return safety ID |
+| GET | `/api/household-data/safety` | 200 | Latest ten household safety backups |
+| POST | `/api/household-data/safety/{id}` | 200 file | Password-authorized installation-linked safety download |
 
 Collection list responses remain JSON arrays. Paged transaction and category
-breakdown endpoints return structured objects. Financial records have no public
-single-resource detail/update/delete endpoints. Invitation revocation is listed
-above. Logout, refresh-token, and snapshot-management endpoints are not exposed.
+breakdown endpoints return structured objects. Transaction details/update/delete, account updates, category management, and
+session logout/revocation are exposed as listed above. Account deletion, refresh
+tokens, and direct snapshot management are not exposed.
 
 Household budgeting exposes the [setup, draft, preview, publication, and monthly
 projection endpoints](#household-budgeting) below. Calendar events are included in
@@ -213,7 +238,8 @@ Both successful calls return:
 {
   "id": "<identity-user-id>",
   "email": "alex@example.test",
-  "firstName": "Alex"
+  "firstName": "Alex",
+  "includeMortgageInNetWorth": true
 }
 ```
 
@@ -807,8 +833,8 @@ changes, and neutral direction. Full calculation and carry-forward rules are in
 - Created responses currently point to collection actions, not implemented
   single-resource GET endpoints.
 
-These are current contracts, not promises of update/delete
-or complete authentication workflows. Planned capabilities are tracked in the
+The inventory describes implemented contracts. Remaining release work and
+post-v1 refinements are tracked in the
 [root README](../README.md#current-status).
 
 
@@ -1052,8 +1078,9 @@ Use the allocation `sourceKey` from a published bill or contribution event and i
 `date`, for example `PUT /api/budgets/bills/{{billKey}}/2026-10-17/payment`.
 Both routes require authentication and household membership. Only scheduled
 Housing/Bills/Subscriptions/Savings/Investments events from the applicable published plan can be managed.
-Existing `/bills/` routes and payment storage are reused for compatibility; no new
-migration is required. Unscheduled allocations, income, and Spending events are ineligible.
+Monthly Savings/Investments also generate period-end set-asides. Income, Spending,
+and payroll deductions are ineligible. Existing `/bills/` routes are reused;
+apply the legacy payment/savings migrations (or hybrid schema chain) before use.
 
 ```json
 {
@@ -1544,12 +1571,15 @@ The worker checks every 15 minutes and records one successful scan per enabled
 household per New York calendar day. It needs a running API and the additive alert
 migration; no SMTP/text provider is used. See [automation rules](14-recurring-detection.md#optional-automatic-scans-and-alerts).
 
-The Settings page’s Preferences section can save its personal and household toggles atomically through
+The Settings page’s Preferences section submits its personal and household toggles together through
 `PUT /api/users/me/preferences`. In addition to required `includeMortgageInNetWorth`,
 it optionally accepts `recurringDetection: { enabled, expectedEditVersion }` with
 the same validation/version rules as the household settings endpoint. Omitting it
-leaves household detection unchanged. When present, both updates commit together
-or both roll back. The response remains the personal preference object. Settings
+leaves household detection unchanged. Legacy mode commits both in one database
+transaction. Hybrid mode records a durable central intent and local receipt so
+interrupted local commits can complete idempotently; it is not a cross-database
+transaction. Conflicting versions require review rather than silently overwriting.
+The response remains the personal preference object. Settings
 are staged until Save settings; changing either toggle alone makes no write.
 
 ## Merchant/category rules
@@ -1669,3 +1699,37 @@ Actuals sum all linked transactions on their posting dates, including charges sp
 Savings fund endpoints and activity semantics: [Savings funds](19-savings-funds.md#api).
 
 See [account security](20-account-security.md) for password request bodies, session expiry/revocation, rate limits, and SMTP requirements.
+
+## Household encrypted backup, restore, and export
+
+These authenticated routes are enabled only for hybrid storage. `capabilities`
+returns `enabled`, `owner`, and `maximumFileBytes`; legacy mode returns disabled.
+Other data operations require household ownership. Backup, export, preview,
+confirmation, and safety download additionally verify `currentPassword`.
+
+- `backup` JSON: `currentPassword`, `passwordProtected` (boolean), optional
+  `backupPassword`. Returns an encrypted binary `.coiny` file. The optional backup
+  password is separate from the account password and makes it portable.
+- `export` JSON: `currentPassword`. Returns an unencrypted financial CSV ZIP;
+  it is not a restorable backup and excludes central identities.
+- `restore/preview` multipart form: `file`, `currentPassword`, optional
+  `backupPassword`. Returns `previewId`, `expiresAt`, `backupCreatedAt`, `portable`,
+  `backupAccounts`, `backupTransactions`, `currentAccounts`, `currentTransactions`.
+- `restore/confirm` JSON: `previewId`, `currentPassword`, `confirmReplacement: true`.
+  Returns `safetyBackupId` after safety capture and atomic registry replacement.
+- `safety/{id}` POST JSON: `currentPassword`. Returns the encrypted safety file.
+
+Preview expires in 15 minutes and becomes stale when target data changes.
+Invalid inputs return 400, owner failures 403, stale/conflicting state 409, and
+busy/rate-limited operations 429; missing authentication returns 401. Responses
+use `Cache-Control: no-store`. Uploads are limited to 64 MiB; SQLite payloads to
+32 MiB. See [household data tools](23-household-backup-restore-export.md) for
+validation, key requirements, retained files, and cross-installation boundaries.
+
+## Skipping a savings contribution
+
+The occurrence payment PUT also accepts `isSkipped` with an optional note for
+savings contributions. Stored period boundaries suppress the contribution from
+that period's planned/forecast commitments without creating actual activity or
+moving account cash. The state can be undone; transaction-linked occurrences must be explicitly
+unlinked first. See [skip semantics](19-savings-funds.md#skipping-a-savings-contribution).

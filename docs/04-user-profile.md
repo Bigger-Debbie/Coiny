@@ -6,7 +6,8 @@
 
 ASP.NET Core Identity stores users and password hashes. The API issues signed
 JWTs after registration or login. JWT validation checks issuer, audience,
-signature, and lifetime. Current configuration uses issuer `Coiny`, audience
+signature, lifetime, and the persisted session/security stamp; revocation is
+checked server-side. Current configuration uses issuer `Coiny`, audience
 `CoinyUsers`, and a 120-minute expiration; the signing key is configured locally.
 
 | Endpoint | Authentication | Behavior |
@@ -19,7 +20,8 @@ Registration requires `firstName` (maximum 100 characters), email, and password
 (minimum eight characters, also subject to Identity's default complexity rules).
 The first name is trimmed before saving. Registration does not create a household.
 
-`GET /api/auth/me` returns only `id`, `email`, and nullable `firstName`; it accepts
+`GET /api/auth/me` returns `id`, `email`, nullable `firstName`, and
+`includeMortgageInNetWorth`; it accepts
 no user ID from the caller. If the token's user no longer exists, it returns 401.
 There is no profile-update endpoint.
 
@@ -138,15 +140,18 @@ Missing names or failed requests use the generic greeting. Stored household
 names already beginning with “The” or ending in “household” avoid duplicate words;
 other names are displayed as stored. The greeting does not rename a household.
 
-## Next authentication work
+## Account security and remaining refinements
 
-Complete session-expiration handling, password reset, email confirmation, and
-token revocation/refresh remain future work. Email/text invitation delivery is
-not implemented; copyable join codes work without it. Login currently does not increment Identity lockout failures.
+Password changes/resets, offline recovery codes, revocable sessions, lockout, rate
+limits, and protected-request expiry/revocation handling are implemented. Owners
+and members manage their own security under **Settings → Security**. SMTP is
+optional for code recovery but required for email reset links. See
+[account security](20-account-security.md) for the complete flows and configuration.
 
-For local signing-key setup, see [development setup](06-development-setup.md).
-For the seeded login, see [demo data](05-demo-data.md).
-
+Refresh tokens, MFA, email confirmation, and email/text invitation delivery remain
+later work; copyable join codes work without email. Production proxy/key/SMTP
+configuration and an operator account-reset command remain release preparation.
+See [development setup](06-development-setup.md) and [demo data](05-demo-data.md).
 
 ## Personal dashboard preferences
 

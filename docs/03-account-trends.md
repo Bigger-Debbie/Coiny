@@ -60,7 +60,7 @@ flowchart TD
     DashboardService --> AccountTrendService
     AccountTrendService --> AccountBalanceSnapshotService
     AccountTrendService --> TrendService
-    AccountBalanceSnapshotService --> CoinyContext
+    AccountBalanceSnapshotService --> IFinancialContext
     AccountBalanceSnapshotService --> AccountBalanceCalculator
     AccountBalanceService --> AccountBalanceCalculator
 ```
@@ -118,7 +118,10 @@ it is favorable.
 
 Future-dated transactions are currently accepted and included in **current
 balances**, while historical trends stop at today. Those values can differ when
-future entries exist. Scheduled activity and forecasting need a separate policy.
+future entries exist. Budget forecasts use their own posting-date/through-date policy; the available-cash
+outlook uses balances as of today. These estimates are distinct from a per-account
+future-balance forecast; see [budget actuals](13-budget-actuals.md) and
+[available cash](17-available-cash-outlook.md).
 
 ## Dashboard contracts
 

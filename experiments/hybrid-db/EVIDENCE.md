@@ -1,5 +1,9 @@
 # Local prototype evidence
 
+Historical synthetic POC evidence, retained after its lab was retired. This is not
+the current full-app test baseline; see [verification](../../docs/06-development-setup.md#verification).
+
+
 All ten synthetic-data checks passed using the two-container Compose deployment.
 This is an observed local validation run, not a hosted capacity benchmark.
 

@@ -1,31 +1,39 @@
 # Coiny local Docker test group
 
-This is a persistent **`coiny-test`** Compose project in Docker Desktop. It runs the
-real Angular UI and API behind Caddy at **http://localhost:6080**. It binds only to
-127.0.0.1, uses synthetic demo data and mounts no host financial database.
+This tooling can create a disposable **`coiny-test`** Compose project with the real
+Angular UI/API behind Caddy at **http://localhost:6080**. It binds to loopback,
+uses synthetic data, and mounts no host financial database.
 
-The installed test group now runs the experimental hybrid mode: PostgreSQL owns
-identity, sessions, household membership and orchestration; each household has its
-own SQLite financial file under `/data/households` in `coiny-test_app-data`.
-The two existing test users and households were migrated and verified. The original
-combined database and a pre-cutover snapshot are retained in that volume. This is
-still a local integration environment, not production-ready hosting. The original
-`coiny-hybrid-lab` project remains a separate architecture experiment.
+**Current status:** its former persistent containers, network, volumes, and local
+credentials/selectors were retired after migration/recovery validation. The POC
+`coiny-hybrid-lab` was also retired. Their source remains; the commands below can
+explicitly recreate synthetic stores. They do not update the retained private
+review site (6081) or recovery lab (6082).
+
+On a fresh run, `up` seeds a **legacy combined SQLite** demo. `migrate-hybrid`
+explicitly converts that synthetic database to PostgreSQL control storage and
+per-household SQLite under `/data/households`; later `up` calls use the persisted
+hybrid selector. `integration` can run provider checks using a separate test
+PostgreSQL service without first launching the demo UI/API.
+
+This is a Development integration environment, not production-ready hosting. For
+a new empty hybrid installation with no demo users, use the
+[recovery lab](../recovery-lab/README.md).
 
 ## Deploy an increment
 
-From the `feature/hybrid-hosting` worktree root:
+From the repository root (`main`):
 
 ```sh
 python3 deploy/docker-test/test-stack.py up
 ```
 
 This generates private test credentials once, builds both images from this
-worktree, starts/recreates the services and checks the UI, SPA deep links, API
+checkout, starts/recreates the services and checks the UI, SPA deep links, API
 routing, login, synthetic accounts and logout/session revocation. No registry push
 is required locally. Images are tagged `coiny-test-api:local` and
-`coiny-test-web:local`. Development servers on 4200/5298 and the lab on 6088 remain
-independent. Only one worktree should deploy this named test project at a time.
+`coiny-test-web:local`. Development servers on 4200/5298 and the retained
+review/recovery labs on 6081/6082 remain independent. Only one worktree should deploy this named test project at a time.
 
 Demo sign-in: **alex@coiny.test** / **CoinyDemo!2026**. These are public, synthetic
 demo credentials, never production credentials. The API uses Development mode only
@@ -59,7 +67,8 @@ credentials. Keep `.env` private (generated with mode 0600).
 - A fresh legacy-mode volume is seeded synthetically. Hybrid-mode provisioning
   applies its separate SQLite migration chain; control migrations must be applied
   deliberately before startup. Future release upgrades still need an operational
-  migration command and rehearsal.
+  upgrade/release command and rehearsal beyond the implemented initialization and
+  legacy-copy tools.
 - Never copy real financial data into this environment without an explicit private
   migration rehearsal. No automatic destructive reset command is provided.
 
@@ -113,8 +122,9 @@ the worker, and a stale version cancels the intent for review.
 The integration command also runs the [migration/recovery rehearsal](../../docs/22-migration-recovery-rehearsal.md):
 a rich synthetic budget is migrated with injected interruptions, then real
 PostgreSQL dumps and SQLite backup artifacts are recovered into temporary stores.
-This does not back up, overwrite or reset the running test users. There is no
-public restore endpoint or production backup scheduling in this increment.
+This does not back up, overwrite or reset any retained installation. Owner-only
+household upload/restore is implemented separately in Settings; production backup
+scheduling is not implemented.
 
 The integration image also installs `age` and Python 3 for encrypted backup rehearsal.
 It runs five operator packaging tests during build; the full recovery test restores

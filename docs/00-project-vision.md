@@ -9,8 +9,9 @@ for the future. Its long-term purpose extends beyond expense tracking: bring
 balances, activity, budgets, and financial goals into one clear household view.
 
 The household is the shared financial space. The current implementation provides
-its data foundation. Owner-generated join codes support household invitations;
-broader member management remains planned.
+shared accounts, budgets, savings funds, and financial history. Owner-generated
+join codes and member removal are implemented; leaving/switching and role changes
+remain later refinements.
 
 ## Questions the product should answer
 
@@ -21,9 +22,10 @@ broader member management remains planned.
 - Can we afford a purchase, and what should we save toward it?
 - Are we making progress toward our goals?
 
-The first three questions guide the current account, transaction, and dashboard
-work. Budgeting now has an initial backend schema; its setup and dashboard,
-affordability, and goal planning remain future capabilities.
+Accounts and dashboards answer the balance/history questions. Published budgets,
+actuals/forecasts, available-cash outlooks, and savings component goals now support
+planning and affordability. These are estimates based on recorded data and the
+household plan, not predictions of spending habits or guaranteed future income.
 
 ## Product pillars
 

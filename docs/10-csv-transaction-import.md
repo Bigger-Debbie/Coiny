@@ -30,8 +30,11 @@ The backend independently validates account/category ownership,
 dates, amounts, category/direction consistency, row limits, duplicate decisions,
 and an idempotent submission token. Browser validation alone is not sufficient.
 Import history retains batch metadata (filename, date, count, identifier).
-Leaving the mapping screen warns before discarding its file and preview; draft persistence
-and undo are deferred.
+Leaving the mapping screen warns before discarding its file and preview. Saved
+CSV mappings persist column layouts, not in-progress file contents. Import review,
+individual corrections, and safe undo are implemented; see
+[import undo/correction](18-import-undo-correction.md). Persisting unfinished
+file/review drafts across browser sessions remains outside the current workflow.
 
 ## Implemented foundation
 

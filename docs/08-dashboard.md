@@ -92,12 +92,13 @@ ledger day rather than shifting into the browser timezone.
 
 Income uses a green up icon and plus sign; expenses use a red down icon and minus
 sign. This represents transaction category, distinct from liability balance
-movement in the Accounts pane. The renderer has a neutral transfer fallback,
-although the API currently rejects transfer creation.
+movement in the Accounts pane. Transfers use neutral labels; manual and imported transfers are supported and
+excluded from income/expense spending totals.
 
 Both panes alternate avatars by displayed row: orange background/blue initial,
 then blue background/orange initial. Each list starts with orange. Avatar color
-is decorative and no longer tied to account type. Rows are informational; there
+is decorative and no longer tied to account type. Account rows navigate to their
+account, and transaction rows open details; there
 are no dashboard add-account or add-transaction buttons. Those actions belong
 on the accounts page.
 
@@ -154,7 +155,9 @@ modal accepts a name (up to 100 characters) and Income/Expense type. Categories
 belong to the household and are available across accounts. Saving updates the
 category filter immediately; the transaction modal loads the latest categories
 when opened. Duplicate-name errors stay visible in the form for correction.
-Account edit/delete remains future work.
+Account editing is implemented through **Edit Account**, including validated
+opening-balance/date corrections and history recalculation. Account deletion is
+not exposed.
 
 ### Transfers
 
@@ -240,13 +243,18 @@ error/retry states. Superseded requests are cancelled.
 | `/signup` | Registration, password confirmation, and invitation-link retention |
 | `/household-setup` | Authenticated create/join choice and household confirmation |
 | `/household` | Compatibility redirect to `/settings` |
-| `/settings` | Household, Preferences, and Security on one page |
+| `/settings` | Household, Preferences, Security, and hybrid Backup & export on one page |
+| `/forgot-password` | Email recovery request or no-SMTP guidance |
+| `/reset-password` | Redeem emailed password-reset link |
+| `/recover-with-code` | Offline recovery-code password reset |
 | `/dashboard` | Implemented dashboard in protected layout |
 | `/accounts` | Account selection, trends, filtered/paginated transactions, income/expense donut |
 | `/accounts/new` | Redirects to accounts with the Add Account modal open |
 | `/transactions/new` | Redirects to accounts with the Add Transaction modal open, retaining query parameters |
 | `/` | Redirects to dashboard inside the protected layout |
-| `/budget` | Household budget wizard, monthly allocation dashboard, current income-period bills, and calendar |
+| `/budget` | Initial setup, published item management, monthly/income-period budgets, savings funds, actuals/forecasts and calendar |
+| `/accounts/import` | Multi-account CSV import session |
+| `/accounts/import-history` | Import review, correction, and safe undo |
 
 The logo returns to the dashboard, the accounts icon opens the accounts page,
 and the separate transactions icon has been removed. The budget icon opens the
@@ -308,7 +316,8 @@ provenance; batch counts describe the original import and are not rewritten.
 
 After save/delete, accounts, trends, filtered transactions, and category totals
 reload. The selected account, range, and filter values remain; the list returns
-to its first page. Account/category editing and archiving remain future work.
+to its first page. Account editing and category rename/archive/restore are
+implemented; account deletion/activation management is not exposed.
 
 
 Dashboard account rows highlight on hover/focus and link to `/accounts?accountId=ID`,

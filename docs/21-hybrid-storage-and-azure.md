@@ -1,8 +1,31 @@
 # Hybrid storage and Azure delivery plan
 
-Status: experimental split runtime enabled and migrated in the local Docker test group; production migration and hosting pending. Updated 2026-10-29.
-Branch: `feature/hybrid-hosting`, based on `prototype/hybrid-household-storage`.
-The primary checkout and original Coiny database remain unchanged.
+Status: implemented and merged into `main` at `8891ff1`; Azure/public deployment
+and final live-data cutover remain pending. Documentation reviewed 2026-10-29.
+The original personal database remains authoritative; merging code did not migrate it.
+
+## Current implementation and local environments
+
+- The actual API can run with PostgreSQL control/Identity/membership storage and
+  per-household SQLite financial storage. Configuration explicitly opts in;
+  default local development still uses the combined SQLite context.
+- Provider-specific migrations, household registration/provisioning, live
+  session/membership checks, writer gates, and resumable preference changes are implemented.
+- Checksum-bound offline migration, maintenance admission/drain, encrypted operator
+  backup/recovery, and owner-facing portable/installation-linked backups and CSV
+  export are implemented. A general migration CLI and the private-copy rehearsal
+  are complete; they are not remaining work.
+- Private review (6081) and recovery lab (6082) remain. The user successfully
+  restored a portable backup into a newly created recovery household. Those stores
+  contain personal data and must be preserved.
+- Former persistent `coiny-test` (6080) and POC (6088) groups were retired. Their
+  source/tooling remains for explicit recreation; they are not running prerequisites.
+
+Production Compose/release hardening, SMTP/HTTPS validation, key custody, offsite
+backup schedules/retention, file cleanup/disk monitoring, Azure rehearsal, and a
+reviewed final stopped-writer cutover remain. The phases below describe the delivery
+plan; the dated implementation history records what each increment originally proved.
+See the [roadmap](11-roadmap.md) for the current release checklist.
 
 ## Target and constraints
 
@@ -222,7 +245,10 @@ rehearsal, not after a real incident.
 Separate household files are isolation, not zero-knowledge encryption. Client-held
 keys, MFA, HA and multi-node placement remain separate future decisions.
 
-## Implementation progress
+## Implementation history (completed local increments)
+
+The following is historical evidence in implementation order. “Next” or “remaining”
+in an early increment describes that checkpoint; the current status above supersedes it.
 
 The isolated feature branch now includes `StorageModelOwnership`, `ControlContext`
 and `HouseholdContext`. Configurations are explicitly applied per store; the legacy
@@ -242,7 +268,7 @@ Verification: all 287 backend tests passed (including three new storage boundary
 tests). Two pre-existing nullable warnings in HouseholdMember remain. No frontend
 changes were made in this increment.
 
-## Local deployment target
+## Historical local deployment target
 
 Use the [coiny-test Docker group](../deploy/docker-test/README.md) for incremental
 UI/API smoke testing on the Mac. It includes Caddy and a staged PostgreSQL service;

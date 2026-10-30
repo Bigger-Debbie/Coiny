@@ -48,7 +48,10 @@ not automatically either site's account password.
 
 The smoke check verifies UI/deep links/API authentication and disabled scheduling;
 it deliberately does not register a user, create a household or apply a restore.
-Initial verification confirms zero users, households and household registry rows.
+The initial bootstrap was verified with zero users, households and registry rows.
+The user has since created a new account/household and successfully restored a
+portable backup. The retained lab is therefore no longer empty. A freshly created
+lab with new volumes starts empty; `up` does not reset an existing one.
 After you restore personal data, these volumes contain private financial information
 and should be retained until their deletion is explicitly authorized. `down` stops
 the lab but retains all volumes/keys. No reset or automatic volume-deletion command
