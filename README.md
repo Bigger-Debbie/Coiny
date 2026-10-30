@@ -5,7 +5,7 @@ Built with ASP.NET Core / EF Core 10 and Angular 21.
 
 ## Features
 
-- Accounts, balance history, transfers, and statement reconciliation.
+- Accounts, balance history, transfers, investment market adjustments, and reconciliation.
 - Multi-account CSV imports, category rules, saved mappings, corrections, and undo.
 - Monthly and paycheck budgets, actuals, forecasts, and available-cash estimates.
 - Savings funds with component goals and contribution plans, or manual funds for existing cash.

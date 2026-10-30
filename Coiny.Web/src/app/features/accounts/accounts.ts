@@ -91,6 +91,7 @@ export class Accounts implements OnInit {
       detail: a.institutionName ?? 'No institution' })),
   ]);
   readonly typeOptions: SelectOption[] = [
+    { value: 'MarketAdjustment', label: 'Market adjustment' },
     { value: '', label: 'All types' }, ...['Income', 'Expense', 'Transfer'].map(value => ({ value, label: value })),
   ];
   readonly categoryOptions = computed<SelectOption[]>(() => [

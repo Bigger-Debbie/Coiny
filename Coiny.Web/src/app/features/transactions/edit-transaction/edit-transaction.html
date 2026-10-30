@@ -11,7 +11,7 @@
           <div><dt>Date</dt><dd>{{ details.transaction.transactionDate | date:'MMM d, yyyy':'UTC' }}</dd></div>
           <div><dt>Account</dt><dd>{{ details.transaction.accountName }}</dd></div>
           <div><dt>Institution</dt><dd>{{ details.transaction.institutionName || 'No institution' }}</dd></div>
-          <div><dt>Type</dt><dd>{{ details.transaction.categoryType }}</dd></div>
+          <div><dt>Type</dt><dd>{{ market ? 'Market adjustment' : details.transaction.categoryType }}</dd></div>
           <div><dt>Category</dt><dd>{{ details.transaction.categoryName }}</dd></div>
           <div><dt>Merchant</dt><dd>{{ details.transaction.merchant || 'None' }}</dd></div>
           <div><dt>Status</dt><dd>{{ details.transaction.isCleared ? 'Cleared' : 'Not cleared' }}</dd></div>
@@ -48,17 +48,20 @@
         <fieldset [disabled]="busy() || stale()">
           <div><label for="edit-kind">Transaction type</label><app-select-menu inputId="edit-kind" label="Transaction type" name="kind" [options]="kinds" [ngModel]="r.categoryType" (ngModelChange)="changeKind($event)" /></div>
           <div><label for="edit-account">Account</label><app-select-menu inputId="edit-account" label="Account" name="account" [options]="accountOptions" [(ngModel)]="r.accountId" /></div>
-          @if (r.categoryType !== 'Transfer') {
+          @if (!market && r.categoryType !== 'Transfer') {
             <div><label for="edit-category">Category</label><app-select-menu inputId="edit-category" label="Category" name="category" [options]="categoryOptions" [(ngModel)]="r.categoryId" /></div>
-          } @else if (!linked) {
+          } @else if (!market && !linked) {
             <div><label for="edit-direction">Direction</label><app-select-menu inputId="edit-direction" label="Direction" name="direction" [options]="directions" [(ngModel)]="r.direction" /></div>
             <div><label for="edit-counterparty">Other account</label><app-select-menu inputId="edit-counterparty" label="Other account" name="counterparty" [options]="counterparties" [(ngModel)]="r.counterparty" /></div>
             <p class="hint">This changes only the selected entry. To connect it to another recorded transfer, return to transaction details and choose Reconcile transfer. Do not use Add Transaction to record this same movement again.</p>
           }
-          <div><label for="edit-amount">Amount</label><input id="edit-amount" name="amount" type="number" min="0.01" step="0.01" required [(ngModel)]="r.amount" /></div>
+          <div><label for="edit-amount">{{ market ? 'Updated account balance' : 'Amount' }}</label><input id="edit-amount" name="amount" type="number" [min]="market ? 0 : 0.01" step="0.01" required [ngModel]="market ? r.updatedBalance : r.amount" (ngModelChange)="market ? r.updatedBalance = $event : r.amount = $event" /></div>
           <div><label for="edit-date">Date</label><input id="edit-date" name="date" type="date" [min]="openingDate" required [(ngModel)]="r.date" /></div>
+          @if (market) { <app-market-adjustment [accountId]="r.accountId" [date]="r.date" [balance]="r.updatedBalance ?? null" [excludingId]="transactionId" (checked)="r.expectedBalance = $event" /> }
+          @if (!market) {
           <div><label for="edit-description">Description</label><input id="edit-description" name="description" maxlength="250" required [(ngModel)]="r.description" /></div>
           <div><label for="edit-merchant">Merchant</label><input id="edit-merchant" name="merchant" maxlength="150" [(ngModel)]="r.merchant" /></div>
+          }
           <div><label for="edit-notes">Notes</label><textarea id="edit-notes" name="notes" maxlength="1000" rows="2" [(ngModel)]="r.notes"></textarea></div>
           <label class="check"><input name="cleared" type="checkbox" [(ngModel)]="r.isCleared" /> Cleared</label>
         </fieldset>

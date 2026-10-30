@@ -23,6 +23,13 @@ describe('TransactionList', () => {
     expect(f.nativeElement.querySelector('.transaction-open').getAttribute('aria-label')).toContain('View transaction: Weekly groceries');
     f.nativeElement.querySelector('.transaction-open').click(); expect(edit).toHaveBeenCalledWith(7);
   });
+  it('labels signed market changes without income or expense styling', () => {
+    const f = render([transaction({ categoryType: 'MarketAdjustment', amount: 450 }), transaction({ id: 2, categoryType: 'MarketAdjustment', amount: -200 })]);
+    const rows = f.nativeElement.querySelectorAll('.transaction-row');
+    expect(rows[0].textContent).toContain('+$450.00'); expect(rows[0].textContent).toContain('Market gain');
+    expect(rows[1].textContent).toContain('−$200.00'); expect(rows[1].textContent).toContain('Market loss');
+    expect(f.nativeElement.querySelector('.transaction-amount.income, .transaction-amount.expense')).toBeNull();
+  });
   it('shows account, institution, description, merchant and calendar date', () => {
     const f = render([transaction()]);
     expect(f.nativeElement.querySelector('.institution-avatar').textContent).toBe('D');

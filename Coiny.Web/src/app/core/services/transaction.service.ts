@@ -16,6 +16,14 @@ export class TransactionService {
     private readonly http = inject(HttpClient);
     private readonly apiUrl = `${environemnt.apiUrl}/transactions`;
 
+    marketBalance(accountId: number, date: string, excludingId?: number) {
+        return this.http.get<{ balance: number }>(`${this.apiUrl}/market-adjustments/balance`, {
+            params: { accountId, date, ...(excludingId ? { excludingId } : {}) },
+        });
+    }
+    createMarketAdjustment(request: { accountId: number; date: string; updatedBalance: number; expectedBalance: number; notes: string | null; isCleared: boolean }) {
+        return this.http.post<Transaction>(`${this.apiUrl}/market-adjustments`, request);
+    }
     getDetails(id: number) { return this.http.get<TransactionEditDetails>(`${this.apiUrl}/${id}`); }
     update(id: number, request: UpdateTransactionRequest) { return this.http.put<TransactionEditDetails>(`${this.apiUrl}/${id}`, request); }
     delete(id: number, expectedEditVersion: number, pairedVersion: number | null) {

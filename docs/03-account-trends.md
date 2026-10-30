@@ -7,7 +7,7 @@ An account's opening balance is its balance at the **start** of
 transactions before it are rejected. Creation currently requires a nonnegative
 opening balance and a valid opening date.
 
-Transaction amounts are positive. Category type determines their effect:
+Income, expense, and transfer amounts are positive. Category type determines their effect:
 
 | Account kind | Income-category transaction | Expense-category transaction |
 | --- | --- | --- |
@@ -26,6 +26,19 @@ rejects Transfer categories. Checking-to-card payments reduce cash and debt toge
 Linking/unlinking existing entries changes metadata only, never balances or snapshots.
 Different bank posting dates are preserved, so balances can reflect money in transit
 between those dates. Each entry must respect its own account's opening date.
+
+Investment, retirement, and crypto accounts also support **Market adjustment**.
+Enter the account value for a date; Coiny records the signed difference from its
+closing balance on that date, including that day's deposits and withdrawals.
+Record those movements first. Gains and losses update balances, snapshots, and
+net worth without entering income, spending, or budget contributions. A zero
+account value is allowed; an unchanged value creates no transaction.
+
+Editing an adjustment uses the updated balance again, excluding the original
+entry from the comparison. Other adjustments stay as recorded differences; later
+backdated corrections do not automatically retarget them. A changed balance after
+preview requires another review before saving. Deleting an adjustment recalculates
+balances and trends like any other ledger deletion.
 
 `IsCleared` is recorded but does not exclude a transaction from balance or trend
 calculations. The current app has no currency-selection or conversion model;

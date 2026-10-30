@@ -182,7 +182,7 @@ public partial class BudgetActualsService(IFinancialContext context, ICurrentUse
         var pair = entry.PairedTransactionId is int pairId ? await context.Transactions.SingleOrDefaultAsync(t => t.Id == pairId && t.HouseholdId == household) : null;
         if (entry.EditVersion != request.ExpectedEditVersion || pair?.EditVersion != request.ExpectedPairedEditVersion)
             throw new BudgetConflictException("The transaction changed. Reload before assigning it.");
-        if (entry.Category.CategoryType == CategoryType.Income || entry.Category.CategoryType == CategoryType.Transfer && target is not null && target.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Investments))
+        if (entry.Category.CategoryType is CategoryType.Income or CategoryType.MarketAdjustment || entry.Category.CategoryType == CategoryType.Transfer && target is not null && target.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Investments))
             throw new ArgumentException("Transfers can only be assigned to savings or investing; income is outside this allocation comparison.");
         var posting = DateOnly.FromDateTime(pair is not null && entry.TransferDirection == TransferDirection.Out ? pair.TransactionDate : entry.TransactionDate);
         if (posting.Year != month.Year || posting.Month != month.Month) throw new ArgumentException("Choose the transaction's posting month.");

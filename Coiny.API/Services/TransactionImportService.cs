@@ -122,6 +122,7 @@ public class TransactionImportService(IFinancialContext context, ICurrentUserSer
                 .Select(t => new { t.Id, t.TransactionDate, t.Amount, t.Description, t.TransferDirection, t.Category.CategoryType }).ToListAsync();
             foreach (var item in existing)
             {
+                if (item.CategoryType == CategoryType.MarketAdjustment) continue;
                 var direction = item.CategoryType == CategoryType.Transfer ? item.TransferDirection :
                     item.CategoryType == CategoryType.Income ? TransferDirection.In : TransferDirection.Out;
                 if (direction is null) continue;

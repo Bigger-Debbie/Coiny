@@ -18,7 +18,7 @@ public class MerchantRulesService(IFinancialContext context,ICurrentUserService 
         if(input.MatchType is not ("MerchantExact" or "DescriptionContains"))throw new ArgumentException("Choose exact merchant or description contains.");
         var normalized=Normalize(input.Pattern.Trim());
         if(input.Pattern.Trim().Length>200 || normalized.Length is <3 or >200)throw new ArgumentException("Enter a matching phrase of 3 to 200 letters or numbers.");
-        return await context.Categories.SingleOrDefaultAsync(c=>c.HouseholdId==household && c.Id==input.CategoryId && c.CategoryType!=CategoryType.Transfer && (c.IsActive || allowArchived)) ?? throw new ArgumentException("Choose an active Income or Expense category in this household.");
+        return await context.Categories.SingleOrDefaultAsync(c=>c.HouseholdId==household && c.Id==input.CategoryId && (c.CategoryType==CategoryType.Income || c.CategoryType==CategoryType.Expense) && (c.IsActive || allowArchived)) ?? throw new ArgumentException("Choose an active Income or Expense category in this household.");
     }
     public async Task<MerchantRuleResponse> SaveAsync(int? id,MerchantRuleInput input) {
         var h=await user.GetCurrentHouseholdIdAsync();

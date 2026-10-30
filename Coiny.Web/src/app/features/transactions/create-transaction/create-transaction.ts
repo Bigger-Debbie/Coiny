@@ -1,3 +1,4 @@
+import { MarketAdjustment } from '../market-adjustment/market-adjustment';
 import { ToastService, notificationSignal } from '../../../core/services/toast.service';
 import { Component, computed, DestroyRef, inject, Input, OnInit, output, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -20,7 +21,7 @@ import { SelectMenu, SelectOption } from '../../../shared/components/select-menu
 
 @Component({
   selector: 'app-create-transaction',
-  imports: [FormsModule, SelectMenu, CurrencyPipe, DatePipe],
+  imports: [FormsModule, SelectMenu, CurrencyPipe, DatePipe, MarketAdjustment],
   host: { '[class.embedded]': 'embedded' },
   templateUrl: './create-transaction.html',
   styleUrl: './create-transaction.css',
@@ -82,16 +83,21 @@ export class CreateTransaction implements OnInit {
     });
   }
   get accountOptions(): SelectOption[] {
-    return [{ value: 0, label: 'Select account' }, ...this.accounts.map(a => ({ value: a.id, label: a.name, detail: a.institutionName ?? 'No institution' }))];
+    return [{ value: 0, label: 'Select account' }, ...this.accounts.filter(a => !this.market || this.marketEligible(a)).map(a => ({ value: a.id, label: a.name, detail: a.institutionName ?? 'No institution' }))];
   }
   get categoryOptions(): SelectOption[] {
     return [{ value: 0, label: 'Select category' }, ...this.categories.filter(c => c.categoryType === this.kind).map(c => ({ value: c.id, label: c.name, detail: c.categoryType }))];
   }
-  kind: 'Expense' | 'Income' | 'Transfer' = 'Expense';
+  kind: 'Expense' | 'Income' | 'Transfer' | 'MarketAdjustment' = 'Expense';
+  updatedBalance: number | null = null;
+  marketBaseline: number | null = null;
+  marketRefresh = 0;
+  get market() { return this.kind === 'MarketAdjustment'; }
+  marketEligible(account: Account) { return ['Investment', 'Retirement', 'Crypto'].includes(account.accountType); }
   transferMode: 'Internal' | 'Unknown' | 'External' = 'Internal';
   toAccountId = 0;
   direction: 'In' | 'Out' = 'Out';
-  readonly kinds: SelectOption[] = ['Expense', 'Income', 'Transfer'].map(value => ({ value, label: value }));
+  get kinds(): SelectOption[] { return [...['Expense', 'Income', 'Transfer'].map(value => ({ value, label: value })), ...(this.accounts.some(a => this.marketEligible(a)) ? [{ value: 'MarketAdjustment', label: 'Market adjustment' }] : [])]; }
   readonly transferModes: SelectOption[] = [
     { value: 'Internal', label: 'Between Coiny accounts' },
     { value: 'External', label: 'Account outside Coiny' },
@@ -99,11 +105,13 @@ export class CreateTransaction implements OnInit {
   ];
   readonly directions: SelectOption[] = [{ value: 'Out', label: 'Money out' }, { value: 'In', label: 'Money in' }];
   get destinationOptions(): SelectOption[] { return this.accountOptions.filter(a => a.value !== this.request.accountId); }
-  changeKind(kind: 'Expense' | 'Income' | 'Transfer'): void {
+  changeKind(kind: 'Expense' | 'Income' | 'Transfer' | 'MarketAdjustment'): void {
     this.kind = kind;
     this.request.categoryId = 0;
     this.closeCategory();
-    if (kind !== 'Transfer') this.categoryType = kind;
+    if (kind === 'Expense' || kind === 'Income') this.categoryType = kind;
+    if (this.market && !this.accounts.some(a => a.id === this.request.accountId && this.marketEligible(a))) this.request.accountId = 0;
+    this.marketBaseline = null; this.updatedBalance = null;
     this.error.set('');
     this.transferInputsChanged();
   }
@@ -152,7 +160,7 @@ export class CreateTransaction implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: data => {
           this.accounts = data.accounts.filter(a => a.isActive);
-          this.categories = data.categories.filter(c => c.isActive && c.categoryType !== 'Transfer');
+          this.categories = data.categories.filter(c => c.isActive && ['Expense', 'Income'].includes(c.categoryType));
           const selected = this.embedded ? this.accountId : this.returnAccountId;
           if (this.accounts.some(a => a.id === selected)) this.request.accountId = selected!;
           this.loading.set(false);
@@ -164,6 +172,24 @@ export class CreateTransaction implements OnInit {
   save(form: NgForm): void {
     if (this.busy() || this.addingCategory()) return;
     const transfer = this.kind === 'Transfer';
+    if (this.market) {
+      const target = this.updatedBalance;
+      if (form.invalid || target === null || !Number.isFinite(target) || target < 0 || target > 9999999999999999.99 ||
+          Math.abs(target * 100 - Math.round(target * 100)) > .000001 || this.marketBaseline === null ||
+          Math.round((target - this.marketBaseline) * 100) === 0 || !this.request.transactionDate ||
+          (this.openingDate && this.request.transactionDate < this.openingDate) ||
+          !this.accounts.some(a => a.id === this.request.accountId && this.marketEligible(a))) {
+        this.error.set('Choose an investment account and date, then enter a different balance with up to two decimal places.'); return;
+      }
+      this.saving.set(true); this.error.set('');
+      this.transactionService.createMarketAdjustment({ accountId: this.request.accountId, date: this.request.transactionDate,
+        updatedBalance: target, expectedBalance: this.marketBaseline, notes: this.request.notes, isCleared: this.request.isCleared })
+        .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+          next: () => { this.saving.set(false); if (this.embedded) this.saved.emit(); else { this.toasts.success('Market adjustment recorded.'); void this.router.navigate(['/accounts'], { queryParams: { accountId: this.request.accountId } }); } },
+          error: response => { this.saving.set(false); if (response.status === 409) this.marketRefresh++; this.error.set(response.error?.detail ?? 'The adjustment couldn’t be saved.'); },
+        });
+      return;
+    }
     if (form.invalid || !this.accounts.some(a => a.id === this.request.accountId) || this.request.amount <= 0 ||
       !Number.isFinite(this.request.amount) || Math.abs(this.request.amount * 100 - Math.round(this.request.amount * 100)) > 0.000001 ||
       (!transfer && (!this.request.description.trim() || !this.categories.some(c => c.id === this.request.categoryId && c.categoryType === this.kind))) ||

@@ -158,7 +158,7 @@ export class ImportReview implements OnChanges {
   get selectedCount(): number { return this.rows().filter(r => r.selected).length; }
   get allFilteredSelected(): boolean { return this.filtered.length > 0 && this.filtered.every(r => r.selected); }
   get bulkOptions(): SelectOption[] { return [{ value: null, label: 'Choose category or Transfer' }, { value: 'transfer', label: 'Transfer — not income/spending' },
-    ...this.categories().filter(c => c.categoryType !== 'Transfer').map(c => ({ value: `c:${c.id}`, label: c.name, detail: c.categoryType }))]; }
+    ...this.categories().filter(c => ['Income', 'Expense'].includes(c.categoryType)).map(c => ({ value: `c:${c.id}`, label: c.name, detail: c.categoryType }))]; }
   get isDebt(): boolean { return ['CreditCard', 'Loan'].includes(this.account.accountType); }
   options(row: ReviewRow): SelectOption[] { return this.bulkOptions.filter(option => !option.detail || option.detail === (row.direction === 'In' ? 'Income' : 'Expense')); }
   check(row: ReviewRow): ImportRowCheck | undefined { return this.lastChecks().find(check => check.rowId === row.line); }

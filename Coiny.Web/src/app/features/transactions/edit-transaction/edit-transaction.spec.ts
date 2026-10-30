@@ -24,6 +24,18 @@ describe('EditTransaction', () => {
     if (editing) { f.componentInstance.startEditing(); f.detectChanges(); await f.whenStable(); }
     return f;
   }
+  it('edits an adjustment using the dated balance without counting preview loading as an edit', async () => {
+    const value = { ...details, bill: null, adjustmentBalance: 19800, transaction: { ...details.transaction, categoryType: 'MarketAdjustment', amount: -200, description: 'Market loss' } };
+    const f = await render(value, false); const c = f.componentInstance;
+    c.accounts = [{ id: 1, name: 'Investments', isActive: true, accountType: 'Investment', openingBalanceDate: '2020-01-01' } as any];
+    c.startEditing(); f.detectChanges();
+    const baseline = http.expectOne(r => r.url.endsWith('/market-adjustments/balance'));
+    expect(baseline.request.params.get('excludingId')).toBe('7'); baseline.flush({ balance: 20000 });
+    f.detectChanges(); await f.whenStable(); expect(c.dirty).toBe(false);
+    expect(f.nativeElement.querySelector('#edit-category')).toBeNull();
+    c.request!.updatedBalance = 19900; c.save({ invalid: false } as NgForm);
+    const save = http.expectOne(r => r.method === 'PUT'); expect(save.request.body).toMatchObject({ updatedBalance: 19900, expectedBalance: 20000 }); save.flush(value);
+  });
   it('opens read-only details and switches the same modal into editing', async () => {
     const f = await render(details, false); const c = f.componentInstance;
     expect(f.nativeElement.querySelector('dialog').getAttribute('aria-label')).toBe('Transaction Details');

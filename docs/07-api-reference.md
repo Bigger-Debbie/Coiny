@@ -64,6 +64,8 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | GET | `/api/transactions/paged` | 200 | Filtered transaction page with total count |
 | GET | `/api/transactions/category-breakdown` | 200 | Income or expense totals grouped by category |
 | POST | `/api/transactions` | 201 | Create transaction and update snapshots |
+| GET | `/api/transactions/market-adjustments/balance` | 200 | Dated investment balance; optional `excludingId` for an adjustment being edited |
+| POST | `/api/transactions/market-adjustments` | 200 | Record the difference between the entered account value and its dated balance |
 | GET | `/api/transactions/{id}` | 200 | Editable transaction details, pair version, and optional bill link |
 | PUT | `/api/transactions/{id}` | 200 | Correct a transaction and recalculate affected balances/trends |
 | DELETE | `/api/transactions/{id}` | 204 | Delete a transaction or both linked transfer entries |
@@ -445,8 +447,40 @@ Name is required; the service rejects a duplicate name in the household
 case-insensitively. Responses contain `id`, `name`, `categoryType`, `isSystem`,
 and `isActive`.
 
-Types are `Income`, `Expense`, and `Transfer`. Use the dedicated transfer endpoints
-for Transfer entries; ordinary transaction creation rejects Transfer categories.
+User-created categories are `Income` or `Expense`. `Transfer` and
+`MarketAdjustment` are system types recorded through their dedicated endpoints;
+ordinary transaction creation rejects them.
+
+### Market adjustments
+
+`GET /api/transactions/market-adjustments/balance?accountId=2&date=2026-10-30`
+returns `{ "balance": 20000 }`. For editing, add `excludingId=<transactionId>` to
+exclude that household adjustment from the comparison.
+
+`POST /api/transactions/market-adjustments` accepts:
+
+```json
+{
+  "accountId": 2,
+  "date": "2026-10-30",
+  "updatedBalance": 20450,
+  "expectedBalance": 20000,
+  "notes": "Statement value",
+  "isCleared": true
+}
+```
+
+Only active Investment, Retirement, and Crypto accounts are eligible. The date
+must be on or after opening; balances must be nonnegative with up to two decimal
+places. The server calculates a signed `amount` and generates “Market gain” or
+“Market loss”. Zero differences return 400; changed preview balances return 409.
+These entries affect account values and net worth, not budget income or spending.
+
+Transaction details include `adjustmentBalance` for market entries. To edit one,
+supply `updatedBalance` and `expectedBalance` alongside the usual versioned update
+payload; the server recalculates the amount excluding that entry. Market entries
+cannot be converted to other transaction types or vice versa. Delete uses the
+usual versioned transaction endpoint.
 
 ## Transaction imports
 

@@ -10,6 +10,7 @@ internal static class AccountBalanceCalculator
         var assetChange = categoryType switch
         {
             CategoryType.Income => amount,
+            CategoryType.MarketAdjustment => amount,
             CategoryType.Expense => -amount,
             CategoryType.Transfer when transferDirection == TransferDirection.In => amount,
             CategoryType.Transfer when transferDirection == TransferDirection.Out => -amount,

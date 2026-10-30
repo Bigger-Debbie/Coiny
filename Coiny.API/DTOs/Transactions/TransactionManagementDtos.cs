@@ -7,6 +7,8 @@ public class UpdateTransactionRequest
 {
     [JsonRequired, Range(0, int.MaxValue)] public int ExpectedEditVersion { get; set; }
     public int? ExpectedPairedEditVersion { get; set; }
+    public decimal? UpdatedBalance { get; set; }
+    public decimal? ExpectedBalance { get; set; }
     [JsonRequired, Range(1, int.MaxValue)] public int AccountId { get; set; }
     [JsonRequired] public CategoryType? CategoryType { get; set; }
     public int? CategoryId { get; set; }
@@ -20,4 +22,4 @@ public class UpdateTransactionRequest
     public TransferCounterparty? Counterparty { get; set; }
 }
 public record TransactionBillLink(Guid AllocationKey, DateOnly DueDate, bool IsPaid);
-public record TransactionEditDetails(TransactionResponse Transaction, int? PairedEditVersion, TransactionBillLink? Bill);
+public record TransactionEditDetails(TransactionResponse Transaction, int? PairedEditVersion, TransactionBillLink? Bill, decimal? AdjustmentBalance = null);

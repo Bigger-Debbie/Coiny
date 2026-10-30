@@ -1,3 +1,4 @@
+import { MarketAdjustment } from '../market-adjustment/market-adjustment';
 import { TransferReconciliation } from '../transfer-reconciliation/transfer-reconciliation';
 import { TransferService } from '../../../core/services/transfer.service';
 import { notificationSignal } from '../../../core/services/toast.service';
@@ -16,7 +17,7 @@ import { Modal } from '../../../shared/components/modal/modal';
 import { SelectMenu, SelectOption } from '../../../shared/components/select-menu/select-menu';
 
 @Component({
-  selector: 'app-edit-transaction', imports: [FormsModule, CurrencyPipe, DatePipe, Modal, SelectMenu, TransferReconciliation],
+  selector: 'app-edit-transaction', imports: [FormsModule, CurrencyPipe, DatePipe, Modal, SelectMenu, TransferReconciliation, MarketAdjustment],
   templateUrl: './edit-transaction.html', styleUrl: './edit-transaction.css',
 })
 export class EditTransaction implements OnInit {
@@ -44,9 +45,10 @@ export class EditTransaction implements OnInit {
   readonly directions: SelectOption[] = [{ value: 'Out', label: 'Money out' }, { value: 'In', label: 'Money in' }];
   readonly counterparties: SelectOption[] = [{ value: 'Unknown', label: 'Other account unknown — link later' }, { value: 'External', label: 'Account outside Coiny' }];
   get linked() { return this.details?.transaction.pairedTransactionId != null; }
-  get kinds(): SelectOption[] { return (this.linked ? ['Transfer'] : ['Expense', 'Income', 'Transfer']).map(value => ({ value, label: value })); }
+  get market() { return this.details?.transaction.categoryType === 'MarketAdjustment'; }
+  get kinds(): SelectOption[] { if (this.market) return [{ value: 'MarketAdjustment', label: 'Market adjustment' }]; return (this.linked ? ['Transfer'] : ['Expense', 'Income', 'Transfer']).map(value => ({ value, label: value })); }
   get accountOptions(): SelectOption[] {
-    return this.accounts.filter(a => (a.isActive || a.id === this.details?.transaction.accountId) && a.id !== this.details?.transaction.counterpartyAccountId)
+    return this.accounts.filter(a => (!this.market || ['Investment', 'Retirement', 'Crypto'].includes(a.accountType)) && (a.isActive || a.id === this.details?.transaction.accountId) && a.id !== this.details?.transaction.counterpartyAccountId)
       .map(a => ({ value: a.id, label: a.name, detail: a.institutionName ?? 'No institution' }));
   }
   get categoryOptions(): SelectOption[] {
@@ -54,7 +56,7 @@ export class EditTransaction implements OnInit {
   }
   get openingDate() { return this.accounts.find(a => a.id === this.request?.accountId)?.openingBalanceDate ?? null; }
   private values(request: UpdateTransactionRequest) {
-    return { ...request, description: request.description?.trim() ?? '', merchant: request.merchant?.trim() || null, notes: request.notes?.trim() || null };
+    return { ...request, description: request.description?.trim() ?? '', merchant: request.merchant?.trim() || null, notes: request.notes?.trim() || null, expectedBalance: undefined };
   }
   get dirty() { return !!this.request && !!this.original && JSON.stringify(this.values(this.request)) !== JSON.stringify(this.values(JSON.parse(this.original))); }
   @HostListener('window:beforeunload', ['$event']) beforeUnload(event: BeforeUnloadEvent) { if (this.busy() || this.dirty) event.preventDefault(); }
@@ -71,6 +73,7 @@ export class EditTransaction implements OnInit {
             accountId: t.accountId, categoryType: t.categoryType as UpdateTransactionRequest['categoryType'], categoryId: t.categoryId,
             amount: t.amount, date: t.transactionDate.slice(0, 10), description: t.description, merchant: t.merchant,
             notes: t.notes ?? null, isCleared: t.isCleared, direction: t.transferDirection ?? null, counterparty: t.transferCounterparty ?? null };
+          if (this.market) this.request.updatedBalance = details.adjustmentBalance;
           this.original = JSON.stringify(this.request); this.stale.set(false); this.loading.set(false);
         },
         error: response => { this.loading.set(false); this.error.set(response.error?.detail ?? 'This transaction couldn’t load. Please try again.'); },
@@ -95,7 +98,7 @@ export class EditTransaction implements OnInit {
     afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(selector)?.focus(), { injector: this.injector });
   }
   changeKind(kind: UpdateTransactionRequest['categoryType']) {
-    if (!this.request || this.linked) return;
+    if (!this.request || this.linked || this.market) return;
     this.request.categoryType = kind; this.request.categoryId = 0;
     this.request.direction = kind === 'Transfer' ? 'Out' : null;
     this.request.counterparty = kind === 'Transfer' ? 'Unknown' : null;
@@ -104,12 +107,16 @@ export class EditTransaction implements OnInit {
     const r = this.request;
     if (!r || !this.editing() || !this.dirty || this.busy() || this.stale()) return;
     if (form.invalid || !r.date || (this.openingDate && r.date < this.openingDate) || !r.description.trim() ||
-        !Number.isFinite(r.amount) || r.amount <= 0 || Math.abs(r.amount * 100 - Math.round(r.amount * 100)) > .000001 ||
-        (r.categoryType !== 'Transfer' && !this.categories.some(c => c.id === r.categoryId && c.categoryType === r.categoryType))) {
+        !Number.isFinite(r.amount) || (!this.market && r.amount <= 0) || Math.abs(r.amount * 100 - Math.round(r.amount * 100)) > .000001 ||
+        (!this.market && r.categoryType !== 'Transfer' && !this.categories.some(c => c.id === r.categoryId && c.categoryType === r.categoryType))) {
       this.error.set('Check the account, category, date, description, and amount with up to two decimal places.'); return;
     }
+    if (this.market && (r.updatedBalance == null || r.expectedBalance == null || !Number.isFinite(r.updatedBalance) || r.updatedBalance < 0 ||
+        Math.abs(r.updatedBalance * 100 - Math.round(r.updatedBalance * 100)) > .000001 || Math.round((r.updatedBalance - r.expectedBalance) * 100) === 0)) {
+      this.error.set('Enter an updated balance that requires a market adjustment.'); return;
+    }
     this.busy.set(true); this.error.set('');
-    this.api.update(this.transactionId, this.values(r)).pipe(takeUntilDestroyed(this.destroy)).subscribe({
+    this.api.update(this.transactionId, { ...this.values(r), expectedBalance: r.expectedBalance }).pipe(takeUntilDestroyed(this.destroy)).subscribe({
       next: () => { this.busy.set(false); this.changed.emit('updated'); }, error: response => this.fail(response),
     });
   }

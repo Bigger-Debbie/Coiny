@@ -53,6 +53,16 @@ public class BudgetActualsTests
         var pairVersion = entry.PairedTransactionId is int pair ? (int?)(await db.Context().Transactions.AsNoTracking().SingleAsync(t => t.Id == pair)).EditVersion : null;
         await Service(db).SaveAssignmentAsync(id, new() { Month = month ?? Month, AllocationKey = key, UseCategoryDefault = reset, ExpectedEditVersion = entry.EditVersion, ExpectedPairedEditVersion = pairVersion });
     }
+    [Fact] public async Task Market_adjustments_do_not_change_budget_actuals_or_forecasts()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db);
+        var before = System.Text.Json.JsonSerializer.Serialize(await Service(db).GetAsync(Month, "all"));
+        var c = db.Context(); var account = await c.Accounts.SingleAsync(a => a.Id == 2); account.IsActive = true; await c.SaveChangesAsync();
+        var u = new User(); var market = new MarketAdjustmentService(c, u, new AccountBalanceSnapshotService(c,u));
+        var saved = await market.CreateAsync(new() { AccountId = 2, Date = new(2026,10,15), UpdatedBalance = 5000, ExpectedBalance = 0 });
+        Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(await Service(db).GetAsync(Month,"all")));
+        await Assert.ThrowsAsync<ArgumentException>(() => Assign(db, saved.Id, null));
+    }
     [Fact] public async Task Split_bill_payments_use_each_posting_month_and_future_charge_only_once()
     {
         await using var db = await BudgetTestDatabase.CreateAsync(); var keys = await Seed(db);

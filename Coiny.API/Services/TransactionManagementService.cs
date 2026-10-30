@@ -20,7 +20,9 @@ public class TransactionManagementService(IFinancialContext context, ICurrentUse
             ? await context.Transactions.Where(t => t.Id == pairId && t.HouseholdId == household).Select(t => (int?)t.EditVersion).SingleOrDefaultAsync() : null;
         var bill = await context.BillPayments.AsNoTracking().Where(p => ((p.TransactionId == id || p.Links.Any(l => l.TransactionId == id)) || entry.PairedTransactionId.HasValue && (p.TransactionId == entry.PairedTransactionId || p.Links.Any(l => l.TransactionId == entry.PairedTransactionId))) && p.HouseholdId == household)
             .Select(p => new TransactionBillLink(p.AllocationKey, p.DueDate, p.IsPaid)).SingleOrDefaultAsync();
-        return new(entry, pairVersion, bill);
+        var adjustmentBalance = entry.CategoryType == CategoryType.MarketAdjustment
+            ? await MarketAdjustmentService.BalanceAsync(context, household, entry.AccountId, DateOnly.FromDateTime(entry.TransactionDate)) : (decimal?)null;
+        return new(entry, pairVersion, bill, adjustmentBalance);
     }
     public async Task<TransactionEditDetails> UpdateAsync(int id, UpdateTransactionRequest request)
     {
@@ -30,7 +32,7 @@ public class TransactionManagementService(IFinancialContext context, ICurrentUse
         var pair = await Pair(entry, household);
         CheckVersions(entry, pair, request.ExpectedEditVersion, request.ExpectedPairedEditVersion);
         if (request.CategoryType is null || !Enum.IsDefined(request.CategoryType.Value) || request.Date is null || request.Date == DateOnly.MinValue ||
-            request.Amount <= 0 || request.Amount > 9_999_999_999_999_999.99m || decimal.Round(request.Amount, 2) != request.Amount ||
+            (request.CategoryType != CategoryType.MarketAdjustment && request.Amount <= 0) || request.Amount is < -9_999_999_999_999_999.99m or > 9_999_999_999_999_999.99m || decimal.Round(request.Amount, 2) != request.Amount ||
             string.IsNullOrWhiteSpace(request.Description) || request.Description.Trim().Length > 250 || request.Merchant?.Length > 150 || request.Notes?.Length > 1000)
             throw new ArgumentException("Check the type, date, description, and positive amount with up to two decimal places.");
         var account = await context.Accounts.SingleOrDefaultAsync(a => a.Id == request.AccountId && a.HouseholdId == household)
@@ -44,8 +46,22 @@ public class TransactionManagementService(IFinancialContext context, ICurrentUse
         if (await context.Set<SavingsActivity>().AnyAsync(a => !a.Kind.StartsWith("Voided:") && (a.TransactionId == id || pair != null && a.TransactionId == pair.Id)) &&
             (entry.Amount != request.Amount || entry.AccountId != request.AccountId || DateOnly.FromDateTime(entry.TransactionDate) != request.Date || entry.Category.CategoryType != request.CategoryType || entry.TransferDirection != request.Direction))
             throw new TransactionConflictException("Correct this movement’s savings fund activity before changing its amount, date, account, or type.");
+        if ((entry.Category.CategoryType == CategoryType.MarketAdjustment) != (request.CategoryType == CategoryType.MarketAdjustment))
+            throw new ArgumentException("Create a separate market adjustment rather than changing an existing transaction's type.");
         Category category;
-        if (request.CategoryType == CategoryType.Transfer)
+        if (request.CategoryType == CategoryType.MarketAdjustment)
+        {
+            if (request.UpdatedBalance is not decimal target || request.ExpectedBalance is not decimal expected)
+                throw new ArgumentException("Enter the updated account balance and review the adjustment.");
+            MarketAdjustmentService.ValidateMoney(target);
+            var balance = await MarketAdjustmentService.BalanceAsync(context, household, account.Id, request.Date.Value, id);
+            if (balance != expected) throw new TransactionConflictException("This account balance changed. Reload the adjustment before saving.");
+            request.Amount = target - balance;
+            if (request.Amount == 0 || request.Amount is < -9_999_999_999_999_999.99m or > 9_999_999_999_999_999.99m) throw new ArgumentException("Enter a balance that requires a non-zero market adjustment.");
+            request.Description = request.Amount > 0 ? "Market gain" : "Market loss";
+            category = await MarketAdjustmentService.CategoryAsync(context, household);
+        }
+        else if (request.CategoryType == CategoryType.Transfer)
         {
             if (request.Direction is null || !Enum.IsDefined(request.Direction.Value) || (pair is null && request.Counterparty is not (TransferCounterparty.Unknown or TransferCounterparty.External)))
                 throw new ArgumentException("Choose the transfer direction and an unknown or external counterparty.");

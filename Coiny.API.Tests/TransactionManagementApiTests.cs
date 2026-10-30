@@ -30,13 +30,15 @@ public class TransactionManagementApiTests
         builder.Services.AddControllers().AddApplicationPart(typeof(TransactionManagementController).Assembly).AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         builder.Services.AddAuthentication("Test").AddScheme<AuthenticationSchemeOptions, TestAuth>("Test", _ => {}); builder.Services.AddAuthorization();
         builder.Services.AddScoped<CoinyContext>(_ => db.Context()); builder.Services.AddScoped<ICurrentUserService, User>();
-        builder.Services.AddScoped<IAccountBalanceSnapshotService, AccountBalanceSnapshotService>(); builder.Services.AddScoped<TransactionManagementService>();
+        builder.Services.AddScoped<IAccountBalanceSnapshotService, AccountBalanceSnapshotService>(); builder.Services.AddScoped<TransactionManagementService>(); builder.Services.AddScoped<MarketAdjustmentService>();
             builder.Services.AddScoped<Coiny.API.Data.IControlContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
             builder.Services.AddScoped<Coiny.API.Data.IFinancialContext>(sp => sp.GetRequiredService<Coiny.API.Data.CoinyContext>());
 
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync();
         using var client = app.GetTestClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/transactions/1")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/transactions/market-adjustments/balance?accountId=1&date=2026-10-16")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsJsonAsync("/api/transactions/market-adjustments", new {})).StatusCode);
         client.DefaultRequestHeaders.Add("Test-User", "test");
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/transactions/1")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/transactions/1", new {})).StatusCode);
@@ -47,6 +49,15 @@ public class TransactionManagementApiTests
         Assert.Equal(HttpStatusCode.Conflict, (await client.DeleteAsync("/api/transactions/1?expectedEditVersion=0")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync("/api/transactions/1?expectedEditVersion=1")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/transactions/1")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/transactions/market-adjustments/balance?accountId=1&date=2026-10-16")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync("/api/transactions/market-adjustments", new {})).StatusCode);
+        c.Accounts.Add(new() { Id = 2, HouseholdId = 1, Name = "IRA", AccountType = AccountType.Retirement, IsActive = true, OpeningBalanceDate = new(2026,10,1), OpeningBalance = 1000 }); await c.SaveChangesAsync();
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/transactions/market-adjustments/balance?accountId=2&date=2026-10-16")).StatusCode);
+        var adjustment = new { accountId = 2, date = "2026-10-16", updatedBalance = 800, expectedBalance = 1000 };
+        var created = await client.PostAsJsonAsync("/api/transactions/market-adjustments", adjustment);
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+        var json = await created.Content.ReadAsStringAsync(); Assert.Contains("MarketAdjustment", json); Assert.Contains("-200", json);
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync("/api/transactions/market-adjustments", adjustment)).StatusCode);
     }
     private sealed class User : ICurrentUserService {
         public string? GetUserId() => "test"; public bool IsAuthenticated() => true;

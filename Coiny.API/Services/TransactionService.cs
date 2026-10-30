@@ -143,8 +143,8 @@ public class TransactionService : ITransactionService
         if (category is null)
             throw new InvalidOperationException("Category does not belong to the current household.");
 
-        if (category.CategoryType == CategoryType.Transfer)
-            throw new InvalidOperationException("Use the transfer endpoints to record transfer entries.");
+        if (category.CategoryType is not (CategoryType.Income or CategoryType.Expense))
+            throw new InvalidOperationException("Use the dedicated transfer or market adjustment option for this transaction type.");
 
         var transaction = new Transaction
         {

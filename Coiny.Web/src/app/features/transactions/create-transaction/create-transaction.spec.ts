@@ -28,6 +28,34 @@ describe('CreateTransaction', () => {
     f.detectChanges();
     return f;
   }
+  it('records the entered investment value as an adjustment without a category or transfer', async () => {
+    const f = render(); const c = f.componentInstance;
+    c.accounts.push({ id: 4, name: 'Investments', accountType: 'Investment', isActive: true, openingBalanceDate: '2020-01-01' } as any);
+    c.changeKind('MarketAdjustment'); c.request.accountId = 4; c.updatedBalance = 20450;
+    f.detectChanges();
+    const baseline = http.expectOne(r => r.url.endsWith('/market-adjustments/balance'));
+    expect(baseline.request.params.get('accountId')).toBe('4'); baseline.flush({ balance: 20000 });
+    f.detectChanges(); await f.whenStable();
+    expect(f.nativeElement.textContent).toContain('Updated account balance');
+    expect(f.nativeElement.textContent).toContain('Market gain');
+    expect(f.nativeElement.querySelector('#categoryId')).toBeNull();
+    expect(f.nativeElement.querySelector('#description')).toBeNull();
+    c.save({ invalid: false } as any);
+    const save = http.expectOne(r => r.method === 'POST' && r.url.endsWith('/market-adjustments'));
+    expect(save.request.body).toMatchObject({ accountId: 4, updatedBalance: 20450, expectedBalance: 20000 });
+    expect(save.request.body.categoryId).toBeUndefined(); save.flush({ id: 8 });
+  });
+  it('requires a reviewed investment balance and accepts a zero account value', async () => {
+    const f = render(); const c = f.componentInstance;
+    c.accounts.push({ id: 4, name: 'Investments', accountType: 'Retirement', isActive: true, openingBalanceDate: '2020-01-01' } as any);
+    c.changeKind('MarketAdjustment'); expect(c.request.accountId).toBe(0);
+    c.request.accountId = 4; c.updatedBalance = 0;
+    c.save({ invalid: false } as any); http.expectNone(r => r.method === 'POST');
+    f.detectChanges(); http.expectOne(r => r.url.endsWith('/market-adjustments/balance')).flush({ balance: 1200 });
+    f.detectChanges(); await f.whenStable(); expect(f.nativeElement.textContent).toContain('Market loss');
+    c.save({ invalid: false } as any);
+    const save = http.expectOne(r => r.method === 'POST'); expect(save.request.body.updatedBalance).toBe(0); save.flush({ id: 9 });
+  });
   it('preselects the current account and excludes unsupported transfers', async () => {
     const f = render(); await f.whenStable();
     expect(f.componentInstance.request.accountId).toBe(2);

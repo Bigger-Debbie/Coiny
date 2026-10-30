@@ -16,6 +16,7 @@ export class TransactionList {
   readonly magnitude = Math.abs;
 
   sign(transaction: DashboardTransaction): string {
+    if (transaction.categoryType === 'MarketAdjustment') return transaction.amount >= 0 ? '+' : '−';
     if (transaction.categoryType === 'Transfer') return transaction.transferDirection === 'In' ? '+' : transaction.transferDirection === 'Out' ? '−' : '';
     return transaction.categoryType === 'Income' ? '+' : transaction.categoryType === 'Expense' ? '−' : '';
   }
