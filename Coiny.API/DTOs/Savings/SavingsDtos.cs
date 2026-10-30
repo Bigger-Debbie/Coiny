@@ -13,6 +13,7 @@ public class SavingsComponent
 }
 public class SavingsPlan
 {
+    public bool ScheduleContributions { get; set; } = true;
     public DateOnly StartDate { get; set; }
     public List<SavingsComponent> Components { get; set; } = [];
 }

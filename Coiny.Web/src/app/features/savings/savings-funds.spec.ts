@@ -22,6 +22,25 @@ describe('Savings funds',()=>{
   c.dialog.set('review');f.detectChanges();
   await c.save();http.expectNone(r=>r.url.endsWith('/savings-funds')&&r.method==='POST');c.acceptedShortfall=true;const saving=c.save();const save=http.expectOne(r=>r.url.endsWith('/savings-funds')&&r.method==='POST');expect(save.request.body.acceptShortfall).toBe(true);expect(save.request.body.plan).toEqual(preview.request.body.plan);save.flush(fund);await Promise.resolve();http.expectOne(r=>r.url.endsWith('/savings-funds')&&r.method==='GET').flush([account]);await saving;
  });
+ it('creates an existing-cash fund without a budget or contribution schedule',async()=>{
+  const f=await render();const c=f.componentInstance;const editing=c.edit();
+  http.expectOne(r=>r.url.endsWith('/management')).flush({detail:'Publish your first budget before managing its items.'},{status:400,statusText:'Bad Request'});await editing;
+  c.form.name='Emergency fund';const component=c.form.plan.components[0];c.opening[component.key]=18513.33;f.detectChanges();
+  expect(c.manualFunding).toBe(true);expect(f.nativeElement.querySelector('#fund-start')).toBeNull();expect(f.nativeElement.querySelector('#amount-0')).toBeNull();expect(f.nativeElement.querySelector('#target-0')).toBeNull();
+  const reviewing=c.review();const preview=http.expectOne(r=>r.url.endsWith('/savings-funds/preview'));
+  expect(preview.request.body.plan.scheduleContributions).toBe(false);expect(preview.request.body.expectedRevisionId).toBeNull();expect(preview.request.body.plan.components[0]).toMatchObject({name:'Emergency fund',mode:'Monthly',amount:0,targetDate:null});
+  preview.flush({monthlyEquivalent:0,periods:[],largestShortfall:0,supportedMonthlyContribution:0,estimatedCompletion:null,warning:null});await reviewing;f.detectChanges();
+  expect(f.nativeElement.querySelector('.schedule-scroll')).toBeNull();expect(f.nativeElement.textContent).toContain('No scheduled contribution.');
+  const saving=c.save();const save=http.expectOne(r=>r.url.endsWith('/savings-funds')&&r.method==='POST');expect(save.request.body.openingAllocations[component.key]).toBe(18513.33);save.flush({...fund,plan:{...fund.plan,scheduleContributions:false}});
+  await Promise.resolve();http.expectOne(r=>r.url.endsWith('/savings-funds')&&r.method==='GET').flush([account]);await saving;expect(c.dialog()).toBeNull();
+ });
+ it('switches a new fund to manual funding and removes budget-only fields',async()=>{
+  const f=await render();const c=f.componentInstance;const editing=c.edit();http.expectOne(r=>r.url.endsWith('/management')).flush({revision:{id:7,allocations:[]},earliestEffectiveDate:'2026-10-27'});await editing;
+  c.form.name='Emergency';c.setFunding('manual');f.detectChanges();expect(f.nativeElement.querySelector('#fund-adopt')).toBeNull();expect(f.nativeElement.querySelector('#fund-start')).toBeNull();
+  const reviewing=c.review();http.expectOne(r=>r.url.endsWith('/preview')).flush({monthlyEquivalent:0,periods:[],largestShortfall:0,supportedMonthlyContribution:0,estimatedCompletion:null,warning:null});await reviewing;
+  const manual={...fund,balance:0,plan:{...fund.plan,scheduleContributions:false}};c.detail(manual);f.detectChanges();expect(f.nativeElement.textContent).not.toContain('$100.00 / month');
+  await c.archiveReview();http.expectNone(r=>r.url.endsWith('/management'));expect(c.dialog()).toBe('archive');
+ });
  it('clears the review when goal inputs change',async()=>{const f=await render();const c=f.componentInstance;c.preview.set({monthlyEquivalent:100,periods:[],largestShortfall:0,supportedMonthlyContribution:100,estimatedCompletion:null,affordableCompletion:null,warning:null});c.acceptedShortfall=true;c.invalidate();expect(c.preview()).toBeNull();expect(c.acceptedShortfall).toBe(false);});
  it('uses the expense posting date and a negative withdrawal without creating a ledger transaction',async()=>{
   const f=await render();const c=f.componentInstance;c.detail(fund);const opening=c.activity('Withdrawal');http.expectOne(r=>r.url.endsWith('/candidates')).flush([{id:42,date:'2026-10-27',amount:350,merchant:'Garage',description:'Repair',accountName:'Spending'}]);await opening;c.chooseTransaction('42');c.activityAmounts={'goal-1':350};const recording=c.record();const req=http.expectOne(r=>r.url.endsWith('/fund-1/activity'));expect(req.request.body.amounts).toEqual({'goal-1':-350});expect(req.request.body.transactionId).toBe(42);expect(req.request.body.date).toBe('2026-10-27');req.flush({...fund,balance:650});await Promise.resolve();http.expectOne(r=>r.url.endsWith('/savings-funds')).flush([{...account,funds:[{...fund,balance:650}]}]);await recording;http.expectNone(r=>r.url.includes('/transactions')&&r.method==='POST');

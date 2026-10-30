@@ -32,7 +32,7 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
         var cutoff = Today.ToDateTime(TimeOnly.MaxValue);
         var ledger = await db.Transactions.AsNoTracking().Include(t => t.Category).Where(t => t.HouseholdId == household && ids.Contains(t.AccountId) && t.TransactionDate <= cutoff).ToListAsync();
         var nextContributions=new List<BudgetScheduledEvent>();
-        if(funds.Any(f=>!f.IsArchived))
+        if(funds.Any(f=>!f.IsArchived && Plan(f).ScheduleContributions))
         {
             var period=await budgets.GetIncomePeriodAsync(Today);
             nextContributions.AddRange(period.Contributions.Where(e=>e.Payment?.IsPaid!=true && e.Payment?.IsSkipped!=true));
@@ -56,6 +56,10 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
             throw new ArgumentException("Choose an active savings account that is already open.");
         var existing = r.SourceKey.HasValue ? await Funds(household).SingleOrDefaultAsync(f => f.SourceKey == r.SourceKey) : null;
         if ((existing?.EditVersion ?? 0) != r.ExpectedEditVersion) throw new BudgetConflictException("This fund changed. Reload it before saving.");
+        if (existing is not null && Plan(existing).ScheduleContributions != r.Plan.ScheduleContributions)
+            throw new ArgumentException("Keep this fund's existing funding style. Create a separate fund to use a different style.");
+        if (!r.Plan.ScheduleContributions && existing is null && r.SourceKey.HasValue)
+            throw new ArgumentException("An unscheduled fund cannot adopt a budget contribution.");
         if (existing is not null && (existing.IsArchived || existing.AccountId != r.AccountId)) throw new ArgumentException("Keep this fund in its original account.");
         if (existing is not null && r.OpeningAllocations.Count > 0) throw new ArgumentException("Use an allocation adjustment to move existing money.");
         foreach (var c in r.Plan.Components)
@@ -88,6 +92,7 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
     public async Task<SavingsFundPreview> PreviewAsync(SaveSavingsFund r)
     {
         var (_,key)=await Validate(r);
+        if (!r.Plan.ScheduleContributions) return new(0,[],0,0,null,null);
         var household=await user.GetCurrentHouseholdIdAsync();
         var skipped=await db.BillPayments.AsNoTracking().Where(p=>p.HouseholdId==household && p.AllocationKey==key && p.IsSkipped).ToListAsync();
         var monthly=SavingsGoalCalculator.MonthlyEquivalent(r.Plan);
@@ -177,14 +182,14 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
         var review=await PreviewAsync(r);
         if(review.LargestShortfall>0 && !r.AcceptShortfall) throw new ArgumentException("Review the period shortfalls and explicitly accept a stretch goal, or adjust the contribution plan.");
         var (existing,key)=await Validate(r);
-        if(r.DraftId is int draftId)
+        if(r.Plan.ScheduleContributions && r.DraftId is int draftId)
         {
             var draft=await budgets.GetDraftAsync();
             if(draft?.Id!=draftId || draft.EditVersion!=r.DraftEditVersion) throw new BudgetConflictException("The draft changed. Reload it before saving.");
             var allocations=draft.Allocations.Where(a=>a.SourceKey!=key).Append(Allocation(r,key)).ToList();
             await budgets.SaveDraftAsync(draftId,new() {FundManaged=true,ExpectedEditVersion=draft.EditVersion,EffectiveFromMonth=draft.EffectiveFromMonth,SetupStep=draft.SetupStep,IncomeSources=draft.IncomeSources.ToList(),Allocations=allocations});
         }
-        else await budgets.ChangeItemAsync(await Change(r,key),false);
+        else if(r.Plan.ScheduleContributions) await budgets.ChangeItemAsync(await Change(r,key),false);
         var fund=existing ?? new SavingsFund {HouseholdId=await user.GetCurrentHouseholdIdAsync(),SourceKey=key,AccountId=r.AccountId,CreatedAt=clock.GetUtcNow().UtcDateTime};
         fund.Name=r.Name.Trim();fund.PlanJson=JsonSerializer.Serialize(r.Plan);fund.EditVersion++;
         if(existing is null)
@@ -203,8 +208,9 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
         if(fund.IsArchived)throw new ArgumentException("This fund is archived.");
         if(r.Amounts is null)throw new ArgumentException("Component amounts are required.");
         if(r.OperationId==Guid.Empty) throw new ArgumentException("An operation identifier is required.");
-        if(r.Kind=="Contribution" && r.DueDate is null && r.Date>DateOnly.MinValue && r.Date<=Today)
+        if(plan.ScheduleContributions && r.Kind=="Contribution" && r.DueDate is null && r.Date>DateOnly.MinValue && r.Date<=Today)
             r.DueDate=(await budgets.GetIncomePeriodAsync(r.Date)).Contributions.FirstOrDefault(e=>e.SourceKey==key)?.Date;
+        if (!plan.ScheduleContributions && r.DueDate.HasValue) throw new ArgumentException("This fund has no scheduled contribution date.");
         var old=fund.Activities.Where(a=>a.OperationId==r.OperationId).ToList();
         if(old.Count>0)
         {
@@ -329,13 +335,13 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
         await using var unit=await db.Database.BeginTransactionAsync();var fund=await Owned(key);
         if(fund.EditVersion!=request.ExpectedEditVersion)throw new BudgetConflictException("This fund changed. Reload it before archiving.");
         if(Balance(fund)!=0)throw new ArgumentException("Move or release the remaining allocated money before archiving this fund.");
-        if(request.DraftId is int draftId)
+        if(Plan(fund).ScheduleContributions && request.DraftId is int draftId)
         {
             var draft=await budgets.GetDraftAsync();
             if(draft?.Id!=draftId || draft.EditVersion!=request.DraftEditVersion)throw new BudgetConflictException("The budget draft changed. Reload before archiving.");
             await budgets.SaveDraftAsync(draftId,new(){FundManaged=true,ExpectedEditVersion=draft.EditVersion,EffectiveFromMonth=draft.EffectiveFromMonth,SetupStep=draft.SetupStep,IncomeSources=draft.IncomeSources.ToList(),Allocations=draft.Allocations.Where(a=>a.SourceKey!=key).ToList()});
         }
-        else await budgets.ChangeItemAsync(new(){SourceKey=key,FundManaged=true,Remove=true,ExpectedRevisionId=request.ExpectedRevisionId,EffectiveDate=request.EffectiveDate},false);
+        else if(Plan(fund).ScheduleContributions) await budgets.ChangeItemAsync(new(){SourceKey=key,FundManaged=true,Remove=true,ExpectedRevisionId=request.ExpectedRevisionId,EffectiveDate=request.EffectiveDate},false);
         fund.IsArchived=true;fund.EditVersion++;await db.SaveChangesAsync();await unit.CommitAsync();
     }
     public async Task<SavingsFundView> CorrectActivityAsync(Guid key,Guid operation,int version)

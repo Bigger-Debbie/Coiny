@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Coiny.API.DTOs.Savings;
 using Coiny.API.Data;
 using Coiny.API.DTOs.Budgets;
 using Coiny.API.Enums;
@@ -92,9 +94,10 @@ public partial class BudgetActualsService(IFinancialContext context, ICurrentUse
             rows.Add(new(t.Id, t.EditVersion, t.PairedTransaction?.EditVersion, DateOnly.FromDateTime(t.TransactionDate), t.Description, t.Amount,
                 t.Account.Name, t.Category.Name, t.Category.CategoryType, target?.SourceKey, target?.Name, source, t.Merchant, payment?.DueDate, Math.Min(t.Amount,-fundActivity.Where(a => a.TransactionId == t.Id && a.Kind == "WithdrawalLinked").Sum(a => a.Amount))));
         }
-        foreach (var fund in fundActivity.Where(a => a.Amount > 0 && a.Kind is "Contribution" or "ContributionLinked").Select(a => a.SavingsFund).DistinctBy(f => f.Id))
+        var scheduledFundActivity = fundActivity.Where(a => a.Kind is "Contribution" or "ContributionLinked").Where(a => JsonSerializer.Deserialize<SavingsPlan>(a.SavingsFund.PlanJson)!.ScheduleContributions).ToList();
+        foreach (var fund in scheduledFundActivity.Where(a => a.Amount > 0).Select(a => a.SavingsFund).DistinctBy(f => f.Id))
             if (!reportAllocations.Any(a => a.SourceKey == fund.SourceKey)) reportAllocations.Add(new() { SourceKey=fund.SourceKey,Name=fund.Name,AllocationType=BudgetAllocationType.Savings });
-        foreach (var activity in fundActivity.Where(a => a.Kind is "Contribution" or "ContributionLinked"))
+        foreach (var activity in scheduledFundActivity)
         {
             // Linked calendar payments already enter via their ledger movement.
             var movement = activity.TransactionId.HasValue ? ledger.FirstOrDefault(t => t.Id == activity.TransactionId || t.PairedTransactionId == activity.TransactionId) : null;

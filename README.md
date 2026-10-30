@@ -8,7 +8,7 @@ Built with ASP.NET Core / EF Core 10 and Angular 21.
 - Accounts, balance history, transfers, and statement reconciliation.
 - Multi-account CSV imports, category rules, saved mappings, corrections, and undo.
 - Monthly and paycheck budgets, actuals, forecasts, and available-cash estimates.
-- Savings funds with component goals, contribution schedules, and affordability checks.
+- Savings funds with component goals and contribution plans, or manual funds for existing cash.
 - Recurring-expense detection and household alerts.
 - Shared households, password recovery, offline recovery codes, and session controls.
 - Encrypted household backups, portable restores, and CSV export.

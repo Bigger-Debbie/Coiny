@@ -22,6 +22,37 @@ public class SavingsFundsTests
         var component=new SavingsComponent{Name="Tires",Mode="Recurring",Amount=1000,TargetDate=new(2027,10,15),RepeatMonths=12};
         return new(){AcceptShortfall=true,SourceKey=revision.Allocations[0].SourceKey,AccountId=1,Name="Car",ExpectedRevisionId=revision.Id,Plan=new(){StartDate=new(2026,10,16),Components=[component]},OpeningAllocations=new(){{component.Key,opening}}};
     }
+    [Fact] public async Task UnscheduledFundWorksWithoutBudgetAndKeepsLedgerAndAvailableCashIntact()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();var context=db.Context();
+        context.Accounts.Add(new Account{Id=1,HouseholdId=1,Name="Savings",AccountType=AccountType.Savings,OpeningBalance=1000,OpeningBalanceDate=new(2026,1,1)});await context.SaveChangesAsync();
+        var component=new SavingsComponent{Name="Emergency",Mode="Monthly",Amount=0};
+        var request=new SaveSavingsFund{AccountId=1,Name="Emergency fund",Plan=new(){ScheduleContributions=false,StartDate=new(2026,10,16),Components=[component]},OpeningAllocations=new(){{component.Key,600}}};
+        var service=Service(db);Assert.Empty((await service.PreviewAsync(request)).Periods);
+        var fund=await service.SaveAsync(request);Assert.Equal(600,fund.Balance);Assert.False(fund.Plan.ScheduleContributions);
+        var account=Assert.Single(await service.GetAsync(1));Assert.Equal(1000,account.Balance);Assert.Equal(400,account.Unallocated);Assert.Null(Assert.Single(account.Funds).NextContributionDate);
+        Assert.Empty(await context.BudgetRevisions.ToListAsync());Assert.Empty(await context.Transactions.ToListAsync());Assert.Empty(await context.BillPayments.ToListAsync());
+        await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).ActivityAsync(fund.SourceKey,new(){OperationId=Guid.NewGuid(),ExpectedEditVersion=fund.EditVersion,Date=new(2026,10,16),Kind="Allocate",Amounts=new(){{component.Key,401}}}));
+        fund=await Service(db).ActivityAsync(fund.SourceKey,new(){OperationId=Guid.NewGuid(),ExpectedEditVersion=fund.EditVersion,Date=new(2026,10,16),Kind="Allocate",Amounts=new(){{component.Key,100}}});
+        Assert.Equal(700,fund.Balance);
+        fund=await Service(db).MoveAsync(fund.SourceKey,new(){OperationId=Guid.NewGuid(),ExpectedEditVersion=fund.EditVersion,ComponentKey=component.Key,Amount=700});
+        await Service(db).ArchiveAsync(fund.SourceKey,new(fund.EditVersion,0,new(2026,10,16)));
+        Assert.True(Assert.Single((await Service(db).GetAsync(1)).Single().Funds).IsArchived);
+        Assert.Empty(await context.BudgetRevisions.ToListAsync());
+    }
+    [Fact] public async Task AdHocFundContributionsDoNotCreateBudgetItemsOrChangeBudgetActuals()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();await Setup(db);
+        var revisions=await db.Context().BudgetRevisions.CountAsync();var baseline=await db.Service().GetMonthAsync(new(2026,10,1));
+        var component=new SavingsComponent{Name="Emergency",Mode="Monthly"};
+        var fund=await Service(db).SaveAsync(new(){AccountId=1,Name="Emergency fund",Plan=new(){ScheduleContributions=false,StartDate=new(2026,10,16),Components=[component]}});
+        fund=await Service(db).ActivityAsync(fund.SourceKey,new(){OperationId=Guid.NewGuid(),ExpectedEditVersion=fund.EditVersion,Date=new(2026,10,16),Kind="Contribution",Amounts=new(){{component.Key,100}}});
+        var period=await db.Service().GetIncomePeriodAsync(new(2026,10,16));Assert.DoesNotContain(period.Contributions,e=>e.SourceKey==fund.SourceKey);
+        var report=await new BudgetActualsService(db.Context(),new User(),db.Service(),db.Clock).GetPeriodAsync(new(2026,10,16),"all");
+        Assert.DoesNotContain(report.Items,item=>item.AllocationKey==fund.SourceKey);Assert.Equal(0,report.AssignedActual);
+        Assert.Equal(revisions,await db.Context().BudgetRevisions.CountAsync());Assert.Equal(baseline.Allocated,(await db.Service().GetMonthAsync(new(2026,10,1))).Allocated);
+        Assert.Empty(await db.Context().BillPayments.ToListAsync());Assert.Equal(100,fund.Balance);
+    }
     [Fact] public async Task AdoptsExistingBudgetItemWithoutChangingLedgerAndPreservesHistoricalPlan()
     {
         await using var db=await BudgetTestDatabase.CreateAsync();var revision=await Setup(db);var request=Request(revision);var service=Service(db);

@@ -1695,6 +1695,9 @@ Actuals sum all linked transactions on their posting dates, including charges sp
 `GET /api/transaction-imports/{batchId}/review`, `POST /api/transaction-imports/undo/preview`, and `POST /api/transaction-imports/undo` provide household-scoped review and an atomic, fingerprint-validated undo. See [Import undo/correction](18-import-undo-correction.md) for request/response behavior, explicit acknowledgments, transfer preservation, reconciliation invalidation, and retry semantics.
 
 Savings fund endpoints and activity semantics: [Savings funds](19-savings-funds.md#api).
+Set `plan.scheduleContributions: false` for an unscheduled, existing-cash fund.
+Its preview has no periods and saving it does not create or change a budget item.
+Existing plans default to scheduled contributions when the property is omitted.
 
 See [account security](20-account-security.md) for password request bodies, session expiry/revocation, rate limits, and SMTP requirements.
 

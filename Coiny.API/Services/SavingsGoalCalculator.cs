@@ -15,6 +15,8 @@ public static class SavingsGoalCalculator
             if (c.Key == Guid.Empty || string.IsNullOrWhiteSpace(c.Name) || c.Name.Trim().Length > 100 || c.Mode is not ("Target" or "Recurring" or "Monthly"))
                 throw new ArgumentException("Give each component a name and a supported goal type.");
             Money(c.Amount); Money(c.AlreadyFunded);
+            if (!plan.ScheduleContributions && (c.Mode != "Monthly" || c.Amount != 0 || c.TargetDate.HasValue))
+                throw new ArgumentException("Unscheduled funds have purposes and balances, without contribution amounts or deadlines.");
             if (c.Amount <= 0 && c.Mode != "Monthly") throw new ArgumentException("Each goal needs a positive amount.");
             if (c.Mode != "Monthly" && (c.TargetDate is null || c.TargetDate < plan.StartDate && (c.Mode != "Target" || c.AlreadyFunded < c.Amount) || c.TargetDate.Value.Year > 9900))
                 throw new ArgumentException("Choose a target date on or after contributions start.");
@@ -22,7 +24,7 @@ public static class SavingsGoalCalculator
             if (c.Mode == "Recurring" && c.RepeatMonths is not (1 or 3 or 6 or 12)) throw new ArgumentException("Choose a monthly, quarterly, six-month, or annual repeat.");
         }
     }
-    public static bool Equivalent(SavingsPlan? a,SavingsPlan b) => a is not null && a.StartDate==b.StartDate && a.Components.Count==b.Components.Count &&
+    public static bool Equivalent(SavingsPlan? a,SavingsPlan b) => a is not null && a.ScheduleContributions==b.ScheduleContributions && a.StartDate==b.StartDate && a.Components.Count==b.Components.Count &&
         a.Components.Zip(b.Components).All(p=>p.First.Key==p.Second.Key && p.First.Name==p.Second.Name && p.First.Mode==p.Second.Mode && p.First.Amount==p.Second.Amount && p.First.TargetDate==p.Second.TargetDate && p.First.RepeatMonths==p.Second.RepeatMonths && p.First.AlreadyFunded==p.Second.AlreadyFunded);
     public static void Money(decimal amount)
     {
@@ -31,7 +33,7 @@ public static class SavingsGoalCalculator
     private static decimal Round(decimal n) => decimal.Round(n,2,MidpointRounding.AwayFromZero);
     public static decimal Between(SavingsPlan plan, SavingsComponent c, DateOnly from, DateOnly to)
     {
-        if (to < plan.StartDate || to < from) return 0;
+        if (!plan.ScheduleContributions || to < plan.StartDate || to < from) return 0;
         from = from < plan.StartDate ? plan.StartDate : from;
         if (c.Mode == "Monthly")
         {
@@ -67,6 +69,6 @@ public static class SavingsGoalCalculator
         return due;
     }
     public static decimal Between(SavingsPlan plan, DateOnly from, DateOnly to) => plan.Components.Sum(c => Between(plan,c,from,to));
-    public static decimal MonthlyEquivalent(SavingsPlan plan) => Round(plan.Components.Sum(c => c.Mode == "Monthly" ? c.Amount :
+    public static decimal MonthlyEquivalent(SavingsPlan plan) => !plan.ScheduleContributions ? 0 : Round(plan.Components.Sum(c => c.Mode == "Monthly" ? c.Amount :
         c.Mode == "Recurring" ? c.Amount/c.RepeatMonths : Math.Max(0,c.Amount-c.AlreadyFunded)*365.2425m/12/(Math.Max(1,c.TargetDate!.Value.DayNumber-plan.StartDate.DayNumber+1))));
 }

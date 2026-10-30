@@ -1,5 +1,5 @@
 export interface SavingsComponent { key:string; name:string; mode:'Target'|'Recurring'|'Monthly'; amount:number; targetDate:string|null; repeatMonths:number; alreadyFunded:number; }
-export interface SavingsPlan { startDate:string; components:SavingsComponent[]; }
+export interface SavingsPlan { scheduleContributions?:boolean; startDate:string; components:SavingsComponent[]; }
 export interface SavingsActivity { id:number; componentKey:string; date:string; amount:number; kind:string; note:string|null; transactionId:number|null; merchant:string|null; missingTransaction:boolean; operationId:string; }
 export interface SavingsFund { nextContributionDate?:string|null;nextContributionAmount?:number|null; id:number; sourceKey:string; accountId:number; name:string; editVersion:number; isArchived:boolean; plan:SavingsPlan; balance:number; components:{definition:SavingsComponent;balance:number}[]; activities:SavingsActivity[]; }
 export interface SavingsAccount { accountId:number; name:string; balance:number; allocated:number; unallocated:number; shortfall:number; funds:SavingsFund[]; }

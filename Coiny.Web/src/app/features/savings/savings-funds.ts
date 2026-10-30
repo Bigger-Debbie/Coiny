@@ -21,6 +21,10 @@ export class SavingsFunds implements OnChanges {
  readonly management=signal<BudgetManagement|null>(null);readonly dialog=signal<'edit'|'review'|'detail'|'activity'|'move'|'archive'|null>(null);readonly selected=signal<SavingsFund|null>(null);
  readonly preview=signal<FundPreview|null>(null);readonly candidates=signal<FundCandidate[]>([]);
  readonly modes:SelectOption[]=[{value:'Target',label:'Reach a target by a date'},{value:'Recurring',label:'Prepare for a recurring cost'},{value:'Monthly',label:'Build an ongoing reserve'}];
+ get manualFunding(){return this.form.plan.scheduleContributions===false;}
+ get fundingOptions():SelectOption[]{return [...(this.management()||this.draft?[{value:'scheduled',label:'Plan regular contributions'}]:[]),{value:'manual',label:'Add money when I choose'}];}
+ setFunding(value:string){this.form.plan.scheduleContributions=value!=='manual';if(this.manualFunding){this.form.sourceKey=null;this.form.plan.startDate=today();}this.invalidate();}
+ get openingTotal(){return Object.values(this.opening).reduce((sum,value)=>sum+(Number(value)||0),0);}
  readonly repeats:SelectOption[]=[{value:1,label:'Every month'},{value:3,label:'Every 3 months'},{value:6,label:'Every 6 months'},{value:12,label:'Every year'}];
  readonly componentIssues=signal<Record<string,Record<string,string>>>({});
  readonly fundIssues=signal<Record<string,string>>({});
@@ -35,18 +39,18 @@ export class SavingsFunds implements OnChanges {
   const money=(value:unknown)=>typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=999999999&&Math.abs(value*100-Math.round(value*100))<.00001;
   if(!this.form.name.trim()||this.form.name.trim().length>100)fund['name']='Enter a fund name of up to 100 characters.';
   if(!this.selectedAccount)fund['account']='Choose a savings account.';
-  const earliest=this.management()?.earliestEffectiveDate??today();
+  const earliest=this.manualFunding?today():this.management()?.earliestEffectiveDate??today();
   if(!validDate(this.form.plan.startDate)||this.form.plan.startDate<today()||this.form.plan.startDate<earliest)fund['startDate']='Choose today or a later date, on or after the latest budget update.';
   if(!this.form.plan.components.length||this.form.plan.components.length>30)fund['components']='Add between 1 and 30 components.';
   let openingTotal=0;
   for(const component of this.form.plan.components){
    const errors:Record<string,string>={};
-   if(!component.name.trim()||component.name.trim().length>100)errors['name']='Enter a purpose of up to 100 characters.';
-   if(!['Target','Recurring','Monthly'].includes(component.mode))errors['mode']='Choose how to fund this component.';
-   if(!money(component.amount)||(component.mode!=='Monthly'&&component.amount<=0))errors['amount']=component.mode==='Monthly'?'Enter a nonnegative amount with up to two decimal places.':'Enter a positive amount with up to two decimal places.';
+   if(!(component.name.trim()||(this.manualFunding&&this.form.plan.components.length===1?this.form.name.trim():''))||component.name.trim().length>100)errors['name']='Enter a purpose of up to 100 characters.';
+   if(!this.manualFunding&&!['Target','Recurring','Monthly'].includes(component.mode))errors['mode']='Choose how to fund this component.';
+   if(!this.manualFunding&&(!money(component.amount)||(component.mode!=='Monthly'&&component.amount<=0)))errors['amount']=component.mode==='Monthly'?'Enter a nonnegative amount with up to two decimal places.':'Enter a positive amount with up to two decimal places.';
    const opening=this.selected()?component.alreadyFunded:(this.opening[component.key]??0);
    if(!money(opening))errors['opening']='Enter a nonnegative amount with up to two decimal places.';else openingTotal+=opening;
-   if(component.mode!=='Monthly'){
+   if(!this.manualFunding&&component.mode!=='Monthly'){
     if(!validDate(component.targetDate))errors['targetDate']=component.mode==='Recurring'?'Choose the next expense date.':'Choose when you want to reach this goal.';
     else if(validDate(this.form.plan.startDate)){
      const latest=new Date(this.form.plan.startDate+'T00:00:00Z');latest.setUTCFullYear(latest.getUTCFullYear()+10);
@@ -54,7 +58,7 @@ export class SavingsFunds implements OnChanges {
      else if(component.targetDate!>latest.toISOString().slice(0,10))errors['targetDate']='Choose a target within 10 years of the start date.';
     }
    }
-   if(component.mode==='Recurring'&&![1,3,6,12].includes(Number(component.repeatMonths)))errors['repeatMonths']='Choose how often this cost repeats.';
+   if(!this.manualFunding&&component.mode==='Recurring'&&![1,3,6,12].includes(Number(component.repeatMonths)))errors['repeatMonths']='Choose how often this cost repeats.';
    if(Object.keys(errors).length)issues[component.key]=errors;
   }
   if(!this.selected()&&this.selectedAccount&&openingTotal>this.selectedAccount.unallocated){
@@ -81,13 +85,17 @@ export class SavingsFunds implements OnChanges {
  async edit(fund:SavingsFund|null=null){
   this.error.set('');this.busy.set(true);
   try{
-   if(!this.draft)this.management.set(await this.request(this.budgets.management()));
+   let noBudget=false;
+   if(!this.draft&&fund?.plan.scheduleContributions!==false){
+    try{this.management.set(await this.request(this.budgets.management()));}
+    catch(e){const failure=e as {status?:number,error?:{detail?:string}};if(failure.status===400&&failure.error?.detail==='Publish your first budget before managing its items.'){this.management.set(null);noBudget=true;}else throw e;}
+   }
    this.selected.set(fund);this.form=this.blank();this.validationAttempted=false;this.componentIssues.set({});this.fundIssues.set({});
    this.form.expectedRevisionId=this.management()?.revision.id??null;this.form.draftId=this.draft?.id??null;this.form.draftEditVersion=this.draft?.editVersion??null;
    this.form.plan.startDate=this.management()?.earliestEffectiveDate??today();
    if(this.form.plan.startDate<today())this.form.plan.startDate=today();
-   if(fund){this.form={...this.form,sourceKey:fund.sourceKey,accountId:fund.accountId,name:fund.name,expectedEditVersion:fund.editVersion,plan:{startDate:this.form.plan.startDate,components:fund.components.map(c=>({...c.definition,alreadyFunded:c.balance}))}};}
-   else{this.form.accountId=this.accountId??this.accounts()[0]?.accountId??0;this.addComponent();}
+   if(fund){this.form={...this.form,sourceKey:fund.sourceKey,accountId:fund.accountId,name:fund.name,expectedEditVersion:fund.editVersion,plan:{scheduleContributions:fund.plan.scheduleContributions??true,startDate:fund.plan.scheduleContributions===false?today():this.form.plan.startDate,components:fund.components.map(c=>({...c.definition,alreadyFunded:c.balance}))}};}
+   else{this.form.accountId=this.accountId??this.accounts()[0]?.accountId??0;this.form.plan.scheduleContributions=!noBudget;if(noBudget)this.form.plan.startDate=today();this.addComponent();}
    this.opening={};this.preview.set(null);this.reviewed=null;this.acceptedShortfall=false;this.dialog.set('edit');
   }catch(e){this.fail(e);}finally{this.busy.set(false);}
  }
@@ -95,8 +103,8 @@ export class SavingsFunds implements OnChanges {
  addComponent(){this.form.plan.components.push({key:crypto.randomUUID(),name:'',mode:'Target',amount:0,targetDate:null,repeatMonths:12,alreadyFunded:0});this.invalidate();}
  removeComponent(c:SavingsComponent){this.form.plan.components=this.form.plan.components.filter(x=>x!==c);this.invalidate();}
  invalidate(){this.preview.set(null);this.reviewed=null;this.acceptedShortfall=false;if(this.validationAttempted)this.validateEditor(false);}
- async review(){if(this.busy())return;this.validationAttempted=true;this.error.set('');if(!this.validateEditor())return;this.busy.set(true);try{const request=structuredClone(this.form);request.accountId=Number(request.accountId);request.openingAllocations=this.selected()?{}:Object.fromEntries(Object.entries(this.opening).map(([key,value])=>[key,value??0]));request.plan.components.forEach(c=>{c.repeatMonths=Number(c.repeatMonths);c.targetDate=c.targetDate||null;});const result=await this.request(this.api.preview(request));this.reviewed=request;this.preview.set(result);this.acceptedShortfall=false;this.dialog.set('review');}catch(e){this.fail(e);this.focusIssue();}finally{this.busy.set(false);}}
- async save(){if(!this.reviewed||this.busy()||(this.preview()!.largestShortfall>0&&!this.acceptedShortfall))return;this.busy.set(true);this.error.set('');try{await this.request(this.api.save({...this.reviewed,acceptShortfall:this.acceptedShortfall}));this.dialog.set(null);this.toast.success('Savings fund and contribution plan saved.');await this.load();this.changed.emit();}catch(e){this.fail(e);}finally{this.busy.set(false);}}
+ async review(){if(this.busy())return;if(this.manualFunding)this.form.plan.startDate=today();this.validationAttempted=true;this.error.set('');if(!this.validateEditor())return;this.busy.set(true);try{const request=structuredClone(this.form);request.accountId=Number(request.accountId);request.openingAllocations=this.selected()?{}:Object.fromEntries(Object.entries(this.opening).map(([key,value])=>[key,value??0]));request.plan.components.forEach(c=>{c.repeatMonths=Number(c.repeatMonths);c.targetDate=c.targetDate||null;if(this.manualFunding){c.name=c.name.trim()||request.name.trim();c.mode='Monthly';c.amount=0;c.targetDate=null;}});if(this.manualFunding){request.draftId=null;request.draftEditVersion=null;request.expectedRevisionId=null;}const result=await this.request(this.api.preview(request));this.reviewed=request;this.preview.set(result);this.acceptedShortfall=false;this.dialog.set('review');}catch(e){this.fail(e);this.focusIssue();}finally{this.busy.set(false);}}
+ async save(){if(!this.reviewed||this.busy()||(this.preview()!.largestShortfall>0&&!this.acceptedShortfall))return;this.busy.set(true);this.error.set('');try{await this.request(this.api.save({...this.reviewed,acceptShortfall:this.acceptedShortfall}));this.dialog.set(null);this.toast.success(this.manualFunding?'Savings fund saved.':'Savings fund and contribution plan saved.');await this.load();this.changed.emit();}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  openFund(key:string){const fund=this.accounts().flatMap(a=>a.funds).find(f=>f.sourceKey===key);if(!fund)return false;this.detail(fund);return true;}
  detail(fund:SavingsFund){this.selected.set(fund);this.error.set('');this.dialog.set('detail');}
  async activity(kind:string){this.activityKind=kind;this.activityDate=today();this.activityTransaction='';this.activityNote='';this.activityDue='';this.activityAmounts={};this.operationId=crypto.randomUUID();this.candidates.set([]);this.error.set('');this.dialog.set('activity');if(!['Reallocate','Allocate'].includes(kind)){try{this.candidates.set(await this.request(this.api.candidates(this.selected()!.sourceKey,kind)));}catch(e){this.fail(e);}}}
@@ -114,7 +122,7 @@ export class SavingsFunds implements OnChanges {
  async saveMove(){if(this.busy())return;this.busy.set(true);this.error.set('');try{const origin=this.selected()!;const dest=this.destinationFunds.find(f=>f.sourceKey===this.moveDestination);await this.request(this.api.move(origin.sourceKey,{operationId:this.operationId,expectedEditVersion:origin.editVersion,componentKey:this.moveOrigin,destinationFundKey:dest?.sourceKey??null,destinationComponentKey:dest?this.moveComponent:null,destinationEditVersion:dest?.editVersion??null,amount:this.moveAmount}));this.dialog.set(null);await this.load();this.changed.emit();this.toast.success('Savings allocation moved.');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  canCorrect(kind:string){return ['Contribution','ContributionLinked','Withdrawal','WithdrawalLinked','Reallocate','Allocate'].includes(kind);}
  async correct(operation:string){if(this.busy()||!window.confirm('Reverse this allocation activity? Its history will remain visible.'))return;this.busy.set(true);this.error.set('');try{const fund=await this.request(this.api.correct(this.selected()!.sourceKey,operation,this.selected()!.editVersion));this.selected.set(fund);await this.load();this.changed.emit();}catch(e){this.fail(e);}finally{this.busy.set(false);}}
- async archiveReview(){this.busy.set(true);this.error.set('');try{if(!this.draft)this.management.set(await this.request(this.budgets.management()));this.dialog.set('archive');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
+ async archiveReview(){this.busy.set(true);this.error.set('');try{if(!this.draft&&this.selected()?.plan.scheduleContributions!==false)this.management.set(await this.request(this.budgets.management()));this.dialog.set('archive');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  async archive(){if(this.busy())return;this.busy.set(true);this.error.set('');try{await this.request(this.api.archive(this.selected()!.sourceKey,{expectedEditVersion:this.selected()!.editVersion,expectedRevisionId:this.management()?.revision.id??0,effectiveDate:this.management()?.earliestEffectiveDate??today(),draftId:this.draft?.id??null,draftEditVersion:this.draft?.editVersion??null}));this.dialog.set(null);await this.load();this.changed.emit();this.toast.success('Fund archived; its history is retained.');}catch(e){this.fail(e);}finally{this.busy.set(false);}}
  private fail(e:unknown){this.error.set((e as {error?:{detail?:string}}).error?.detail??'Savings funds couldn’t load or save. Please try again.');}
 }

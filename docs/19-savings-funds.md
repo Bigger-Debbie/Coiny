@@ -1,11 +1,31 @@
 # Savings funds and component goals
 
 Savings accounts can hold several purpose allocations. Each fund belongs to exactly
-one household savings account and uses its stable budget allocation SourceKey.
+one household savings account and has a stable SourceKey. Scheduled funds use
+that same key for their budget allocation.
 The account balance remains ledger-derived; earmarking cash never creates or edits
 a bank transaction. Fund balances are the sum of their allocation activity.
 
-## User workflow
+## Funds without scheduled contributions
+
+Choose **Funding → Add money when I choose** for emergency savings or other cash
+that does not need a paycheck contribution plan. Name the fund, choose its savings
+account, and enter money already set aside. A single purpose can use the fund name;
+add components only if you want separate balances inside it.
+
+This mode has no deadline, recurring amount, budget item, or calendar contribution.
+It works before a budget is published. Review shows the opening allocations, then
+**Save fund** creates the fund. **Add money**, **Assign existing cash**, moves, and
+withdrawals remain available; allocations cannot exceed unallocated account cash.
+Manual fund additions stay out of budget contribution actuals and forecasts.
+Fund-backed expenses retain the normal savings-funded spending treatment.
+
+Funding style is fixed after creation; existing scheduled funds keep their plans.
+The API stores `plan.scheduleContributions: false` with zero-amount Monthly
+components and no target dates. Omitted values default to scheduled behavior for
+existing funds. No schema migration is needed.
+
+## Scheduled funds
 
 - Select a savings account on Accounts. Its fund makeup replaces the expense donut.
   The stacked bar/list shows funds, unallocated cash, and any allocation shortfall.
