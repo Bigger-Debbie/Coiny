@@ -1,3 +1,4 @@
+import { AuthLogo } from '../../../shared/components/auth-logo/auth-logo';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -6,7 +7,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AppFooter } from '../../../shared/components/app-footer/app-footer';
 import { environemnt } from '../../../../environments/environment';
 
-@Component({selector: 'app-password-recovery', imports: [FormsModule, RouterLink, AppFooter],
+@Component({selector: 'app-password-recovery', imports: [AuthLogo, FormsModule, RouterLink, AppFooter],
   templateUrl: './recovery.html', styleUrls: ['../login/login.css', './recovery.css']})
 export class PasswordRecovery {
   private readonly http = inject(HttpClient); private readonly destroy = inject(DestroyRef);

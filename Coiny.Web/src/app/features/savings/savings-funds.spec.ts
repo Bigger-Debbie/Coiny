@@ -13,6 +13,15 @@ describe('Savings funds',()=>{
  beforeEach(()=>{TestBed.configureTestingModule({imports:[SavingsFunds],providers:[provideHttpClient(),provideHttpClientTesting()]});http=TestBed.inject(HttpTestingController);});
  afterEach(()=>{http.verify();vi.restoreAllMocks();});
  async function render(){const f=TestBed.createComponent(SavingsFunds);f.componentRef.setInput('accountId',1);f.detectChanges();http.expectOne(r=>r.url.endsWith('/savings-funds')).flush([account]);await f.whenStable();f.detectChanges();return f;}
+ it('distinguishes existing savings from paycheck funding and preserves the draft when switching',async()=>{
+  const f=await render();const c=f.componentInstance;c.detail(fund);const opening=c.activity('Contribution');http.expectOne(r=>r.url.endsWith('/candidates')).flush([]);await opening;
+  c.activityAmounts={'goal-1':73.44};c.activityDate='2026-10-30';c.activityNote='October catch-up';c.activityDue='2026-11-12';c.activityTransaction='42';f.detectChanges();
+  expect(f.nativeElement.textContent).toContain('Counts toward this period’s budget');
+  const existing=f.nativeElement.querySelector('.funding-options button:last-child') as HTMLButtonElement;existing.click();f.detectChanges();await f.whenStable();
+  expect(c.activityKind).toBe('Allocate');expect(c.activityAmounts).toEqual({'goal-1':73.44});expect(c.activityDate).toBe('2026-10-30');expect(c.activityNote).toBe('October catch-up');expect(c.activityDue).toBe('');expect(c.activityTransaction).toBe('');
+  expect(f.nativeElement.querySelector('#activity-due')).toBeNull();expect(f.nativeElement.textContent).toContain('does not count toward the current paycheck');
+  const saving=c.record();const req=http.expectOne(r=>r.url.endsWith('/fund-1/activity'));expect(req.request.body).toMatchObject({kind:'Allocate',dueDate:null,transactionId:null,amounts:{'goal-1':73.44}});req.flush(fund);await Promise.resolve();http.expectOne(r=>r.url.endsWith('/savings-funds')).flush([account]);await saving;
+ });
  it('shows the account makeup and unallocated cash without creating transactions',async()=>{const f=await render();expect(f.nativeElement.textContent).toContain('$20,000.00');expect(f.nativeElement.textContent).toContain('$19,000.00');const segment=f.nativeElement.querySelector('.fund-bar button') as HTMLElement;expect(segment.style.width).toBe('5%');http.expectNone(r=>r.method!=='GET');});
  it('requires an explicit stretch-goal choice and saves the exact reviewed contribution plan',async()=>{
   const f=await render();const c=f.componentInstance;const editing=c.edit(fund);http.expectOne(r=>r.url.endsWith('/management')).flush({revision:{id:7,allocations:[]},earliestEffectiveDate:'2026-10-27'});await editing;f.detectChanges();
@@ -69,7 +78,7 @@ describe('Savings funds',()=>{
   const menu=f.nativeElement.querySelector('.fund-management') as HTMLDetailsElement;const trigger=menu.querySelector('summary')!;expect(menu.open).toBe(false);
   trigger.click();expect(menu.open).toBe(true);trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));expect(menu.open).toBe(false);
   trigger.click();c.closeManagement(menu,{target:f.nativeElement.querySelector('.balance-heading')} as unknown as Event);expect(menu.open).toBe(false);
-  trigger.click();const assign=Array.from(menu.querySelectorAll('button')).find(b=>b.textContent?.includes('Assign existing cash'))!;assign.click();f.detectChanges();expect(c.dialog()).toBe('activity');expect(c.activityKind).toBe('Allocate');expect(f.nativeElement.querySelector('.fund-management')).toBeNull();
+  trigger.click();const assign=Array.from(menu.querySelectorAll('button')).find(b=>b.textContent?.includes('Assign existing savings'))!;assign.click();f.detectChanges();expect(c.dialog()).toBe('activity');expect(c.activityKind).toBe('Allocate');expect(f.nativeElement.querySelector('.fund-management')).toBeNull();
  });
 
 });

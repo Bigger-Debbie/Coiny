@@ -1,3 +1,4 @@
+import { AuthLogo } from '../../../shared/components/auth-logo/auth-logo';
 import { notificationSignal } from '../../../core/services/toast.service';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -7,7 +8,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { AppFooter } from '../../../shared/components/app-footer/app-footer';
 import { CoinBackground } from '../../../shared/components/coin-background/coin-background';
 
-@Component({ selector: 'app-signup', imports: [FormsModule, RouterLink, AppFooter, CoinBackground], templateUrl: './signup.html', styleUrls: ['../login/login.css', './signup.css'] })
+@Component({ selector: 'app-signup', imports: [AuthLogo, FormsModule, RouterLink, AppFooter, CoinBackground], templateUrl: './signup.html', styleUrls: ['../login/login.css', './signup.css'] })
 export class Signup {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);

@@ -11,20 +11,24 @@
     [attr.aria-pressed]="paused()">{{ paused() ? 'Resume background animation' : 'Pause background animation' }}</button>
   <main>
     <section class="login-card" aria-label="Sign in to Coiny">
-      <img class="login-logo" src="assets/logos/Coiny-Logo-Hrztl.svg" alt="Coiny" />
+      <app-auth-logo class="login-logo" />
       <form #form="ngForm" (ngSubmit)="login(form)" novalidate [attr.aria-busy]="submitting()">
         <div class="field">
-          <label for="email">Email</label>
+          <div class="field-label">
+            <label for="email">Email</label>
+            <span id="email-error" class="field-error">@if (email.invalid && (email.touched || form.submitted)) { Enter a valid email address. }</span>
+          </div>
           <input id="email" name="email" type="email" autocomplete="username"
             [(ngModel)]="model.email" #email="ngModel" required email
             [attr.aria-invalid]="email.invalid && (email.touched || form.submitted)"
             aria-describedby="email-error" />
-          <span id="email-error" class="field-error">
-            @if (email.invalid && (email.touched || form.submitted)) { Enter a valid email address. }
-          </span>
+
         </div>
         <div class="field">
-          <label for="password">Password</label>
+          <div class="field-label">
+            <label for="password">Password</label>
+            <span id="password-error" class="field-error">@if (password.invalid && (password.touched || form.submitted)) { Enter your password. }</span>
+          </div>
           <div class="password-field">
             <input id="password" name="password" [type]="passwordVisible() ? 'text' : 'password'"
               autocomplete="current-password" [(ngModel)]="model.password" #password="ngModel" required
@@ -35,9 +39,7 @@
               <img [src]="passwordVisible() ? 'assets/icons/hide.svg' : 'assets/icons/show.svg'" alt="" />
             </button>
           </div>
-          <span id="password-error" class="field-error">
-            @if (password.invalid && (password.touched || form.submitted)) { Enter your password. }
-          </span>
+
         </div>
         <a class="text-button forgot" routerLink="/forgot-password">Forgot Password?</a>
         @if (errorMessage()) { <p class="feedback error" role="alert">{{ errorMessage() }}</p> }

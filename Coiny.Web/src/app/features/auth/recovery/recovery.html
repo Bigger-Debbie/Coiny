@@ -1,5 +1,5 @@
 <div class="login-page"><main><section class="login-card" [attr.aria-label]="codeRecovery ? 'Recover with a code' : reset ? 'Reset password' : 'Recover password'">
-  <img class="login-logo" src="assets/logos/Coiny-Logo-Hrztl.svg" alt="Coiny" />
+  <app-auth-logo class="login-logo" />
   <h1 class="page-title">{{ codeRecovery ? 'Use a recovery code' : reset ? 'Reset password' : 'Forgot your password?' }}</h1>
   @if (!done()) {
     @if (choosingPassword || emailAvailable() === true) {

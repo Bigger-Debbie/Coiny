@@ -15,7 +15,7 @@ add components only if you want separate balances inside it.
 
 This mode has no deadline, recurring amount, budget item, or calendar contribution.
 It works before a budget is published. Review shows the opening allocations, then
-**Save fund** creates the fund. **Add money**, **Assign existing cash**, moves, and
+**Save fund** creates the fund. **Add money**, **Assign existing savings**, moves, and
 withdrawals remain available; allocations cannot exceed unallocated account cash.
 Manual fund additions stay out of budget contribution actuals and forecasts.
 Fund-backed expenses retain the normal savings-funded spending treatment.
@@ -29,7 +29,7 @@ existing funds. No schema migration is needed.
 
 - Select a savings account on Accounts. Its fund makeup replaces the expense donut.
   The stacked bar/list shows funds, unallocated cash, and any allocation shortfall.
-  Fund details keep Record contribution and Use fund money visible; Manage fund
+  Fund details keep Paycheck contribution and Use fund money visible; Manage fund
   groups editing, existing-cash assignment, allocation moves, and archiving.
 - Create/manage funds from the budget page's Savings funds & goals section, or from
   the final planning step in the initial wizard. Investments has its own step.
@@ -63,7 +63,7 @@ A calendar contribution linked to the receiving transfer automatically allocates
 amount across the fund's components; unlinking reverses those allocations, provided
 later withdrawals have not consumed them. One bank movement cannot fund two goals.
 
-Assign existing cash is a purpose-only allocation and does not count as a paycheck
+Assign existing savings is a purpose-only allocation and does not count as a paycheck
 contribution. Monthly reserves may use a zero contribution when the fund only
 organizes an existing balance.
 
@@ -135,7 +135,7 @@ Investments and bills cannot be skipped with this action.
 Skipping creates no bank transaction or fund activity and does not erase actual
 money already recorded. Linked payments must be unlinked explicitly first. Existing
 partial fund contributions stay in actuals while the remaining commitment is skipped.
-Use **Assign existing cash** separately for money supplied from another source.
+Use **Assign existing savings** separately for money supplied from another source.
 Restoring clears the skip and reinstates the contribution. Later dated-goal funding
 may need adjustment after a missed period. The AddSkippedSavingsContributions migration
 adds status and boundary fields to BillPayments without rewriting existing records.
@@ -143,3 +143,10 @@ adds status and boundary fields to BillPayments without rewriting existing recor
 The budget summary adapts by width: wide income-period views stack the income and
 allocation cards beside the cash/remainder card; narrower views place the remainder
 below them. Wide monthly views keep all three summary cards at an equal height.
+
+For scheduled funds, the activity form asks whether money comes **From this
+paycheck** or **From existing savings**. Paycheck contributions enter budget
+actuals even without a transaction link. Existing savings only increase the
+fund’s allocation; they do not mark a scheduled contribution paid. Use this
+option for catch-up funding from earlier savings. Switching preserves entered
+amounts, date, and note while clearing any transaction link and due date.

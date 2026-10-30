@@ -1,14 +1,26 @@
 <div class="login-page"><app-coin-background /><main><section class="login-card" aria-label="Create your Coiny account">
-  <img class="login-logo" src="assets/logos/Coiny-Logo-Hrztl.svg" alt="Coiny" />
+  <app-auth-logo class="login-logo" />
   <h1 class="page-title">Create your account</h1><p>Next, create a household or join one with an invitation code.</p>
   <form #form="ngForm" (ngSubmit)="signup(form)" novalidate>
     <fieldset [disabled]="saving()">
-      <div class="field"><label for="first-name">First name</label><input id="first-name" name="firstName" autocomplete="given-name" required maxlength="100" [(ngModel)]="model.firstName" /></div>
-      <div class="field"><label for="signup-email">Email</label><input id="signup-email" type="email" name="email" autocomplete="username" required email [(ngModel)]="model.email" /></div>
-      <div class="field"><label for="signup-password">Password</label><div class="password-field"><input id="signup-password" name="password" autocomplete="new-password" [type]="visible() ? 'text' : 'password'" required minlength="8" [(ngModel)]="model.password" aria-describedby="password-help" /><button class="password-toggle" type="button" (click)="visible.set(!visible())" [attr.aria-label]="visible() ? 'Hide password' : 'Show password'"><img [src]="visible() ? 'assets/icons/hide.svg' : 'assets/icons/show.svg'" alt="" /></button></div><small id="password-help">Use at least 8 characters, including uppercase and lowercase letters, a number, and a symbol.</small></div>
-      <div class="field"><label for="confirm-password">Confirm password</label><input id="confirm-password" name="confirmPassword" autocomplete="new-password" [type]="visible() ? 'text' : 'password'" required [(ngModel)]="model.confirmPassword" /></div>
+      <div class="field">
+        <div class="field-label"><label for="first-name">First name</label><span id="first-name-error" class="field-error">@if ((firstName.touched || form.submitted) && !model.firstName.trim()) { Enter your first name. }</span></div>
+        <input id="first-name" name="firstName" autocomplete="given-name" required maxlength="100" [(ngModel)]="model.firstName" #firstName="ngModel" [attr.aria-invalid]="(firstName.touched || form.submitted) && !model.firstName.trim()" aria-describedby="first-name-error" />
+      </div>
+      <div class="field">
+        <div class="field-label"><label for="signup-email">Email</label><span id="signup-email-error" class="field-error">@if (email.invalid && (email.dirty || email.touched || form.submitted)) { Enter a valid email address. }</span></div>
+        <input id="signup-email" type="email" name="email" autocomplete="username" required email [(ngModel)]="model.email" #email="ngModel" [attr.aria-invalid]="email.invalid && (email.dirty || email.touched || form.submitted)" aria-describedby="signup-email-error" />
+      </div>
+      <div class="field">
+        <div class="field-label"><label for="signup-password">Password</label><span id="signup-password-error" class="field-error">@if (!passwordValid && (password.dirty || password.touched || form.submitted)) { {{ model.password ? 'Check the password requirements.' : 'Enter a password.' }} }</span></div>
+        <div class="password-field"><input id="signup-password" name="password" autocomplete="new-password" [type]="visible() ? 'text' : 'password'" required minlength="8" [(ngModel)]="model.password" #password="ngModel" [attr.aria-invalid]="!passwordValid && (password.dirty || password.touched || form.submitted)" aria-describedby="password-help signup-password-error" /><button class="password-toggle" type="button" (click)="visible.set(!visible())" [attr.aria-label]="visible() ? 'Hide password' : 'Show password'"><img [src]="visible() ? 'assets/icons/hide.svg' : 'assets/icons/show.svg'" alt="" /></button></div>
+        <small id="password-help">Use at least 8 characters, including uppercase and lowercase letters, a number, and a symbol.</small>
+      </div>
+      <div class="field">
+        <div class="field-label"><label for="confirm-password">Confirm password</label><span id="confirm-password-error" class="field-error">@if ((confirmation.dirty || confirmation.touched || form.submitted) && (!model.confirmPassword || model.password !== model.confirmPassword)) { {{ model.confirmPassword ? 'Passwords don’t match.' : 'Confirm your password.' }} }</span></div>
+        <input id="confirm-password" name="confirmPassword" autocomplete="new-password" [type]="visible() ? 'text' : 'password'" required [(ngModel)]="model.confirmPassword" #confirmation="ngModel" [attr.aria-invalid]="(confirmation.dirty || confirmation.touched || form.submitted) && (!model.confirmPassword || model.password !== model.confirmPassword)" aria-describedby="confirm-password-error" />
+      </div>
     </fieldset>
-    @if (form.submitted && (form.invalid || !model.firstName.trim() || !passwordValid || model.password !== model.confirmPassword)) { <p class="feedback error" role="alert">Complete each field, follow the password requirements, and make sure the passwords match.</p> }
     @if (error()) { <p class="feedback error" role="alert">{{ error() }}</p> }
     <button class="login-button" type="submit" [disabled]="saving()">{{ saving() ? 'Creating account…' : 'Sign up' }}</button>
     <a class="text-button signup" routerLink="/login" [queryParams]="joinCode ? { code: joinCode } : null">Already have an account? Sign in</a>

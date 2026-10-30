@@ -1,3 +1,4 @@
+import { AuthLogo } from '../../../shared/components/auth-logo/auth-logo';
 import { notificationSignal } from '../../../core/services/toast.service';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -9,7 +10,7 @@ import { AppFooter } from '../../../shared/components/app-footer/app-footer';
 
 @Component({
   selector: 'app-login',
-  imports: [FormsModule, AppFooter, RouterLink],
+  imports: [AuthLogo, FormsModule, AppFooter, RouterLink],
   templateUrl: './login.html',
   styleUrl: './login.css'
 })

@@ -11,7 +11,8 @@ main { flex: 1; display: grid; place-items: center; padding: 5rem 1.25rem 3rem; 
 .login-card { width: min(100%, 32rem); padding: 2rem 3rem 1.25rem; background: white; border: 2px solid var(--color-primary); border-radius: 2.25rem; }
 .login-logo { display: block; width: min(100%, 16rem); height: auto; margin: 0 auto 2.75rem; }
 form { display: flex; flex-direction: column; }
-.field { display: grid; gap: .35rem; }
+.field { display: grid; gap: .35rem; margin-bottom: 1.25rem; }
+.field-label { display: flex; align-items: baseline; flex-wrap: wrap; gap: .2rem .65rem; min-height: 1.25rem; }
 label { color: var(--color-text); padding-left: .6rem; font-weight: 400; margin-bottom: 0; }
 input { width: 100%; min-height: 3rem; border: 1px solid var(--color-primary); border-radius: 1rem; padding: .7rem 1rem; font: inherit; background: white; color: var(--color-text); }
 input[aria-invalid="true"] { border-color: var(--color-danger); }
@@ -27,7 +28,8 @@ button { font: inherit; cursor: pointer; }
 .login-button:hover { filter: brightness(1.15); }
 .login-button:disabled { opacity: .65; cursor: wait; }
 .signup { align-self: center; margin-top: .5rem; }
-.field-error { min-height: 1rem; font-size: .75rem; color: var(--color-danger); }
+.field-error { font-size: .75rem; color: var(--color-danger); }
+.field-error:empty { display: none; }
 .feedback { font-size: .85rem; text-align: center; margin: .5rem 0 0; }
 .error { color: var(--color-danger); }
 .notice { color: var(--color-primary); }

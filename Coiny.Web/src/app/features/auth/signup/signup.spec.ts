@@ -14,6 +14,29 @@ describe('Signup', () => {
     http = TestBed.inject(HttpTestingController); vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   });
   afterEach(() => http.verify());
+  it('validates email while typing and clears the label warning after correction', async () => {
+    const f = TestBed.createComponent(Signup); f.detectChanges(); await f.whenStable();
+    const input = f.nativeElement.querySelector('#signup-email') as HTMLInputElement;
+    expect(f.nativeElement.querySelector('#signup-email-error').textContent.trim()).toBe('');
+    input.value = 'alextros'; input.dispatchEvent(new Event('input')); f.detectChanges(); await f.whenStable(); f.detectChanges();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(f.nativeElement.querySelector('.field-label #signup-email-error').textContent).toContain('Enter a valid email');
+    input.value = 'alex@example.test'; input.dispatchEvent(new Event('input')); f.detectChanges(); await f.whenStable(); f.detectChanges();
+    expect(input.getAttribute('aria-invalid')).toBe('false'); expect(f.nativeElement.querySelector('#signup-email-error').textContent.trim()).toBe('');
+    http.expectNone(r => r.method === 'POST');
+  });
+  it('checks confirmation while typing and checks again when the original password changes', async () => {
+    const f = TestBed.createComponent(Signup); f.detectChanges(); await f.whenStable();
+    async function type(id: string, value: string) { const input = f.nativeElement.querySelector(id); input.value = value; input.dispatchEvent(new Event('input')); f.detectChanges(); await f.whenStable(); f.detectChanges(); }
+    await type('#signup-password', 'CoinyNew!2026'); await type('#confirm-password', 'different');
+    const confirmation = f.nativeElement.querySelector('#confirm-password');
+    expect(confirmation.getAttribute('aria-invalid')).toBe('true');
+    expect(f.nativeElement.querySelector('.field-label #confirm-password-error').textContent).toContain('Passwords don’t match');
+    await type('#confirm-password', 'CoinyNew!2026'); expect(confirmation.getAttribute('aria-invalid')).toBe('false');
+    await type('#signup-password', 'Changed!2026'); expect(confirmation.getAttribute('aria-invalid')).toBe('true');
+    f.nativeElement.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })); f.detectChanges();
+    http.expectNone(r => r.method === 'POST');
+  });
   it('registers only matching strong passwords, stores the token, and preserves the invitation link', () => {
     const f = TestBed.createComponent(Signup); f.detectChanges(); const c = f.componentInstance;
     c.model = { firstName: ' Alex ', email: 'alex@example.test', password: 'CoinyNew!2026', confirmPassword: 'different' };

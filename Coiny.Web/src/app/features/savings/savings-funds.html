@@ -19,7 +19,7 @@
 </section>
 @if(dialog() && dialog()!=='review'){
  @let view=dialog()!;
- <app-modal [title]="view==='edit'?(selected()?'Edit savings fund':'Create savings fund'):view==='activity'?'Record fund activity':view==='move'?'Move savings allocation':view==='archive'?'Archive savings fund':selected()!.name" [busy]="busy()" (dismiss)="close()">
+ <app-modal [title]="view==='edit'?(selected()?'Edit savings fund':'Create savings fund'):view==='activity'?activityTitle:view==='move'?'Move savings allocation':view==='archive'?'Archive savings fund':selected()!.name" [busy]="busy()" (dismiss)="close()">
   @if(error()){<p class="error editor-error" tabindex="-1" role="alert">{{error()}}</p>}
   @if(view==='edit'){
    <form (ngSubmit)="$event.stopPropagation(); review()" (input)="invalidate()">
@@ -59,16 +59,16 @@
        <summary #managementTrigger>Manage fund <span aria-hidden="true">⌃</span></summary>
        <div class="management-options">
         <button type="button" (click)="fundManagement.open=false;edit(fund)">{{fund.plan.scheduleContributions===false?'Edit fund':'Edit goals & plan'}}</button>
-        <button type="button" (click)="fundManagement.open=false;activity('Allocate')">Assign existing cash</button>
+        <button type="button" (click)="fundManagement.open=false;activity('Allocate')">Assign existing savings</button>
         <button type="button" (click)="fundManagement.open=false;activity('Reallocate')">Move between components</button>
         <button type="button" (click)="fundManagement.open=false;move()">Move to another fund</button>
         @if(fund.balance===0){<button type="button" class="archive-action" (click)="fundManagement.open=false;archiveReview()">Archive fund</button>}
        </div>
       </details>
-      <div class="primary-fund-actions"><button type="button" class="button-outline" (click)="activity('Withdrawal')">Use fund money</button><button type="button" class="button-primary" (click)="activity('Contribution')">{{fund.plan.scheduleContributions===false?'Add money':'Record contribution'}}</button></div>
+      <div class="primary-fund-actions"><button type="button" class="button-outline" (click)="activity('Withdrawal')">Use fund money</button><button type="button" class="button-primary" (click)="activity('Contribution')">{{fund.plan.scheduleContributions===false?'Add money':'Paycheck contribution'}}</button></div>
      </footer>
     }
-    <details><summary>Fund activity · {{fund.activities.length}} entries</summary><div class="activity-scroll">@for(a of fund.activities;track a.id){<div class="activity-row"><span>{{a.merchant||componentName(a.componentKey)}}<small>{{a.date|date:'MMM d, yyyy':'UTC'}} · {{a.kind}} @if(a.note){ · {{a.note}} }</small>@if(a.missingTransaction){<small class="warning">The linked bank entry was removed. Review this allocation.</small>}</span><strong>{{a.amount|currency}}</strong>@if(canCorrect(a.kind)){<button class="button-ghost" [disabled]="busy()" (click)="correct(a.operationId)">Reverse</button>}</div>}@empty{<p>No activity yet.</p>}</div></details>
+    <details><summary>Fund activity · {{fund.activities.length}} entries</summary><div class="activity-scroll">@for(a of fund.activities;track a.id){<div class="activity-row"><span>{{a.merchant||componentName(a.componentKey)}}<small>{{a.date|date:'MMM d, yyyy':'UTC'}} · {{activityLabel(a.kind)}} @if(a.note){ · {{a.note}} }</small>@if(a.missingTransaction){<small class="warning">The linked bank entry was removed. Review this allocation.</small>}</span><strong>{{a.amount|currency}}</strong>@if(canCorrect(a.kind)){<button class="button-ghost" [disabled]="busy()" (click)="correct(a.operationId)">Reverse</button>}</div>}@empty{<p>No activity yet.</p>}</div></details>
    }
   }@else if(view==='move'){
    <p>Change what this account's money is for. No bank transaction is created.</p>
@@ -78,14 +78,20 @@
   }@else if(view==='archive'){
    <p>Archive this empty fund and stop upcoming budget contributions from {{(management()?.earliestEffectiveDate||form.plan.startDate)|date:'MMM d, yyyy':'UTC'}}. Past activity and paid occurrences are retained.</p><footer class="actions"><button class="button-outline" (click)="dialog.set('detail')">Back</button><button class="button-primary" [disabled]="busy()" (click)="archive()">Archive fund</button></footer>
   }@else{
-   <p>{{activityKind==='Allocate'?'Assign money already saved in this account to a purpose. This does not count as a new paycheck contribution.':activityKind==='Contribution'?'Assign cash already in this account, or link an incoming transfer.':activityKind==='Withdrawal'?'Use earmarked money for an expense. Link the expense, not a transfer back to spending, so it is counted once.':'Move money between components without creating a bank transaction. Enter negative amounts for money leaving a component and positive amounts for its destination.'}}</p>
+   @if(selected()?.plan?.scheduleContributions!==false && (activityKind==='Contribution'||activityKind==='Allocate')){
+    <div class="funding-options" role="group" aria-label="Source of savings">
+     <button type="button" [disabled]="busy()" [attr.aria-pressed]="activityKind==='Contribution'" (click)="changeActivityFunding('Contribution')"><strong>From this paycheck</strong><small>Counts toward this period’s budget</small></button>
+     <button type="button" [disabled]="busy()" [attr.aria-pressed]="activityKind==='Allocate'" (click)="changeActivityFunding('Allocate')"><strong>From existing savings</strong><small>Changes the fund balance only</small></button>
+    </div>
+   }
+   <p class="activity-explanation">{{activityKind==='Allocate'?'Give money you already saved a purpose, including catch-up amounts for earlier months. Your fund balance increases; this does not count toward the current paycheck’s contribution or mark it paid.':activityKind==='Contribution'?(selected()?.plan?.scheduleContributions===false?'Assign money to this fund, or link an incoming transfer. This fund has no scheduled budget contribution.':'Record savings set aside from a paycheck. This counts in your budget even without a bank transaction link. To catch up using money you already had, choose From existing savings.'):activityKind==='Withdrawal'?'Use earmarked money for an expense. Link the expense, not a transfer back to spending, so it is counted once.':'Move money between components without creating a bank transaction. Enter negative amounts for money leaving a component and positive amounts for its destination.'}}</p>
    <form (ngSubmit)="$event.stopPropagation(); record()"><fieldset [disabled]="busy()">
     @if(activityKind!=='Reallocate'&&activityKind!=='Allocate'){<label for="activity-transaction">{{activityKind==='Withdrawal'?'Expense paid from this fund':'Incoming transaction (optional)'}}</label><app-select-menu inputId="activity-transaction" label="Transaction" name="transaction" [options]="transactionOptions" [ngModel]="activityTransaction" (ngModelChange)="chooseTransaction($event)"/>}
     <div class="fields"><div><label for="activity-date">Recorded date</label><input id="activity-date" name="date" type="date" [(ngModel)]="activityDate" required/></div>
-    @if(activityKind==='Contribution'&&selected()?.plan?.scheduleContributions!==false){<div><label for="activity-due">Calendar contribution date (optional)</label><input id="activity-due" name="due" type="date" [(ngModel)]="activityDue"/><small>Defaults to this recorded date’s income period. Choose a different scheduled contribution date if needed.</small></div>}</div>
+    @if(activityKind==='Contribution'&&selected()?.plan?.scheduleContributions!==false){<div><label for="activity-due">Apply to contribution due (optional)</label><input id="activity-due" name="due" type="date" [(ngModel)]="activityDue"/><small>Defaults to this recorded date’s income period. Choose a different scheduled contribution date if needed.</small></div>}</div>
     @for(c of selected()!.components;track c.definition.key;let i=$index){<div class="amount-row"><label [for]="'activity-'+i">{{c.definition.name}}<small>{{c.balance|currency}} currently set aside</small></label><input [id]="'activity-'+i" [name]="'amount'+i" type="number" step="0.01" [min]="activityKind==='Reallocate'?null:0" [(ngModel)]="activityAmounts[c.definition.key]" placeholder="0.00"/></div>}
     <label for="activity-note">Note (optional)</label><input id="activity-note" name="note" [(ngModel)]="activityNote" maxlength="500"/>
-   </fieldset><footer class="actions"><button type="button" class="button-ghost" [disabled]="busy()" (click)="dialog.set('detail')">Back</button><button type="submit" class="button-primary" [disabled]="busy()">Record allocation</button></footer></form>
+   </fieldset><footer class="actions"><button type="button" class="button-ghost" [disabled]="busy()" (click)="dialog.set('detail')">Back</button><button type="submit" class="button-primary" [disabled]="busy()">{{activityTitle}}</button></footer></form>
   }
  </app-modal>
 }

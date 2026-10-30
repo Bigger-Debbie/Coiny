@@ -1,3 +1,5 @@
 fieldset { border:0; padding:0; margin:0; display:grid; gap:1rem; min-width:0; }
 h1 { margin-bottom:.75rem; } p,small { color:var(--color-text-muted); } small { font-size:.75rem; }
 .login-logo { margin-bottom:1.5rem; } a { text-align:center; text-decoration:none; }
+
+.field { margin-bottom:0; }
