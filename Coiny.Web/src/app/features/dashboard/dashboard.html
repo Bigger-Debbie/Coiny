@@ -76,7 +76,7 @@
         <div role="status"><p>Your accounts couldn’t load.</p><button type="button" class="retry-button" (click)="loadSummary()">Retry accounts</button></div>
       } @else if (dashboard(); as summary) {
         @if (summary.accounts.length) {
-          <app-account-list [accounts]="summary.accounts" />
+          <div class="accounts-scroll" tabindex="0" role="region" aria-label="Account balances"><app-account-list [accounts]="summary.accounts" /></div>
         } @else {
           <p class="text-muted" role="status">No accounts yet. Your accounts and balances will appear here once added.</p>
         }

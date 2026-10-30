@@ -25,9 +25,12 @@
     transform: translateX(-4px);
 }
 
+.brand-coin { display: block; flex-shrink: 0; perspective: 600px; }
 .brand-logo{
     height: 4rem;
     display: block;
+    pointer-events: none;
+    user-select: none;
 }
 
 .brand-name{

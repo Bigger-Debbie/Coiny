@@ -82,7 +82,7 @@ zero-baseline trends show a dollar change instead of an unavailable percentage.
 
 ## Recent Transactions pane
 
-The pane renders the ten most recent transactions returned by the dashboard,
+The pane renders up to ten newest transactions returned by the dashboard,
 ordered by transaction date descending and then ID descending. Rows show account
 and institution, signed amount, description, optional merchant, and calendar date.
 Missing descriptions fall back to the category name. Dates retain the stored
@@ -377,3 +377,10 @@ preferences disable the fade. Interactive data regions are inert while stale;
 navigation controls remain available or use their existing loading guards.
 Initial loads retain their loading messages, and errors retain their retry paths.
 The budget month arrows align with the date input below its label.
+
+The header coin spins in the direction of a mouse pass and slows to its normal
+position. The lettering stays still; reduced-motion preferences disable the spin.
+
+When the dashboard panels sit side by side, the transactions panel sets their
+height. Extra accounts scroll inside their list, keeping the Accounts heading
+visible. On narrower screens the panels stack and accounts flow normally.

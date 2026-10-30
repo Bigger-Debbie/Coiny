@@ -1,7 +1,7 @@
 <header class="app-header">
     <div class="content-container header-content">
         <a class="brand" routerLink="/dashboard" aria-label="Coiny dashboard">
-            <img src="/assets/icons/favicon.svg" alt="Coiny Logo" class="brand-logo">
+            <span class="brand-coin" appSpinningCoin aria-hidden="true"><img src="/assets/icons/favicon.svg" alt="" class="brand-logo" draggable="false"></span>
             <span class="brand-name">COINY</span>
         </a>
         <button #mobileToggle class="mobile-toggle" type="button" [attr.aria-label]="(mobileOpen() ? 'Close navigation' : 'Open navigation') + (alerts.unread() ? ', ' + alerts.unread() + ' unread alerts' : '')" [attr.aria-expanded]="mobileOpen()" aria-controls="main-navigation" (click)="toggleMobile()" (focusout)="onNavigationFocusOut($event)" (keydown.arrowdown)="openMobile($event)">

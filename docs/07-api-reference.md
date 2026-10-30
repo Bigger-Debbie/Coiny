@@ -77,7 +77,7 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | POST | `/api/transfers/entries` | 201 | Record one unlinked or external transfer entry |
 | POST | `/api/transfers/links` | 200 | Link two existing transfer entries without changing balances |
 | DELETE | `/api/transfers/links/{transactionId}` | 204 | Unlink both sides, preserving entries and balances |
-| GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, ten recent transactions |
+| GET | `/api/dashboard` | 200 | Totals, accounts with monthly trends, up to ten recent transactions |
 | GET | `/api/dashboard/net-worth-trend` | 200 | Daily net-worth series for the requested range |
 | GET | `/api/budgets/setup` | 200 | Budget setup status and resumable draft |
 | GET | `/api/budgets/management` | 200 | Latest published item definitions and earliest allowed effective date |
@@ -797,7 +797,7 @@ in America/New_York, using the existing trend service.
 | --- | --- |
 | `netWorth` | `currentValue`, `retirement`, `liquidFunds`, `debt` |
 | `accounts` | All household accounts in name order, with `monthlyTrend` |
-| `recentTransactions` | Ten newest transactions, ordered by date then ID descending |
+| `recentTransactions` | Up to ten newest transactions, ordered by date then ID descending |
 
 An illustrative account entry:
 

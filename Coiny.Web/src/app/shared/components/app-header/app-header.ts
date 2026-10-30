@@ -1,3 +1,4 @@
+import { SpinningCoin } from './spinning-coin';
 import { MerchantRules } from '../../../features/merchant-rules/merchant-rules';
 import { AlertsService } from '../../../core/services/alerts.service';
 import { HouseholdAlerts } from '../../../features/alerts/household-alerts';
@@ -11,7 +12,7 @@ import { Icon } from '../icon/icon';
 
 @Component({
   selector: 'app-header',
-  imports: [MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, CategoryManagement],
+  imports: [SpinningCoin, MerchantRules, HouseholdAlerts, Icon, RouterLink, RouterLinkActive, Modal, CategoryManagement],
   templateUrl: './app-header.html',
   styleUrl: './app-header.css',
 })

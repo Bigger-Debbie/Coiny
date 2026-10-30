@@ -30,6 +30,22 @@ public class MortgagePreferenceTests
         c.AccountBalanceSnapshots.AddRange(new() { AccountId = 1, SnapshotDate = new(2026,10,16), Balance = 5200 }, new() { AccountId = 2, SnapshotDate = new(2026,10,16), Balance = 990 });
         await c.SaveChangesAsync();
     }
+    [Fact] public async Task Recent_transactions_stay_at_ten_for_large_households_and_keep_newest_first()
+    {
+        await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db);
+        var c = db.Context();
+        for (var i = 0; i < 20; i++) c.Transactions.Add(new() { HouseholdId = 1, AccountId = 1, CategoryId = 1, Amount = 1, Description = $"Activity {i}", TransactionDate = new(2026,10,16) });
+        c.Categories.Add(new() { Id = 3, HouseholdId = 2, Name = "Foreign pay", CategoryType = CategoryType.Income });
+        c.Transactions.Add(new() { HouseholdId = 2, AccountId = 5, CategoryId = 3, Amount = 999, Description = "Foreign", TransactionDate = new(2026,10,17) });
+        await c.SaveChangesAsync();
+        Assert.Equal(10, (await Dashboard(db).GetSummaryAsync()).RecentTransactions.Count);
+        for (var i = 20; i < 30; i++) c.Accounts.Add(new() { Id = i, HouseholdId = 1, Name = $"Savings {i}", AccountType = AccountType.Savings, OpeningBalanceDate = new(2026,10,1) });
+        await c.SaveChangesAsync();
+        var summary = await Dashboard(db).GetSummaryAsync();
+        Assert.Equal(14, summary.Accounts.Count); Assert.Equal(10, summary.RecentTransactions.Count);
+        Assert.DoesNotContain(summary.RecentTransactions, t => t.Description == "Foreign");
+        Assert.Equal(summary.RecentTransactions.OrderByDescending(t => t.Id).Select(t => t.Id), summary.RecentTransactions.Select(t => t.Id));
+    }
     [Fact] public async Task Investment_totals_are_separate_household_scoped_and_visible_even_at_zero() {
         await using var db = await BudgetTestDatabase.CreateAsync(); await Seed(db);
         Assert.False((await Dashboard(db).GetSummaryAsync()).NetWorth.HasInvestments);

@@ -47,3 +47,11 @@ button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 
 
 @media(max-width:1000px) { .net-worth-sidebar:is(.has-mortgage, .has-investments) { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; } }
 @media(max-width:600px) { .net-worth-sidebar:is(.has-mortgage, .has-investments) { grid-template-columns:1fr; } }
+
+/* Let the transaction panel set the shared row height; extra accounts scroll. */
+@media (min-width: 1001px) {
+  .accounts-section { contain: size; display: flex; flex-direction: column; }
+  .accounts-section h2 { flex-shrink: 0; }
+  .accounts-scroll { flex: 1; min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding-right: .25rem; }
+}
+.accounts-scroll:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; border-radius: var(--radius-sm); }
