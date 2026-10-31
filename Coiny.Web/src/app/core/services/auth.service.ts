@@ -47,10 +47,14 @@ export class AuthService {
         return this.http.post<LoginResponse>(`${this.apiUrl}/register`, request);
     }
 
-    login(request: LoginRequest): Observable<LoginResponse> {
-        return this.http.post<LoginResponse>(
+    login(request: LoginRequest): Observable<LoginResponse | {requiresMfa:true;challenge:string;expiresAt:string}> {
+        return this.http.post<LoginResponse | {requiresMfa:true;challenge:string;expiresAt:string}>(
             `${this.apiUrl}/login`,
             request);
+    }
+
+    verifyMfa(challenge: string, code: string, recoveryCode: boolean): Observable<LoginResponse> {
+        return this.http.post<LoginResponse>(`${this.apiUrl}/mfa/verify`, {challenge,code,recoveryCode});
     }
 
     getCurrentUser(): Observable<CurrentUser> {

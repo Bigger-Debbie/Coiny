@@ -19,6 +19,7 @@ describe('AccountSecurity', () => {
       {id: 'this', device: 'Browser A', createdAt: '2026-10-28T12:00:00Z', expiresAt: '2026-10-28T14:00:00Z', isCurrent: true},
       {id: 'other', device: 'Browser B', createdAt: '2026-10-28T12:00:00Z', expiresAt: '2026-10-28T14:00:00Z', isCurrent: false}]);
     http.expectOne(r => r.url.endsWith('/auth/recovery-codes')).flush({remaining: 0});
+    http.expectOne(r => r.url.endsWith('/auth/mfa')).flush({enabled:false,recoveryCodesRemaining:0});
     fixture.detectChanges(); await fixture.whenStable();
   });
   afterEach(() => http.verify());

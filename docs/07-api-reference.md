@@ -24,8 +24,14 @@ Paths below include `/api`; in Postman, append the part after `/api` to `{{baseU
 | Method | Path | Successful response | Purpose |
 | --- | --- | --- | --- |
 | POST | `/api/auth/register` | 200 | Register and issue token |
-| POST | `/api/auth/login` | 200 | Sign in and issue token |
+| POST | `/api/auth/login` | 200 | Issue token, or `{ requiresMfa, challenge, expiresAt }` when MFA is enabled |
 | GET | `/api/auth/me` | 200 | Current user profile |
+| POST | `/api/auth/mfa/verify` | 200 | Complete password challenge with `{ challenge, code, recoveryCode }`; issue token |
+| GET | `/api/auth/mfa` | 200 | Own MFA enabled status and remaining backup-code count |
+| POST | `/api/auth/mfa/setup` | 200 | Verify `{ currentPassword }`; return setupToken, sharedKey, and local QR PNG data URL |
+| POST | `/api/auth/mfa/enable` | 200 | Confirm `{ setupToken, code }`; return renewed token and ten MFA backup codes |
+| POST | `/api/auth/mfa/disable` | 200 | Verify `{ currentPassword, code, recoveryCode }`; disable MFA and renew token |
+| POST | `/api/auth/mfa/recovery-codes` | 200 | Verify password and factor; replace MFA backup codes and renew token |
 | GET | `/api/auth/recovery-options` | 200 | Installation recovery methods; no account details |
 | POST | `/api/auth/recover-with-code` | 200 | Reset password using a saved recovery code |
 | GET | `/api/auth/recovery-codes` | 200 | Owned recovery-code count; no plaintext |

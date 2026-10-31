@@ -1,0 +1,36 @@
+<section aria-labelledby="mfa-heading">
+  <h3 id="mfa-heading">Authenticator app</h3>
+  <p class="hint">Add a second step to sign-in with Microsoft Authenticator, Google Authenticator, or another authenticator app.</p>
+  @if(error()){<p class="error" role="alert">{{error()}}</p>}
+  @if(status(); as state){
+    <p class="code-status">{{state.enabled ? 'Enabled · '+state.recoveryCodesRemaining+' backup codes available' : 'Not enabled'}}</p>
+    @if(codes().length){
+      <div class="generated-codes"><strong>Save your MFA backup codes</strong>
+        <p>Each code can replace your authenticator code once. You’ll still need your password. These are separate from password recovery codes below.</p>
+        <label for="mfa-backup-codes">MFA backup codes</label><textarea id="mfa-backup-codes" readonly rows="10" spellcheck="false" autocomplete="off" [value]="codes().join('\n')"></textarea>
+        <div class="actions"><button type="button" class="button-outline" (click)="download()">Download MFA codes</button><button type="button" class="button-primary" (click)="codes.set([])">I’ve saved my MFA codes</button></div>
+      </div>
+    } @else if(setup(); as enrollment){
+      <div class="enrollment"><p>Scan this QR code in your authenticator app, then enter its six-digit code. Setup expires after 10 minutes.</p>
+        <img class="mfa-qr" [src]="enrollment.qrCodeDataUrl" alt="Scan to add Coiny to your authenticator app" />
+        <details><summary>Can’t scan? Enter the key manually</summary><p>Account: Coiny · Time-based · 6 digits</p><code class="shared-key">{{enrollment.sharedKey}}</code></details>
+      </div>
+      <form #enableForm="ngForm" (ngSubmit)="enable(enableForm)"><fieldset [disabled]="busy()">
+        <label for="mfa-setup-code">Authenticator code</label><input id="mfa-setup-code" name="setupCode" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code" [(ngModel)]="code" />
+        <div class="actions"><button type="button" class="button-outline" (click)="cancel()">Cancel setup</button><button type="submit" class="button-primary" [disabled]="busy() || enableForm.invalid">Enable authenticator</button></div>
+      </fieldset></form>
+    } @else {
+      <p class="hint">{{state.enabled ? 'To disable MFA or replace its backup codes, verify your password and a fresh authenticator code. Your other sessions will be signed out.' : 'Confirm your password to set up an authenticator. Enabling MFA signs out your other sessions and replaces any password recovery codes.'}}</p>
+      <form #manageForm="ngForm" (ngSubmit)="state.enabled ? manage(manageForm) : begin(manageForm)"><fieldset [disabled]="busy()">
+        <label for="mfa-password">Current password</label><input id="mfa-password" type="password" name="mfaPassword" required maxlength="128" autocomplete="current-password" [(ngModel)]="password" />
+        @if(state.enabled){
+          <label for="mfa-manage-code">{{recoveryCode ? 'MFA backup code' : 'Authenticator code'}}</label>
+          <input id="mfa-manage-code" name="manageCode" required [pattern]="recoveryCode ? '[A-Fa-f0-9 -]{32,40}' : '[0-9]{6}'" maxlength="40" [attr.inputmode]="recoveryCode ? 'text' : 'numeric'" autocomplete="one-time-code" [(ngModel)]="code" />
+          <label class="recovery-choice"><input type="checkbox" name="useRecoveryCode" [(ngModel)]="recoveryCode" (ngModelChange)="code=''" /> Use an MFA backup code</label>
+        }
+        <div class="actions">@if(state.enabled){<button type="button" class="button-outline" [disabled]="busy() || manageForm.invalid" (click)="manage(manageForm,true)">Disable authenticator</button>}
+          <button type="submit" class="button-primary" [disabled]="busy() || manageForm.invalid">{{busy() ? 'Saving…' : state.enabled ? 'Replace MFA backup codes' : 'Set up authenticator'}}</button></div>
+      </fieldset></form>
+    }
+  } @else {<button type="button" class="button-outline" (click)="load()">Retry authenticator status</button>}
+</section>

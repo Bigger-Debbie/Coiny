@@ -1,4 +1,5 @@
-import { Component, DestroyRef, inject, OnInit, output, signal } from '@angular/core';
+import { AuthenticatorMfa } from './authenticator-mfa';
+import { Component, DestroyRef, inject, OnInit, output, signal, ViewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -8,8 +9,9 @@ import { ToastService } from '../../core/services/toast.service';
 import { AuthService } from '../../core/services/auth.service';
 import { environemnt } from '../../../environments/environment';
 interface Session { id: string; device: string; createdAt: string; expiresAt: string; isCurrent: boolean; }
-@Component({selector: 'app-account-security', imports: [FormsModule, DatePipe], templateUrl: './account-security.html', styleUrl: './account-security.css'})
+@Component({selector: 'app-account-security', imports: [FormsModule, DatePipe, AuthenticatorMfa], templateUrl: './account-security.html', styleUrl: './account-security.css'})
 export class AccountSecurity implements OnInit {
+  @ViewChild(AuthenticatorMfa) mfa?: AuthenticatorMfa;
   private readonly http = inject(HttpClient); private readonly destroy = inject(DestroyRef);
   private readonly auth = inject(AuthService); private readonly router = inject(Router);
   private readonly toasts = inject(ToastService);
@@ -22,6 +24,7 @@ export class AccountSecurity implements OnInit {
   recoveryPassword = '';
   currentPassword = ''; newPassword = ''; confirmPassword = ''; signOutPassword = '';
   ngOnInit() { this.load(); this.loadCodeStatus(); }
+  mfaChanged() { this.recoveryCodes.set([]); this.loadCodeStatus(); this.load(); }
   loadCodeStatus() {
     const version = ++this.codesStatusVersion;
     this.codesError.set('');

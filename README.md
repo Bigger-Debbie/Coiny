@@ -10,7 +10,7 @@ Built with ASP.NET Core / EF Core 10 and Angular 21.
 - Monthly and paycheck budgets, actuals, forecasts, and available-cash estimates.
 - Savings funds with component goals and contribution plans, or manual funds for existing cash.
 - Recurring-expense detection and household alerts.
-- Shared households, password recovery, offline recovery codes, and session controls.
+- Shared households, optional authenticator MFA with QR setup, password recovery, offline recovery codes, and session controls.
 - Encrypted household backups, portable restores, and CSV export.
 
 ## Run Coiny

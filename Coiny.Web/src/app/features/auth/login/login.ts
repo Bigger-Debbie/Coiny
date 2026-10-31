@@ -15,6 +15,8 @@ import { AppFooter } from '../../../shared/components/app-footer/app-footer';
   styleUrl: './login.css'
 })
 export class Login {
+  readonly mfaChallenge = signal<string | null>(null);
+  mfaCode = ''; useRecoveryCode = false;
   readonly joinCode = inject(ActivatedRoute).snapshot.queryParamMap.get('code')?.slice(0, 32) ?? '';
   readonly passwordVisible = signal(false);
   readonly submitting = signal(false);
@@ -47,9 +49,10 @@ export class Login {
 
       next: response => {
         this.submitting.set(false);
-        this.authService.setToken(response.token);
-        if (this.joinCode) void this.router.navigate(['/household-setup'], { queryParams: { code: this.joinCode } });
-        else void this.router.navigate(['/dashboard']);
+        this.model.password = '';
+        if ('requiresMfa' in response) { this.mfaChallenge.set(response.challenge); requestAnimationFrame(() => document.getElementById('login-mfa-code')?.focus()); return; }
+        this.completeLogin(response.token);
+
       },
 
       error: error => {
@@ -61,6 +64,21 @@ export class Login {
 
     });
 
+  }
+
+  backToPassword() { this.mfaChallenge.set(null); this.model.password=''; this.mfaCode=''; this.errorMessage.set(''); }
+  verifyMfa(form: NgForm) {
+    if (form.invalid || this.submitting() || !this.mfaChallenge()) return;
+    this.submitting.set(true); this.errorMessage.set('');
+    this.authService.verifyMfa(this.mfaChallenge()!,this.mfaCode,this.useRecoveryCode).subscribe({
+      next: response => { this.submitting.set(false); this.mfaCode=''; this.mfaChallenge.set(null); this.completeLogin(response.token); },
+      error: error => { this.submitting.set(false); this.mfaCode=''; this.errorMessage.set(error.status===429 ? 'Too many attempts. Please wait before trying again.' : 'The code is invalid, already used, or sign-in has expired. Try a fresh code or go back to sign in again.'); }
+    });
+  }
+  private completeLogin(token: string) {
+    this.authService.setToken(token);
+    if (this.joinCode) void this.router.navigate(['/household-setup'], {queryParams:{code:this.joinCode}});
+    else void this.router.navigate(['/dashboard']);
   }
 
 }

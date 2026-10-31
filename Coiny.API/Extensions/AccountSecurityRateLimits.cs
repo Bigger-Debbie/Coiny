@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 namespace Coiny.API.Extensions;
 public static class AccountSecurityRateLimits
 {
+    public const string Mfa = "auth-mfa";
     public const string Login = "auth-login";
     public const string CodeRecovery = "auth-code-recovery";
     public const string Recovery = "auth-recovery";
@@ -11,6 +12,9 @@ public static class AccountSecurityRateLimits
             options.AddPolicy("household-recovery", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));
+            options.AddPolicy(Mfa, context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions {
+                    PermitLimit = 10, Window = TimeSpan.FromMinutes(5), QueueLimit = 0, AutoReplenishment = true }));
             options.AddPolicy(Login, context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions {
                     PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true }));

@@ -18,6 +18,7 @@ describe('SettingsPage', () => {
     http.expectOne(r => r.url.endsWith('/household-data/capabilities')).flush({enabled: true, owner: false, maximumFileBytes: 67108864});
     http.expectOne(r => r.url.endsWith('/auth/sessions')).flush([]);
     http.expectOne(r => r.url.endsWith('/auth/recovery-codes')).flush({remaining: 0});
+    http.expectOne(r => r.url.endsWith('/auth/mfa')).flush({enabled:false,recoveryCodesRemaining:0});
     await Promise.resolve();
     http.expectOne(r => r.url.endsWith('/households/members')).flush([{id: 1, firstName: 'Alex', email: 'alex@example.test', role: 'Member', isCurrentUser: true}]);
     fixture.detectChanges();
@@ -63,7 +64,9 @@ describe('SettingsPage', () => {
     expect(confirm).toHaveBeenCalledWith('Leave Settings? Your unsaved preferences will be lost.');
     page.preferences!.includeMortgage = true; page.security!.recoveryCodes.set(['unsaved-code']); expect(page.canLeave()).toBe(false);
     expect(confirm).toHaveBeenLastCalledWith('Leave Settings? Newly generated recovery codes won’t be shown again.');
-    page.security!.recoveryCodes.set([]); page.household!.busy.set(true); expect(page.canLeave()).toBe(false);
+    page.security!.recoveryCodes.set([]); page.security!.mfa!.codes.set(['mfa-backup']); expect(page.canLeave()).toBe(false);
+    page.security!.mfa!.codes.set([]); page.security!.mfa!.busy.set(true); expect(page.canLeave()).toBe(false); page.security!.mfa!.busy.set(false);
+    page.household!.busy.set(true); expect(page.canLeave()).toBe(false);
     token = null; expect(page.canLeave()).toBe(true);
   });
 });

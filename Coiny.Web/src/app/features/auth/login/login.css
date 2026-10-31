@@ -48,3 +48,5 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--color-accen
 }
 
 a.signup { text-decoration:none; }
+
+.mfa-title{font-family:var(--font-body);font-size:1.25rem;font-weight:600;letter-spacing:normal;text-align:center;margin:0 0 1rem}.mfa-help{font-size:.85rem;line-height:1.6;color:var(--color-text-muted);text-align:center;margin:0 0 1.5rem}#login-mfa-code{font-variant-numeric:tabular-nums}

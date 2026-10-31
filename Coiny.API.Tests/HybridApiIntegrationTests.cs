@@ -92,6 +92,25 @@ public class HybridApiIntegrationTests
         (await fixture.Client.GetAsync("/api/accounts")).EnsureSuccessStatusCode();
     }
 
+    [PostgresFact]
+    public async Task Authenticator_mfa_uses_central_identity_storage_and_requires_second_factor()
+    {
+        await using var fixture=new Fixture();await fixture.InitializeAsync();var client=fixture.Client;
+        fixture.Use(await fixture.Register("mfa-user"));
+        var setupResponse=await client.PostAsJsonAsync("/api/auth/mfa/setup",new{currentPassword="Synthetic!2026"});setupResponse.EnsureSuccessStatusCode();
+        var setup=await setupResponse.Content.ReadFromJsonAsync<JsonElement>();var key=setup.GetProperty("sharedKey").GetString()!;
+        var code=Coiny.API.Services.TotpAuthenticator.Code(key,DateTimeOffset.UtcNow.ToUnixTimeSeconds()/30-1);
+        var enabled=await client.PostAsJsonAsync("/api/auth/mfa/enable",new{setupToken=setup.GetProperty("setupToken").GetString(),code});enabled.EnsureSuccessStatusCode();
+        var result=await enabled.Content.ReadFromJsonAsync<JsonElement>();fixture.Use(result.GetProperty("token").GetString()!);
+        var password=await client.PostAsJsonAsync("/api/auth/login",new{email="mfa-user@coiny.test",password="Synthetic!2026"});password.EnsureSuccessStatusCode();
+        var challenge=await password.Content.ReadFromJsonAsync<JsonElement>();Assert.True(challenge.GetProperty("requiresMfa").GetBoolean());Assert.False(challenge.TryGetProperty("token",out _));
+        var verify=await client.PostAsJsonAsync("/api/auth/mfa/verify",new{challenge=challenge.GetProperty("challenge").GetString(),code=result.GetProperty("recoveryCodes")[0].GetString(),recoveryCode=true});verify.EnsureSuccessStatusCode();
+        fixture.Use((await verify.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!);(await client.GetAsync("/api/auth/me")).EnsureSuccessStatusCode();
+        await using var db=await fixture.Storage.factory.CreateDbContextAsync();
+        var row=await db.Set<Microsoft.AspNetCore.Identity.IdentityUserToken<string>>().SingleAsync(t=>t.LoginProvider==Coiny.API.Services.AuthenticatorMfaService.Provider);
+        Assert.DoesNotContain(key,row.Value);Assert.Empty(await db.HouseholdDatabases.ToListAsync());
+    }
+
     internal sealed class Fixture : IAsyncDisposable
     {
         public HybridStorageIntegrationTests Storage { get; } = new();

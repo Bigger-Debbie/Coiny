@@ -13,11 +13,11 @@ export class SettingsPage {
   @ViewChild(UserSettings) preferences?: UserSettings;
   @ViewChild(AccountSecurity) security?: AccountSecurity;
   @ViewChild(HouseholdData) data?: HouseholdData;
-  get busy() { return !!(this.household?.busy() || this.preferences?.busy() || this.security?.busy() || this.data?.busy()); }
-  get dirty() { return !!(this.preferences?.hasChanges || this.security?.recoveryCodes().length); }
+  get busy() { return !!(this.household?.busy() || this.preferences?.busy() || this.security?.busy() || this.security?.mfa?.busy() || this.data?.busy()); }
+  get dirty() { return !!(this.preferences?.hasChanges || this.security?.recoveryCodes().length || this.security?.mfa?.codes().length || this.security?.mfa?.setup()); }
   canLeave() {
     if (!this.auth.getToken()) return true;
-    const warning = this.security?.recoveryCodes().length ? 'Leave Settings? Newly generated recovery codes won’t be shown again.' : 'Leave Settings? Your unsaved preferences will be lost.';
+    const warning = this.security?.mfa?.setup() ? 'Leave Settings? Your authenticator setup will be discarded.' : this.security?.recoveryCodes().length || this.security?.mfa?.codes().length ? 'Leave Settings? Newly generated recovery codes won’t be shown again.' : 'Leave Settings? Your unsaved preferences will be lost.';
     return !this.busy && (!this.dirty || window.confirm(warning));
   }
   @HostListener('window:beforeunload', ['$event']) beforeUnload(event: BeforeUnloadEvent) {

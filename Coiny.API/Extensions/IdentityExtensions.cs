@@ -9,6 +9,8 @@ public static class IdentityExtesnsions
 {
     public static IServiceCollection AddIdentityServices(this IServiceCollection services, bool hybrid = false)
     {
+        services.AddScoped<Coiny.API.Services.AuthenticatorMfaService>();
+        Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.TryAddSingleton<TimeProvider>(services, TimeProvider.System);
         var identity = services
             .AddIdentity<ApplicationUser, IdentityRole>(options => {
                 options.User.RequireUniqueEmail = true;

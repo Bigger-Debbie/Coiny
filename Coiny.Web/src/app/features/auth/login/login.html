@@ -12,6 +12,7 @@
   <main>
     <section class="login-card" aria-label="Sign in to Coiny">
       <app-auth-logo class="login-logo" />
+      @if (!mfaChallenge()) {
       <form #form="ngForm" (ngSubmit)="login(form)" novalidate [attr.aria-busy]="submitting()">
         <div class="field">
           <div class="field-label">
@@ -47,6 +48,17 @@
         <a class="text-button signup" routerLink="/signup" [queryParams]="joinCode ? { code: joinCode } : null">Sign Up</a>
         <p class="feedback notice" role="status">{{ notice() }}</p>
       </form>
+      } @else {
+        <h1 class="mfa-title">Verify your sign-in</h1><p class="mfa-help">{{useRecoveryCode ? 'Enter one of your saved MFA backup codes.' : 'Enter the six-digit code from your authenticator app.'}}</p>
+        <form #mfaForm="ngForm" (ngSubmit)="verifyMfa(mfaForm)" [attr.aria-busy]="submitting()">
+          <div class="field"><label for="login-mfa-code">{{useRecoveryCode ? 'MFA backup code' : 'Authenticator code'}}</label>
+            <input id="login-mfa-code" name="mfaCode" required [pattern]="useRecoveryCode ? '[A-Fa-f0-9 -]{32,40}' : '[0-9]{6}'" maxlength="40" [attr.inputmode]="useRecoveryCode ? 'text' : 'numeric'" autocomplete="one-time-code" [(ngModel)]="mfaCode" /></div>
+          @if(errorMessage()){<p class="feedback error" role="alert">{{errorMessage()}}</p>}
+          <button class="login-button" type="submit" [disabled]="submitting() || mfaForm.invalid">{{submitting() ? 'Verifying…' : 'Verify & sign in'}}</button>
+          <button class="text-button signup" type="button" [disabled]="submitting()" (click)="useRecoveryCode=!useRecoveryCode; mfaCode=''">{{useRecoveryCode ? 'Use authenticator instead' : 'Use an MFA backup code'}}</button>
+          <button class="text-button signup" type="button" [disabled]="submitting()" (click)="backToPassword()">Back to sign in</button>
+        </form>
+      }
     </section>
   </main>
   <app-footer />

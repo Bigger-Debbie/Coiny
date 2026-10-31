@@ -13,7 +13,7 @@ namespace Coiny.API.Controllers;
 [ApiController, Route("api/[controller]")]
 [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
 public class AuthController(UserManager<ApplicationUser> users, SignInManager<ApplicationUser> signIn,
-    AccountSecurityService security, RecoveryCodesService codes, IPasswordRecoveryEmail recovery, ILogger<AuthController> logger) : ControllerBase
+    AccountSecurityService security, RecoveryCodesService codes, AuthenticatorMfaService mfa, IPasswordRecoveryEmail recovery, ILogger<AuthController> logger) : ControllerBase
 {
     private static readonly ApplicationUser DummyUser = new();
     private static readonly PasswordHasher<ApplicationUser> DummyHasher = new();
@@ -24,6 +24,7 @@ public class AuthController(UserManager<ApplicationUser> users, SignInManager<Ap
     {
         // Older imported/seeded identities may predate lockout settings. Protect those accounts too.
         if (!user.LockoutEnabled && !(await users.SetLockoutEnabledAsync(user, true)).Succeeded) return false;
+        if (await mfa.Enabled(user)) return await mfa.Password(user, password);
         return (await signIn.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true)).Succeeded;
     }
 
@@ -51,7 +52,19 @@ public class AuthController(UserManager<ApplicationUser> users, SignInManager<Ap
         var user = await users.FindByEmailAsync(request.Email.Trim());
         if (user is null) { CheckDummyPassword(request.Password); return Unauthorized(new { message = "Invalid email or password. If you've tried several times, wait 15 minutes before trying again." }); }
         if (!await VerifyPasswordAsync(user, request.Password)) return Unauthorized(new { message = "Invalid email or password. If you've tried several times, wait 15 minutes before trying again." });
+        if (await mfa.Enabled(user)) {
+            var challenge = await mfa.ChallengeFor(user);
+            if (challenge == null) return Problem(statusCode:503, title:"Authenticator settings are unavailable. Contact your installation administrator.");
+            return Ok(challenge);
+        }
         return Ok(await security.StartSessionAsync(user, Request.Headers.UserAgent.ToString()));
+    }
+    [HttpPost("mfa/verify"), EnableRateLimiting(AccountSecurityRateLimits.Mfa)]
+    public async Task<IActionResult> VerifyMfa(MfaLoginRequest request)
+    {
+        var session = await mfa.VerifyLogin(request.Challenge, request.Code, request.RecoveryCode, Request.Headers.UserAgent.ToString());
+        if (session == null) return Unauthorized(new {message="The code is invalid, already used, or the sign-in has expired. Try a new code or start again."});
+        return Ok(session);
     }
     [HttpGet("recovery-options")]
     public IActionResult RecoveryOptions() => Ok(new { Email = recovery.IsConfigured, RecoveryCode = true });

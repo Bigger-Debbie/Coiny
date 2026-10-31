@@ -25,7 +25,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Coiny.API.Tests;
 
-public class AccountSecurityApiTests
+public partial class AccountSecurityApiTests
 {
     private const string Password = "Original-password1!";
     private const string NewPassword = "Changed-password2!";

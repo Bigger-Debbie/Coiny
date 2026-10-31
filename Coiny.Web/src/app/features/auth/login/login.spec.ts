@@ -6,8 +6,8 @@ import { Login } from './login';
 
 describe('Login', () => {
   let fixture: ComponentFixture<Login>;
-  let response: Subject<{ token: string }>;
-  const auth = { login: vi.fn(), setToken: vi.fn() };
+  let response: Subject<any>;
+  const auth = { login: vi.fn(), verifyMfa: vi.fn(), setToken: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -83,4 +83,21 @@ describe('Login', () => {
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('.coin-background').classList.contains('paused')).toBe(true);
   });
+  it('waits for MFA before storing a token and clears the password and challenge on completion', async () => {
+    const navigate=vi.spyOn(TestBed.inject(Router),'navigate').mockResolvedValue(true);
+    const verification=new Subject<any>();auth.verifyMfa.mockReturnValue(verification);
+    await fillForm();await submit();response.next({requiresMfa:true,challenge:'protected',expiresAt:'later'});await fixture.whenStable();
+    expect(auth.setToken).not.toHaveBeenCalled();expect(navigate).not.toHaveBeenCalled();expect(fixture.componentInstance.model.password).toBe('');
+    expect(fixture.nativeElement.querySelector('#password')).toBeNull();expect(fixture.nativeElement.querySelector('#login-mfa-code')).toBeTruthy();
+    fixture.componentInstance.mfaCode='123456';fixture.componentInstance.verifyMfa({invalid:false} as any);
+    expect(auth.verifyMfa).toHaveBeenCalledWith('protected','123456',false);
+    verification.next({token:'verified'});expect(auth.setToken).toHaveBeenCalledWith('verified');expect(fixture.componentInstance.mfaChallenge()).toBeNull();
+  });
+  it('keeps MFA challenges out of storage and lets users restart without retaining their password', async () => {
+    await fillForm();await submit();response.next({requiresMfa:true,challenge:'protected'});await fixture.whenStable();
+    fixture.componentInstance.mfaCode='123456';fixture.componentInstance.backToPassword();await fixture.whenStable();
+    expect(fixture.componentInstance.mfaChallenge()).toBeNull();expect(fixture.componentInstance.model.password).toBe('');expect(fixture.componentInstance.mfaCode).toBe('');
+    expect(auth.setToken).not.toHaveBeenCalled();expect(fixture.nativeElement.querySelector('#password')).toBeTruthy();
+  });
+
 });

@@ -13,6 +13,40 @@ or sign-out-everywhere action. Resetting a password ends all existing sessions a
 clears a temporary login lockout. Recovery responses do not disclose whether an
 email address has an account. Recovery does not sign the user in automatically.
 
+## Authenticator MFA
+
+Open **Settings → Security → Authenticator app** and confirm your password. Scan
+the QR code with an authenticator app, or enter the manual key. Enter its six-digit
+code to enable MFA. Setup expires after ten minutes; canceling leaves MFA off.
+QR codes are generated inside Coiny; no external QR service receives the key.
+
+Save the ten **MFA backup codes** shown after setup. Each can replace an
+authenticator code once at sign-in, together with your password. They are separate
+from password recovery codes. Lost the authenticator? Sign in with a saved MFA
+backup code, then disable and set up the authenticator again. Without an
+authenticator or MFA backup code, a password reset alone cannot restore access.
+
+Enabling, disabling, or replacing MFA backup codes renews this browser's session,
+signs out other sessions, and invalidates password recovery codes. Disable and
+replacement actions require your password plus an authenticator or MFA backup
+code. An authenticator code can only be used once; wait for the next code if you
+just used it to sign in. Password changes and resets leave MFA enabled.
+
+Password login returns a five-minute protected challenge when MFA is enabled,
+with no bearer token or session. Only a successful second step creates a session.
+Challenges stay in page memory. Five failed password/authenticator checks lock
+an account for 15 minutes; knowing the password does not clear MFA failures.
+MFA verification and management share a limit of ten requests per five minutes
+per IP. TOTP accepts the current 30-second period and one adjacent period each
+way, and rejects reused periods. Backup-code use and session creation commit
+atomically, so concurrent redemption succeeds once.
+
+Encrypted MFA state lives in the existing central `AspNetUserTokens` table;
+backup codes are hashed before encryption. No database migration is needed.
+Retain the installation Data Protection keys with full installation backups:
+losing them makes stored authenticator keys unreadable. A financial household
+restore does not replace the receiving user's MFA settings.
+
 ## Recovery codes for self-hosted installations
 
 SMTP is optional. Before losing access, open **Profile → Settings → Security → Recovery
@@ -60,7 +94,7 @@ reset does not reset a portable backup password or recover lost installation key
 
 ## Sessions and login protection
 
-- Login and registration issue the existing bearer-token response (`token`, `email`)
+- Registration and completed login issue the bearer-token response (`token`, `email`)
   backed by an `AuthSessions` row. Each protected request checks the session, expiry,
   user, and Identity security stamp. Legacy tokens without a matching session are
   rejected: users must sign in again after this upgrade.
