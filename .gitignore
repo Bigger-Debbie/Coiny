@@ -1,1 +1,7 @@
 coiny.db
+
+# Local operational journals and private exports
+/logs/
+/private-log-export/
+*.jsonl
+*.log

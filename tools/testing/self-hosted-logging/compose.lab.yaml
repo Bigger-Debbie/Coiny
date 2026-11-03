@@ -1,0 +1,49 @@
+# Applied on top of Docker/compose.yaml by lab.py. Uses production images/config.
+services:
+  api:
+    environment:
+      RecoveryEmail__AppUrl: https://localhost:6443
+  test-postgres:
+    profiles: [tests]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: coiny_test_control
+      POSTGRES_USER: coiny_test
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - test-control:/var/lib/postgresql/data
+    networks:
+      tests:
+        aliases: [postgres]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U coiny_test -d coiny_test_control"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    mem_limit: 512m
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+  integration:
+    profiles: [tests]
+    image: coiny-selfhost-logging-tests:local
+    build:
+      context: ${COINY_SOURCE_ROOT:?Run lab.py init}
+      dockerfile: tools/testing/docker-test/Integration.Dockerfile
+    entrypoint: [dotnet, test, Coiny.API.Tests/Coiny.API.Tests.csproj, --no-build, --no-restore, --logger, "console;verbosity=minimal"]
+    environment:
+      COINY_TEST_POSTGRES: Host=postgres;Database=coiny_test_control;Username=coiny_test;Password=${POSTGRES_PASSWORD};Pooling=false;GSS Encryption Mode=Disable
+    networks: [tests]
+    mem_limit: 1536m
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+networks:
+  tests:
+    internal: true
+volumes:
+  test-control:

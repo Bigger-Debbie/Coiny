@@ -6,7 +6,7 @@ COPY Coiny.API/ Coiny.API/
 RUN dotnet publish Coiny.API/Coiny.API.csproj --no-restore -c Release -o /out
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
-RUN mkdir -p /data/households /home/app/.aspnet/DataProtection-Keys && chown -R $APP_UID /data /home/app
+RUN mkdir -p /logs /data/households /home/app/.aspnet/DataProtection-Keys && chown -R $APP_UID /logs /data /home/app
 COPY --from=build /out .
 COPY Docker/initialize.sh /app/initialize.sh
 USER $APP_UID

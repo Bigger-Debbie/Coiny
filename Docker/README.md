@@ -52,6 +52,11 @@ SMTP is optional. Configure `SMTP_HOST`, `SMTP_PORT` (normally 587), `SMTP_FROM`
 should generate offline recovery codes in **Settings → Security** while signed in.
 The server does not yet have an operator command to issue an account reset link.
 
+## Logging
+
+See [server logging](logging.md) for console output, rotation, request IDs,
+private downloads, and troubleshooting. No dashboard or external collector is required.
+
 ## Storage
 
 | Volume | Contents |

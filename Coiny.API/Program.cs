@@ -1,4 +1,5 @@
 using Coiny.API.Extensions;
+using Coiny.API.Logging;
 using Coiny.API.Configuration;
 using System.Text.Json.Serialization;
 using Coiny.API.Data;
@@ -28,6 +29,10 @@ if (args.FirstOrDefault() is "--migration-plan" or "--migrate-snapshot") {
 var seedDemo = args.Contains("--seed-demo");
 var migrateDockerTest = args.Contains("--migrate-docker-test");
 var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--seed-demo" && argument != "--migrate-docker-test").ToArray());
+
+// Runtime logs use the safe provider: formatted framework state can contain SQL or credentials.
+builder.Logging.ClearProviders();
+builder.Services.AddOperationalJournal(builder.Configuration);
 
 builder.Services.AddTrustedReverseProxy(builder.Configuration);
 builder.Services.AddDatabase(builder.Configuration);
@@ -105,6 +110,7 @@ if (app.Environment.IsDevelopment())
 }
 
 if (!string.IsNullOrWhiteSpace(builder.Configuration["ReverseProxy:KnownProxy"])) app.UseForwardedHeaders();
+app.UseOperationalJournal();
 app.UseHttpsRedirection();
 
 app.UseCors("AllowAngularDevClient");

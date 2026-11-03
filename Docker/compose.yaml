@@ -1,6 +1,13 @@
+x-log-defaults: &log-defaults
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 name: coiny
 services:
   postgres:
+    logging: *log-defaults
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
@@ -16,6 +23,7 @@ services:
       timeout: 5s
       retries: 20
   api:
+    logging: *log-defaults
     image: coiny-api:${COINY_VERSION:-local}
     build:
       context: ..
@@ -44,7 +52,12 @@ services:
       RecoveryEmail__Username: ${SMTP_USERNAME:-}
       RecoveryEmail__Password: ${SMTP_PASSWORD:-}
       Logging__LogLevel__Default: Warning
+      Operations__Logging__Directory: /logs
+      Operations__Logging__RetentionDays: ${COINY_LOG_RETENTION_DAYS:-7}
+      Operations__Logging__FileSizeMb: ${COINY_LOG_FILE_SIZE_MB:-4}
+      Operations__Logging__MaxFiles: ${COINY_LOG_MAX_FILES:-8}
     volumes:
+      - log-data:/logs
       - household-data:/data
       - protection-keys:/home/app/.aspnet/DataProtection-Keys
     networks: [proxy, database]
@@ -54,6 +67,7 @@ services:
     ulimits:
       core: 0
   web:
+    logging: *log-defaults
     image: coiny-web:${COINY_VERSION:-local}
     build:
       context: ..
@@ -73,6 +87,7 @@ services:
         ipv4_address: ${COINY_PROXY_IP:-172.30.16.3}
     depends_on: [api]
 volumes:
+  log-data:
   control-data:
   household-data:
   protection-keys:

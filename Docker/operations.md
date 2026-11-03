@@ -14,6 +14,8 @@ After installation or an update, check sign-in, an account balance, the budget,
 and a portable backup download. Watch disk use: old household files and restore
 safety copies are retained and do not yet have automatic cleanup.
 
+For live logs and private exports, see [server logging](logging.md).
+
 ## Household backups
 
 Owners can download encrypted backups from **Settings → Backup & export**.
