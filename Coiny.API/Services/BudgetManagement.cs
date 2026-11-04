@@ -19,7 +19,7 @@ public partial class BudgetService
     private DateOnly fundingPeriodStart = DateOnly.MinValue;
     private async Task<List<BudgetRevision>> Published(int household)
     {
-        skippedSavings=await context.BillPayments.AsNoTracking().Where(p=>p.HouseholdId==household && p.IsSkipped).ToListAsync();
+        skippedSavings=await context.BillPayments.AsNoTracking().Where(p=>p.HouseholdId==household && p.IsSkipped && p.SkippedPeriodStart!=null && p.SkippedPeriodEnd!=null).ToListAsync();
         var funds=await context.Set<SavingsFund>().AsNoTracking().Include(f=>f.Activities).Where(f=>f.HouseholdId==household).ToListAsync();
         fundedBalances=funds.SelectMany(f=>JsonSerializer.Deserialize<Coiny.API.DTOs.Savings.SavingsPlan>(f.PlanJson)!.Components.Select(c=>new {Key=(f.SourceKey,c.Key),Balance=f.Activities.Where(a=>a.ComponentKey==c.Key).Sum(a=>a.Amount)})).ToDictionary(p=>p.Key,p=>p.Balance);
         fundIds=funds.ToDictionary(f=>f.SourceKey,f=>f.Id);

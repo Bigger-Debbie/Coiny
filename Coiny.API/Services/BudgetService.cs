@@ -321,9 +321,9 @@ public partial class BudgetService(
         return new() {
             HouseholdId = householdId, Plan = periodPlan, PlannedPoints = periodPlan is null ? [] : PeriodPoints(start!.Value, end!.Value, periodPlan, published),
             AsOf = date, SourceKey = sourceKey, Sources = sources, StartDate = start, EndDate = end, NextPayday = next,
-            Bills = bills, BillsTotal = bills.Sum(e => e.Amount), UnpaidBillsTotal = bills.Where(e => e.Payment?.IsPaid != true).Sum(e => e.Amount), Contributions = contributions,
+            Bills = bills, BillsTotal = bills.Sum(e => e.Amount), UnpaidBillsTotal = bills.Where(e => e.Payment?.IsPaid != true && e.Payment?.IsSkipped != true).Sum(e => e.Amount), Contributions = contributions,
             ContributionsTotal = contributions.Sum(e => e.Amount),
-            UnpaidContributionsTotal = contributions.Where(e => e.Payment?.IsPaid != true).Sum(e => e.Amount),
+            UnpaidContributionsTotal = contributions.Where(e => e.Payment?.IsPaid != true && e.Payment?.IsSkipped != true).Sum(e => e.Amount),
             AwaitingTransactionCount = awaitingTransactions.Count,
             AwaitingTransactionTotal = awaitingTransactions.Sum(e => e.Amount),
         };

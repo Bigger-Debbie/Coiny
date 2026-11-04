@@ -80,9 +80,10 @@ export class BudgetCalendar implements OnInit, OnChanges {
   canTrackPayment(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills', 'Subscriptions', 'Savings', 'Investments'].includes(event.allocationType ?? ''); }
   awaitingTransaction(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId == null && !event.payment.isFundAllocation; }
   linkedPayment(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && (event.payment.transactionId != null || !!event.payment.isFundAllocation); }
-  paymentMarker(event: BudgetEvent) { return this.linkedPayment(event) ? '✓' : this.awaitingTransaction(event) ? '◷' : '●'; }
-  paymentAction(event: BudgetEvent) { if(event.payment?.isSkipped)return 'Restore contribution'; if(event.payment?.isFundAllocation)return 'View allocation'; return this.awaitingTransaction(event) ? 'Link transaction' : this.linkedPayment(event) ? 'View payment' : 'Mark paid'; }
-  status(event: BudgetEvent) { if(event.payment?.isSkipped)return 'Skipped this period'; if(event.payment?.isFundAllocation)return 'Funded · Allocated'; return this.awaitingTransaction(event) ? 'Paid · Awaiting transaction' : this.linkedPayment(event) ? 'Paid · Linked' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
+  displayAmount(event: BudgetEvent) { return event.payment?.isSkipped ? 0 : event.amount; }
+  paymentMarker(event: BudgetEvent) { if(event.payment?.isSkipped)return '−'; return this.linkedPayment(event) ? '✓' : this.awaitingTransaction(event) ? '◷' : '●'; }
+  paymentAction(event: BudgetEvent) { if(event.payment?.isSkipped)return event.allocationType === 'Savings' ? 'Restore contribution' : 'Restore occurrence'; if(event.payment?.isFundAllocation)return 'View allocation'; return this.awaitingTransaction(event) ? 'Link transaction' : this.linkedPayment(event) ? 'View payment' : 'Mark paid'; }
+  status(event: BudgetEvent) { if(event.payment?.isSkipped)return event.allocationType === 'Savings' ? 'Skipped this period' : 'Skipped this occurrence'; if(event.payment?.isFundAllocation)return 'Funded · Allocated'; return this.awaitingTransaction(event) ? 'Paid · Awaiting transaction' : this.linkedPayment(event) ? 'Paid · Linked' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
   get awaitingPayments() { return [...(this.period()?.bills ?? []), ...(this.period()?.contributions ?? [])].filter(e => this.awaitingTransaction(e)); }
   get awaitingTotal() { return this.awaitingPayments.reduce((sum, item) => sum + item.amount, 0); }
   readonly showCompleted = signal(true);
