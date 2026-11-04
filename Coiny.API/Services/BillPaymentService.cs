@@ -32,8 +32,8 @@ public class BillPaymentService(IFinancialContext context, ICurrentUserService u
             throw new ArgumentException("The primary transaction must be included in the selected transactions.");
         var entries = new List<Transaction>();
         if (!request.IsPaid && selected.Length > 0) throw new ArgumentException("Detach the transaction when marking an occurrence unpaid.");
-        if(request.IsSkipped && (occurrence.AllocationType!=BudgetAllocationType.Savings || request.IsPaid || selected.Length>0))
-            throw new ArgumentException("Only an unlinked savings contribution can be skipped. Recorded transactions remain in actuals.");
+        if(request.IsSkipped && (occurrence.AllocationType is not (BudgetAllocationType.Savings or BudgetAllocationType.Housing or BudgetAllocationType.Bills or BudgetAllocationType.Subscriptions) || request.IsPaid || selected.Length>0))
+            throw new ArgumentException("Only an unpaid, unlinked bill or savings contribution can be skipped. Recorded transactions remain in actuals.");
         var paidOn = request.PaidOn;
         foreach (var selectedId in selected)
         {
@@ -65,8 +65,10 @@ public class BillPaymentService(IFinancialContext context, ICurrentUserService u
             wasSkipped=wasSkipped || restores.Count>0;
             foreach(var skipped in restores){skipped.IsSkipped=false;skipped.SkippedPeriodStart=null;skipped.SkippedPeriodEnd=null;}
         }
-        if(request.IsSkipped && (payment.TransactionId.HasValue || payment.Links.Count>0))throw new ArgumentException("Unlink this contribution's transactions before skipping it. Actual money already recorded is not removed.");
-        if(request.IsSkipped)
+        if(request.IsSkipped && (payment.TransactionId.HasValue || payment.Links.Count>0))throw new ArgumentException("Unlink this occurrence's transactions before skipping it. Actual money already recorded is not removed.");
+        if(request.IsSkipped && occurrence.AllocationType!=BudgetAllocationType.Savings && payment.IsPaid)
+            throw new ArgumentException("Mark this bill unpaid before skipping its occurrence.");
+        if(request.IsSkipped && occurrence.AllocationType==BudgetAllocationType.Savings)
         {
             var period=await budgets.GetIncomePeriodAsync(date);
             if(period.StartDate is null || period.EndDate is null)throw new ArgumentException("A complete income period is required to skip a savings contribution.");

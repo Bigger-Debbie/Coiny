@@ -88,4 +88,15 @@ describe('BillPayment', () => {
     expect(saved).not.toHaveBeenCalled();expect(f.componentInstance.error()).toContain('did not confirm');expect(f.componentInstance.busy()).toBe(false);
   });
 
+  it.each(['Bills','Housing','Subscriptions'])('skips and restores one %s occurrence with an optional note',(type)=>{
+    const f=render();f.componentRef.setInput('bill',{...bill,allocationType:type});f.detectChanges();expect(f.nativeElement.textContent).toContain('Skip this occurrence');
+    f.componentInstance.note='No sitter this week';f.componentInstance.setSkipped(true);const request=http.expectOne(r=>r.url.endsWith('/payment'));expect(request.request.body).toMatchObject({isSkipped:true,isPaid:false,note:'No sitter this week',transactionIds:[]});request.flush({...request.request.body});
+    f.componentRef.setInput('bill',{...bill,allocationType:type,payment:{isSkipped:true,isPaid:false,transactionId:null,note:'No sitter this week'}});f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Restore occurrence');expect(f.nativeElement.textContent).toContain('future occurrences stay unchanged');f.componentInstance.setSkipped(false);const restore=http.expectOne(r=>r.url.endsWith('/payment'));expect(restore.request.body.isSkipped).toBe(false);restore.flush(restore.request.body);
+  });
+  it('requires paid or linked bills to be saved as unpaid before skipping',()=>{
+    const f=render({isPaid:true,paidOn:'2026-10-15',note:null,transactionId:7});f.componentInstance.unpaid();f.changeDetectorRef.markForCheck();f.detectChanges();
+    expect(f.nativeElement.textContent).not.toContain('Skip this occurrence');f.componentInstance.setSkipped(true);http.expectNone(r=>r.url.endsWith('/payment'));
+  });
+
 });

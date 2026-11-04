@@ -139,3 +139,18 @@ valid states/schedules, and optimistic edit versions.
 See [API payloads](07-api-reference.md#household-budgeting),
 [storage architecture](21-hybrid-storage-and-azure.md), and
 [backend tests](../Coiny.API.Tests/README.md).
+
+### Skip one bill occurrence
+
+For an unpaid Housing, Bills, or Subscriptions item, open its payment details and
+choose **Skip this occurrence**. An optional note can explain why it is not due.
+Only that scheduled date is skipped; other weeks and the recurring schedule stay
+unchanged. The calendar shows **Skipped this occurrence** and $0 due. It is hidden
+when completed items are hidden, and **Restore occurrence** reinstates it.
+
+Skipping releases that date's unpaid commitment and forecast estimate, including
+the available-cash calculation. The original published budget target remains for
+comparison. No transaction is created, deleted, or changed. Paid or linked bills
+must first be explicitly saved as unpaid/unlinked. Existing recorded spending
+continues to count in actuals. Savings skips still apply to their income period;
+investment contributions do not gain a skip action in this change.

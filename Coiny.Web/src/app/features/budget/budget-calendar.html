@@ -25,7 +25,7 @@
         @for (bill of visiblePayments(p.bills); track $index) {
           <div class="event-row" [class.paid-bill]="linkedPayment(bill)" [class.awaiting-payment]="awaitingTransaction(bill)">
             <span>@if (bill.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(bill)" [class.awaiting-icon]="awaitingTransaction(bill)" aria-hidden="true">{{ paymentMarker(bill) }}</span> }{{ bill.name }}<small>{{ bill.date | date:'MMM d':'UTC' }} · {{ status(bill) }}</small></span>
-            <div class="bill-actions"><strong>{{ bill.amount | currency }}</strong><button class="button-outline" (click)="openPayment(bill)">{{ paymentAction(bill) }}</button></div>
+            <div class="bill-actions"><strong>{{ displayAmount(bill) | currency }}</strong><button class="button-outline" (click)="openPayment(bill)">{{ paymentAction(bill) }}</button></div>
           </div>
         }
         @empty { <p class="hint">{{ p.bills.length ? 'All bills are completed.' : 'No bills scheduled for this period.' }}</p> }
@@ -35,7 +35,7 @@
           @for (item of visiblePayments(p.contributions); track $index) {
             <div class="event-row" [class.paid-bill]="linkedPayment(item)" [class.awaiting-payment]="awaitingTransaction(item)">
               <span>@if (item.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(item)" [class.awaiting-icon]="awaitingTransaction(item)" aria-hidden="true">{{ paymentMarker(item) }}</span> }{{ item.name }}<small>{{ item.date | date:'MMM d':'UTC' }} · @if (item.isPeriodSetAside) { Planned set-aside · }{{ status(item) }}</small></span>
-              <div class="bill-actions"><strong>{{ item.amount | currency }}</strong><button class="button-outline" (click)="openPayment(item)">{{ paymentAction(item) }}</button></div>
+              <div class="bill-actions"><strong>{{ displayAmount(item) | currency }}</strong><button class="button-outline" (click)="openPayment(item)">{{ paymentAction(item) }}</button></div>
             </div>
           }
         }
@@ -69,7 +69,7 @@
             <button class="day" type="button" [attr.aria-label]="dayLabel(day.date, day.events)" [attr.aria-pressed]="selectedDay() === day.date" [attr.aria-current]="today === day.date ? 'date' : null" (click)="selectedDay.set(day.date)">
               <span>{{ day.day }}</span><span class="markers" aria-hidden="true">@for (event of day.events.slice(0, 3); track $index) { <span [class.income]="kind(event) === 'Income'" [class.bill]="kind(event) === 'Bill'" [class.contribution]="kind(event) === 'Contribution'" [class.awaiting-icon]="awaitingTransaction(event)" [class.linked-marker]="linkedPayment(event)">{{ paymentMarker(event) }}</span> }@if (day.events.length > 3) { <small>+{{ day.events.length - 3 }}</small> }</span>
             </button>
-            @if (day.events.length) { <div class="day-tooltip" role="tooltip"><strong>{{ day.date | date:'MMM d':'UTC' }}</strong>@for (event of day.events; track $index) { <span>{{ kind(event) }} · {{ event.name }} · {{ event.amount | currency }}@if (canTrackPayment(event)) { · {{ status(event) }} }</span> }</div> }
+            @if (day.events.length) { <div class="day-tooltip" role="tooltip"><strong>{{ day.date | date:'MMM d':'UTC' }}</strong>@for (event of day.events; track $index) { <span>{{ kind(event) }} · {{ event.name }} · {{ displayAmount(event) | currency }}@if (canTrackPayment(event)) { · {{ status(event) }} }</span> }</div> }
           </div>
         } @else { <span class="blank" aria-hidden="true"></span> }
       }
@@ -82,7 +82,7 @@
       @for (event of selectedEvents; track $index) {
         <div class="event-row" [class.paid-bill]="linkedPayment(event)" [class.awaiting-payment]="awaitingTransaction(event)">
           <span>@if (canTrackPayment(event) && event.payment?.isPaid) { <span class="payment-icon" [class.paid-check]="linkedPayment(event)" [class.awaiting-icon]="awaitingTransaction(event)" aria-hidden="true">{{ paymentMarker(event) }}</span> }{{ event.name }}<small>{{ event.isPeriodSetAside ? 'Planned set-aside' : kind(event) }}@if (canTrackPayment(event)) { · {{ status(event) }} }</small></span>
-          <div class="bill-actions"><strong>{{ event.amount | currency }}</strong>@if (canTrackPayment(event) && event.sourceKey) { <button class="button-outline" (click)="openPayment(event)">{{ paymentAction(event) }}</button> }</div>
+          <div class="bill-actions"><strong>{{ displayAmount(event) | currency }}</strong>@if (canTrackPayment(event) && event.sourceKey) { <button class="button-outline" (click)="openPayment(event)">{{ paymentAction(event) }}</button> }</div>
         </div>
       }
       @empty { <p class="hint">No scheduled items on this day.</p> }

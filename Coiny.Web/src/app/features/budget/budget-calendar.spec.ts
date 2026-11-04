@@ -223,4 +223,10 @@ describe('BudgetCalendar', () => {
     c.loadPeriod(); http.expectOne(r => r.url.endsWith('/income-period')).flush({ ...period, endDate: null, nextPayday: null, bills: [] }); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('no defined end');
   });
+  it('shows a skipped bill as zero due with a restore action while retaining its original amount',()=>{
+    const f=render(),c=f.componentInstance;const skipped={...bill,payment:{isSkipped:true,isPaid:false,paidOn:null,note:null,transactionId:null}};
+    expect(c.displayAmount(skipped)).toBe(0);expect(skipped.amount).toBe(100);expect(c.status(skipped)).toBe('Skipped this occurrence');expect(c.paymentAction(skipped)).toBe('Restore occurrence');
+    c.showCompleted.set(false);expect(c.visiblePayments([skipped])).toEqual([]);
+  });
+
 });

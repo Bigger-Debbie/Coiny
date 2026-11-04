@@ -14,6 +14,8 @@ import { getTrendDates } from '../dashboard/trend-range';
 })
 export class BillPayment implements OnInit {
   get contribution() { return ['Savings', 'Investments'].includes(this.bill.allocationType ?? ''); }
+  get skippable() { return ['Savings','Housing','Bills','Subscriptions'].includes(this.bill.allocationType ?? ''); }
+  get canSkip() { return this.skippable && !this.bill.payment?.isPaid && !this.bill.payment?.transactionId && !this.bill.payment?.linkedTransactions?.length && !this.transactionId && !this.selected.length; }
   get itemLabel() { return this.contribution ? 'contribution' : 'bill'; }
   private readonly toasts = inject(ToastService);
   @Input({ required: true }) bill!: BudgetEvent;
@@ -55,11 +57,11 @@ export class BillPayment implements OnInit {
   remove(id: number) { this.selected = this.selected.filter(t => t.id !== id); this.transactionId = this.selected[0]?.id ?? null; this.linkedTransaction = this.selected[0] ?? null; }
   unpaid() { this.isPaid = false; this.transactionId = null; this.selected = []; }
   setSkipped(skipped: boolean) {
-    if(this.busy() || this.bill.allocationType!=='Savings')return;
+    if(this.busy() || !this.skippable || skipped && !this.canSkip)return;
     this.busy.set(true);this.error.set('');
     this.api.saveBillPayment(this.bill,{isSkipped:skipped,isPaid:false,paidOn:null,note:this.note||null,transactionId:null,transactionIds:[]}).pipe(takeUntilDestroyed(this.destroy)).subscribe({
-      next:result=>{this.busy.set(false);if(result.isSkipped!==skipped){this.error.set('The server did not confirm the skip change. Restart the API with the latest build, then try again.');return;}this.toasts.success(skipped?'Savings contribution skipped for this income period.':'Savings contribution restored.');this.saved.emit(result);},
-      error:e=>{this.busy.set(false);this.error.set(e.error?.detail??'The contribution couldn’t be updated.');}
+      next:result=>{this.busy.set(false);if(result.isSkipped!==skipped){this.error.set('The server did not confirm the skip change. Restart the API with the latest build, then try again.');return;}this.toasts.success(this.contribution ? (skipped?'Savings contribution skipped for this income period.':'Savings contribution restored.') : (skipped?'Bill skipped for this occurrence.':'Bill occurrence restored.'));this.saved.emit(result);},
+      error:e=>{this.busy.set(false);this.error.set(e.error?.detail??'This scheduled item couldn’t be updated.');}
     });
   }
   save() {
