@@ -44,6 +44,26 @@ balances and trends like any other ledger deletion.
 calculations. The current app has no currency-selection or conversion model;
 the frontend displays USD.
 
+## Transaction running balances
+
+For an individual account, the Accounts transaction list shows **Balance: $…** on one line
+under each amount. Credit card and loan balances represent amounts owed. This is the
+opening balance plus all ledger changes through that entry, ordered by transaction
+date/time and then transaction ID. Same-time entries follow creation/ID order;
+this does not claim to reproduce a bank's intraday processing order.
+
+`GET /api/transactions/paged?accountId=...` supplies nullable `runningBalance` on
+its visible items. Date, search, category and type filters select rows only:
+preceding/hidden transactions still contribute, and pagination does not restart
+balances. Only the account's own household ledger is included. Uncleared entries
+count, consistently with the current balance. Later entries do not affect earlier
+balances. Backdated additions, edits, deletions and opening-balance changes are
+reflected on the next read without storing a separate running-total column.
+
+Mixed-account pages leave the field null and do not show a running balance.
+Dashboard lists and other transaction responses retain their existing display.
+No database migration is required.
+
 ## Snapshot lifecycle
 
 `AccountBalanceSnapshot` stores one derived closing balance per account/date.

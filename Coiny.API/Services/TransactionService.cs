@@ -42,9 +42,12 @@ public class TransactionService : ITransactionService
         if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate < request.StartDate)
             throw new ArgumentException("End date cannot be before start date.");
         var householdId = await _currentUserService.GetCurrentHouseholdIdAsync();
-        if (request.AccountId.HasValue && !await _context.Accounts.AnyAsync(a =>
-            a.Id == request.AccountId && a.HouseholdId == householdId))
-            throw new InvalidOperationException("Account does not belong to the current household.");
+        Account? selectedAccount = null;
+        if (request.AccountId.HasValue) {
+            selectedAccount = await _context.Accounts.AsNoTracking().SingleOrDefaultAsync(a =>
+                a.Id == request.AccountId && a.HouseholdId == householdId)
+                ?? throw new InvalidOperationException("Account does not belong to the current household.");
+        }
         if (request.CategoryId.HasValue && !await _context.Categories.AnyAsync(c =>
             c.Id == request.CategoryId && c.HouseholdId == householdId))
             throw new InvalidOperationException("Category does not belong to the current household.");
@@ -75,6 +78,25 @@ public class TransactionService : ITransactionService
         var items = await query.OrderByDescending(t => t.TransactionDate).ThenByDescending(t => t.Id)
             .Skip((page - 1) * request.PageSize).Take(request.PageSize)
             .Select(TransactionProjection.Response).ToListAsync();
+        if (selectedAccount != null && items.Count > 0) {
+            // Filters and pagination choose visible rows, not the ledger used to
+            // calculate balances. Match the existing date/ID ordering, including
+            // every same-day entry and both directions of transfers.
+            var visible = items.ToDictionary(t => t.Id);
+            var lastDate = items[0].TransactionDate;
+            var lastId = items[0].Id;
+            var balance = selectedAccount.OpeningBalance;
+            var ledger = _context.Transactions.AsNoTracking()
+                .Where(t => t.HouseholdId == householdId && t.AccountId == selectedAccount.Id &&
+                    (t.TransactionDate < lastDate || (t.TransactionDate == lastDate && t.Id <= lastId)))
+                .OrderBy(t => t.TransactionDate).ThenBy(t => t.Id)
+                .Select(t => new { t.Id, t.Amount, CategoryType = t.Category.CategoryType, t.TransferDirection });
+            await foreach (var entry in ledger.AsAsyncEnumerable()) {
+                balance += AccountBalanceCalculator.GetBalanceChange(selectedAccount.AccountType,
+                    entry.CategoryType, entry.Amount, entry.TransferDirection);
+                if (visible.TryGetValue(entry.Id, out var row)) row.RunningBalance = balance;
+            }
+        }
         return new TransactionPageResponse { Items = items, TotalCount = total, Page = page, PageSize = request.PageSize };
     }
 

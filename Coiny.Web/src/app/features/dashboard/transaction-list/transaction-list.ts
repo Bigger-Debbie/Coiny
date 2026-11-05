@@ -12,6 +12,7 @@ import { DashboardTransaction } from '../../../shared/models/dashboard/dashboard
 export class TransactionList {
   @Input() transactions: readonly DashboardTransaction[] = [];
   @Input() interactive = false;
+  @Input() showRunningBalance = false;
   readonly open = output<number>();
   readonly magnitude = Math.abs;
 

@@ -101,4 +101,21 @@ describe('TransactionList', () => {
       transferDirection: 'In', transferCounterparty: 'Unknown' })]);
     expect(f.nativeElement.querySelector('.transfer-label').textContent).toBe('Transfer in · Not linked');
   });
+  it('shows the server-calculated balance only when enabled, including zero and negative values', () => {
+    const f = render([transaction({ runningBalance: 0 }), transaction({ id: 2, runningBalance: -12.34 })]);
+    expect(f.nativeElement.querySelector('.running-balance')).toBeNull();
+    f.componentRef.setInput('showRunningBalance', true); f.detectChanges();
+    const balances = f.nativeElement.querySelectorAll('.running-balance');
+    expect(balances.length).toBe(2);
+    expect(balances[0].textContent).toContain('Balance:'); expect(balances[0].textContent).toContain('$0.00');
+    expect(balances[1].textContent).toContain('-$12.34');
+  });
+  it('uses the same balance label for liabilities and does not invent a balance for an absent value', () => {
+    const f = render([transaction({ accountType: 'CreditCard', runningBalance: 125.25 }), transaction({ id: 2, runningBalance: null })]);
+    f.componentRef.setInput('showRunningBalance', true); f.detectChanges();
+    const balances = f.nativeElement.querySelectorAll('.running-balance');
+    expect(balances.length).toBe(1); expect(balances[0].textContent).toContain('Balance:');
+    expect(balances[0].textContent).toContain('$125.25');
+  });
+
 });

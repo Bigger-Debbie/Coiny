@@ -16,6 +16,12 @@
         </span>
         @if (transaction.categoryType === 'MarketAdjustment') { <small class="transfer-label">{{ transaction.amount >= 0 ? 'Market gain' : 'Market loss' }}</small> }
         @if (transaction.categoryType === 'Transfer') {<small class="transfer-label">{{ transferLabel(transaction) }}</small>}
+        @if (showRunningBalance && transaction.runningBalance != null) {
+          <small class="running-balance" title="Account balance after this transaction, including transactions hidden by filters.">
+            Balance:
+            <strong>{{ transaction.runningBalance | currency }}</strong>
+          </small>
+        }
       </div>
       <div class="transaction-details">
         <span>{{ transaction.description.trim() || transaction.categoryName }}</span>

@@ -740,6 +740,12 @@ date-descending, ID-descending order. The response contains `items` (transaction
 DTOs), `totalCount`, `page`, and `pageSize`. Pages past the end clamp to the last
 page. Empty results return page 1, totalCount 0, and an empty items array.
 
+When `accountId` is supplied, each visible item also includes `runningBalance`:
+the account balance immediately after that entry, ordered by date/time then ID.
+It includes earlier and filtered-out ledger entries; page boundaries do not reset
+it. Credit card/loan balances represent amounts owed. Without `accountId` the
+field is null. See [running balances](03-account-trends.md#transaction-running-balances).
+
 ### Income/expense category breakdown
 
 ```http

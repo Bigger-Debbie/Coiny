@@ -7,6 +7,7 @@ export interface DashboardTransaction extends TransferDetails {
     categoryName: string;
     categoryType: string;
     amount: number;
+    runningBalance?: number | null;
     transactionDate: string;
     description: string;
     merchant: string | null;

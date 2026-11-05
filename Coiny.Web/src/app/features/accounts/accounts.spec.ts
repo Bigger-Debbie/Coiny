@@ -261,4 +261,15 @@ describe('Accounts', () => {
     expect(panel.refreshKey).toBeGreaterThan(initialRefresh);
     expect(panel.accountId).toBe(2);
   });
+  it('shows running balances for a selected account and hides them in the mixed-account view', () => {
+    const f = render(); flushTrend();
+    const row = { id: 1, accountId: 1, accountName: 'Checking', institutionName: 'Bank', categoryId: 1, categoryName: 'Groceries',
+      categoryType: 'Expense', amount: 25, runningBalance: 975, transactionDate: '2026-10-16', description: 'Groceries', merchant: null, isCleared: false };
+    http.expectOne(r => r.url.endsWith('/paged')).flush({ items: [row], totalCount: 1, page: 1, pageSize: 10 });
+    f.detectChanges(); expect(f.nativeElement.querySelector('.running-balance')).toBeNull();
+    f.componentInstance.selectAccount('1'); flushTrend();
+    http.expectOne(r => r.url.endsWith('/paged')).flush({ items: [row], totalCount: 1, page: 1, pageSize: 10 });
+    f.detectChanges(); expect(f.nativeElement.querySelector('.running-balance').textContent).toContain('$975.00');
+  });
+
 });

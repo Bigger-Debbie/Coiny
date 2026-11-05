@@ -113,7 +113,7 @@
         @else if (transactionError()) {
           <div role="status"><p>Your transactions couldn’t load.</p><button (click)="loadTransactions()">Retry transactions</button></div>
         } @else if (page(); as result) {
-          @if (result.items.length) { <app-transaction-list [transactions]="result.items" [interactive]="true" (open)="editingId.set($event)" /> }
+          @if (result.items.length) { <app-transaction-list [transactions]="result.items" [showRunningBalance]="selectedId() !== null" [interactive]="true" (open)="editingId.set($event)" /> }
           @else { <p role="status">No transactions match this account, timeframe, and filters.</p> }
         }
       </div>

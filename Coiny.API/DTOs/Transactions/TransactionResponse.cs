@@ -16,6 +16,8 @@ public class TransactionResponse
     public string CategoryName { get; set; } = string.Empty;
     public CategoryType CategoryType { get; set; }
     public decimal Amount { get; set; }
+    /// <summary>Account balance after this entry, in date/ID order; populated for single-account pages.</summary>
+    public decimal? RunningBalance { get; set; }
     public DateTime TransactionDate { get; set; }
     public string Description { get; set; } = string.Empty;
     public string? Merchant { get; set; }
