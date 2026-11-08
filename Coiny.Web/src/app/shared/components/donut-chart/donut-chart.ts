@@ -1,4 +1,4 @@
-import { Component, computed, Input, signal } from '@angular/core';
+import { Component, computed, Input, output, signal } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { BreakdownType, CategoryBreakdownItem } from '../../models/transactions/category-breakdown';
 
@@ -53,6 +53,7 @@ export class DonutChart {
   @Input() showCounts = true;
   @Input() unsigned = false;
   @Input() type: BreakdownType = 'Expense';
+  readonly categorySelected = output<number>();
   readonly tooltipId = 'donut-tooltip-' + nextChartId++;
   readonly hovered = signal<number | null>(null);
   readonly focused = signal<number | null>(null);
@@ -83,7 +84,10 @@ export class DonutChart {
     });
   });
   readonly active = computed(() => this.slices().find(c => c.categoryId === this.activeId()));
-  toggle(id: number): void { this.pinned.update(value => value === id ? null : id); }
+  toggle(id: number): void {
+    this.pinned.update(value => value === id ? null : id);
+    this.categorySelected.emit(id);
+  }
   dismiss(): void { this.hovered.set(null); this.focused.set(null); this.pinned.set(null); }
   onKey(event: KeyboardEvent, id: number): void {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.toggle(id); }

@@ -133,7 +133,7 @@
     @if (selectedAccount()?.accountType === 'Savings') {
       <app-savings-funds [accountId]="selectedId()" [refreshKey]="breakdownRefresh()" (changed)="loadOverview(true)" />
     } @else {
-    <app-category-breakdown [accountId]="selectedId()" [startDate]="transactionDates().startDate" [endDate]="transactionDates().endDate" [refreshKey]="breakdownRefresh()" />
+    <app-category-breakdown (categorySelected)="filterByChartCategory($event)" [accountId]="selectedId()" [startDate]="transactionDates().startDate" [endDate]="transactionDates().endDate" [refreshKey]="breakdownRefresh()" />
     }
     </div>
     </div>

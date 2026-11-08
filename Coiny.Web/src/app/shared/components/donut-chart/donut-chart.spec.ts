@@ -73,4 +73,15 @@ describe('DonutChart', () => {
     f.componentRef.setInput('categories', [categories[1], categories[0]]); f.detectChanges();
     expect(f.componentInstance.slices().find(c => c.categoryId === 1)?.color).toBe(color);
   });
+  it('emits selection for mouse, keyboard and legend activation but not hover', () => {
+    const f = render(); const selected = vi.fn(); f.componentInstance.categorySelected.subscribe(selected);
+    const slice = f.nativeElement.querySelector('.slice');
+    slice.dispatchEvent(new Event('pointerenter')); expect(selected).not.toHaveBeenCalled();
+    slice.dispatchEvent(new MouseEvent('click', {bubbles:true})); expect(selected).toHaveBeenLastCalledWith(1);
+    slice.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',bubbles:true}));
+    slice.dispatchEvent(new KeyboardEvent('keydown', {key:' ',bubbles:true}));
+    f.nativeElement.querySelectorAll('.legend button')[1].click();
+    expect(selected).toHaveBeenCalledTimes(4); expect(selected).toHaveBeenLastCalledWith(2);
+  });
+
 });

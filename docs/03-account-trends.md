@@ -44,6 +44,15 @@ balances and trends like any other ledger deletion.
 calculations. The current app has no currency-selection or conversion model;
 the frontend displays USD.
 
+## Category chart filtering
+
+On Accounts, activating a category slice or its legend row filters transactions
+by that category and the chart's Expense/Income type. Mouse, touch and keyboard
+activation use the same selection. The selected account and date range stay in
+place; search clears and pagination returns to page one. Filter controls open to
+show the selection, and Clear restores the unfiltered transaction list. The chart
+continues to show the complete account/date-range breakdown.
+
 ## Transaction running balances
 
 For an individual account, the Accounts transaction list shows **Balance: $…** on one line

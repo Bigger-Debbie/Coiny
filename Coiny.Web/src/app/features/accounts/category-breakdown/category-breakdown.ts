@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, Input, OnChanges, signal } from '@angular/core';
+import { Component, DestroyRef, inject, Input, OnChanges, output, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
@@ -17,6 +17,12 @@ export class CategoryBreakdownPanel implements OnChanges {
   @Input({ required: true }) startDate = '';
   @Input({ required: true }) endDate = '';
   @Input() refreshKey = 0;
+  readonly categorySelected = output<{ categoryId: number; categoryType: BreakdownType }>();
+  selectCategory(categoryId: number): void {
+    const data = this.breakdown();
+    if (this.loading() || this.error() || !data?.categories.some(category => category.categoryId === categoryId)) return;
+    this.categorySelected.emit({ categoryId, categoryType: data.categoryType });
+  }
   private readonly service = inject(TransactionService);
   private readonly destroyRef = inject(DestroyRef);
   private request?: Subscription;

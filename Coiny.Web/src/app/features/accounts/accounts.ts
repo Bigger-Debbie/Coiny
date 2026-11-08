@@ -253,6 +253,14 @@ export class Accounts implements OnInit {
     });
   }
 
+  filterByChartCategory(selection: { categoryId: number; categoryType: string }): void {
+    this.search = '';
+    this.categoryId = String(selection.categoryId);
+    this.categoryType = selection.categoryType;
+    this.filterOpen.set(true);
+    this.applyFilters();
+  }
+
   applyFilters(): void {
     this.appliedFilters = { search: this.search.trim(), categoryId: this.categoryId, categoryType: this.categoryType };
     this.hasFilters.set(Object.values(this.appliedFilters).some(Boolean));

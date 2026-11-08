@@ -13,7 +13,7 @@
       <div class="state" role="status"><p>Your breakdown couldn’t load.</p><button type="button" class="button-ghost" (click)="load()">Try again</button></div>
     } @else if (breakdown(); as data) {
       @if (data.totalAmount > 0 && data.categories.length) {
-        <app-donut-chart [scrollLegend]="true" [categories]="data.categories" [total]="data.totalAmount" [type]="data.categoryType" />
+        <app-donut-chart [scrollLegend]="true" (categorySelected)="selectCategory($event)" [categories]="data.categories" [total]="data.totalAmount" [type]="data.categoryType" />
       } @else { <p class="state" role="status">No {{ type() === 'Expense' ? 'expenses' : 'income' }} in this period.</p> }
     }
   </div>

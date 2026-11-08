@@ -71,4 +71,17 @@ describe('CategoryBreakdownPanel', () => {
     http.expectOne(isBreakdown).flush({ categoryType: 'Income', totalAmount: 0, transactionCount: 0, categories: [] });
     f.detectChanges(); expect(f.nativeElement.textContent).toContain('No income in this period.');
   });
+  it('forwards category selection with the displayed type and ignores stale or unknown categories', () => {
+    const f = render(); http.expectOne(isBreakdown).flush(expenses); f.detectChanges();
+    const selected = vi.fn(); f.componentInstance.categorySelected.subscribe(selected);
+    f.nativeElement.querySelector('.legend button').click();
+    expect(selected).toHaveBeenLastCalledWith({categoryId:1,categoryType:'Expense'});
+    f.componentInstance.selectCategory(999); expect(selected).toHaveBeenCalledTimes(1);
+    f.componentInstance.selectType('Income'); f.componentInstance.selectCategory(1);
+    expect(selected).toHaveBeenCalledTimes(1);
+    http.expectOne(isBreakdown).flush({...expenses,categoryType:'Income'}); f.detectChanges();
+    f.nativeElement.querySelector('.slice').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    expect(selected).toHaveBeenLastCalledWith({categoryId:1,categoryType:'Income'});
+  });
+
 });

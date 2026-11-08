@@ -157,4 +157,12 @@ describe('AppHeader profile menu', () => {
     loadProfile();const c=fixture.componentInstance;c.openMobile();vi.stubGlobal('innerWidth',1024);c.onResize();expect(c.mobileOpen()).toBe(false);
   });
 
+  it('names the Accounts and Budget navigation icons with matching hover tooltips', () => {
+    loadProfile();
+    for (const label of ['Accounts','Budget']) {
+      const link = fixture.nativeElement.querySelector(`a[aria-label="${label}"]`);
+      expect(link.getAttribute('title')).toBe(label);
+    }
+  });
+
 });

@@ -8,12 +8,13 @@ import { By } from '@angular/platform-browser';
 import { CreateAccount } from './create-account/create-account';
 import { CreateTransaction } from '../transactions/create-transaction/create-transaction';
 import { CreateCategory } from './create-category/create-category';
-import { Component, Input } from '@angular/core';
+import { Component, Input, output } from '@angular/core';
 import { ToastService } from '../../core/services/toast.service';
 import { CategoryBreakdownPanel } from './category-breakdown/category-breakdown';
 
 @Component({ selector: 'app-category-breakdown', template: '' })
 class BreakdownStub {
+  readonly categorySelected = output<{ categoryId: number; categoryType: string }>();
   @Input() accountId: number | null = null;
   @Input() startDate = '';
   @Input() endDate = '';
@@ -270,6 +271,29 @@ describe('Accounts', () => {
     f.componentInstance.selectAccount('1'); flushTrend();
     http.expectOne(r => r.url.endsWith('/paged')).flush({ items: [row], totalCount: 1, page: 1, pageSize: 10 });
     f.detectChanges(); expect(f.nativeElement.querySelector('.running-balance').textContent).toContain('$975.00');
+  });
+
+  it('filters from chart selection, clears stale search, preserves account/range and resets pagination', () => {
+    const f = render(); flushTrend(); flushPage();
+    const c = f.componentInstance;
+    c.selectAccount('1'); flushTrend(); flushPage(); f.detectChanges();
+    c.search = 'old search'; c.categoryType = 'Income'; c.currentPage.set(3);
+    const dates = c.transactionDates();
+    f.debugElement.query(By.directive(BreakdownStub)).componentInstance.categorySelected.emit({categoryId: 1, categoryType: 'Expense'});
+    const request = http.expectOne(r => r.url.endsWith('/paged'));
+    expect(request.request.params.get('categoryId')).toBe('1');
+    expect(request.request.params.get('categoryType')).toBe('Expense');
+    expect(request.request.params.get('accountId')).toBe('1');
+    expect(request.request.params.get('startDate')).toBe(dates.startDate);
+    expect(request.request.params.get('endDate')).toBe(dates.endDate);
+    expect(request.request.params.get('page')).toBe('1');
+    expect(request.request.params.has('search')).toBe(false);
+    request.flush({items: [], totalCount: 0, page: 1, pageSize: 10});
+    expect(c.filterOpen()).toBe(true); expect(c.hasFilters()).toBe(true);
+    c.clearFilters(); const cleared = http.expectOne(r => r.url.endsWith('/paged'));
+    expect(cleared.request.params.has('categoryId')).toBe(false);
+    expect(cleared.request.params.has('categoryType')).toBe(false);
+    cleared.flush({items: [], totalCount: 0, page: 1, pageSize: 10});
   });
 
 });
