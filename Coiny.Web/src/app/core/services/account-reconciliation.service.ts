@@ -11,6 +11,13 @@ export class AccountReconciliationService {
   check(id: number, statementDate: string, statementBalance: number) {
     return this.http.post<ReconciliationCheck>(`${this.url(id)}/check`, { statementDate, statementBalance });
   }
+  adjust(id: number, check: ReconciliationCheck, operationId: string, reason: string) {
+    return this.http.post<AccountReconciliation>(`${this.url(id)}/adjust`, {
+      statementDate:check.statementDate,statementBalance:check.statementBalance,
+      reviewedFingerprint:check.ledgerFingerprint,transactionsReviewed:true,
+      operationId,reason,adjustmentAcknowledged:true,
+    });
+  }
   confirm(id: number, check: ReconciliationCheck) {
     return this.http.post<AccountReconciliation>(this.url(id), {
       statementDate: check.statementDate, statementBalance: check.statementBalance,

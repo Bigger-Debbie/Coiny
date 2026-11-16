@@ -22,6 +22,62 @@ public class SavingsFundsTests
         var component=new SavingsComponent{Name="Tires",Mode="Recurring",Amount=1000,TargetDate=new(2027,10,15),RepeatMonths=12};
         return new(){AcceptShortfall=true,SourceKey=revision.Allocations[0].SourceKey,AccountId=1,Name="Car",ExpectedRevisionId=revision.Id,Plan=new(){StartDate=new(2026,10,16),Components=[component]},OpeningAllocations=new(){{component.Key,opening}}};
     }
+    private static async Task<(SavingsFundView Fund,Guid Component)> FundWithTransfer(BudgetTestDatabase db)
+    {
+        var revision=await Setup(db);var fund=await Service(db).SaveAsync(Request(revision));
+        using var c=db.Context();
+        var outgoing=new Transaction{Id=10,HouseholdId=1,AccountId=1,CategoryId=2,TransactionDate=new(2026,10,16),Amount=350,Description="Transfer to spending",TransferDirection=TransferDirection.Out,TransferCounterparty=TransferCounterparty.Unknown};
+        var incoming=new Transaction{Id=11,HouseholdId=1,AccountId=3,CategoryId=2,TransactionDate=new(2026,10,16),Amount=350,Description="Transfer from savings",TransferDirection=TransferDirection.In,TransferCounterparty=TransferCounterparty.Unknown};
+        c.Transactions.AddRange(outgoing,incoming);await c.SaveChangesAsync();outgoing.PairedTransactionId=11;incoming.PairedTransactionId=10;outgoing.TransferCounterparty=TransferCounterparty.Linked;incoming.TransferCounterparty=TransferCounterparty.Linked;await c.SaveChangesAsync();
+        return(fund,fund.Components[0].Definition.Key);
+    }
+    private static SavingsActivityRequest UseTransfer(SavingsFundView fund,Guid component,decimal amount,int transaction=10)=>new(){OperationId=Guid.NewGuid(),ExpectedEditVersion=fund.EditVersion,Date=new(2026,10,16),Kind="Withdrawal",TransactionId=transaction,Amounts=new(){{component,-amount}}};
+    [Fact] public async Task Outgoing_transfer_can_use_fund_money_without_changing_bank_entries_or_balances()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();var(fund,key)=await FundWithTransfer(db);
+        using var c=db.Context();var savings=await new AccountBalanceService(c).GetCurrentBalanceAsync(1);var spending=await new AccountBalanceService(c).GetCurrentBalanceAsync(3);
+        var request=UseTransfer(fund,key,200);var updated=await Service(db).ActivityAsync(fund.SourceKey,request);
+        Assert.Equal(800,updated.Balance);Assert.Equal(updated.Balance,(await Service(db).ActivityAsync(fund.SourceKey,request)).Balance);
+        Assert.Contains(updated.Activities,a=>a.TransactionId==10&&a.Kind=="WithdrawalLinked"&&a.Amount==-200);
+        Assert.Equal(2,await c.Transactions.CountAsync());Assert.Equal(savings,await new AccountBalanceService(c).GetCurrentBalanceAsync(1));Assert.Equal(spending,await new AccountBalanceService(c).GetCurrentBalanceAsync(3));
+        var report=await new BudgetActualsService(db.Context(),new User(),db.Service(),db.Clock).GetPeriodAsync(new(2026,10,16),"all");
+        Assert.Equal(0,report.Points[0].ActualSpending);Assert.Equal(0,report.Points[0].ActualContributions);
+        await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).ActivityAsync(fund.SourceKey,UseTransfer(updated,key,151)));
+        updated=await Service(db).ActivityAsync(fund.SourceKey,UseTransfer(updated,key,150));Assert.Equal(650,updated.Balance);
+    }
+    [Fact] public async Task Candidates_include_expenses_and_only_outgoing_transfers_from_the_fund_account()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();var(fund,key)=await FundWithTransfer(db);
+        using var c=db.Context();c.Categories.Add(new Category{Id=3,HouseholdId=2,Name="Foreign transfer",CategoryType=CategoryType.Transfer});
+        c.Transactions.AddRange(new Transaction{Id=12,HouseholdId=1,AccountId=3,CategoryId=2,TransactionDate=new(2026,10,16),Amount=20,Description="Wrong source",TransferDirection=TransferDirection.Out,TransferCounterparty=TransferCounterparty.Unknown},
+            new Transaction{Id=13,HouseholdId=1,AccountId=1,CategoryId=2,TransactionDate=new(2026,10,16),Amount=20,Description="Incoming savings",TransferDirection=TransferDirection.In,TransferCounterparty=TransferCounterparty.Unknown},
+            new Transaction{Id=14,HouseholdId=2,AccountId=2,CategoryId=3,TransactionDate=new(2026,10,16),Amount=20,Description="Foreign",TransferDirection=TransferDirection.Out,TransferCounterparty=TransferCounterparty.Unknown},
+            new Transaction{Id=15,HouseholdId=1,AccountId=1,CategoryId=2,TransactionDate=new(2026,10,17),Amount=20,Description="Future",TransferDirection=TransferDirection.Out,TransferCounterparty=TransferCounterparty.Unknown},
+            new Transaction{Id=16,HouseholdId=1,AccountId=3,CategoryId=1,TransactionDate=new(2026,10,16),Amount=20,Description="Expense"});await c.SaveChangesAsync();
+        var rows=System.Text.Json.JsonSerializer.SerializeToElement(await Service(db).CandidatesAsync(fund.SourceKey,"Withdrawal"));
+        Assert.Equal(new[]{10,16},rows.EnumerateArray().Select(r=>r.GetProperty("Id").GetInt32()).Order().ToArray());
+        foreach(var id in new[]{11,12,13,14})await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).ActivityAsync(fund.SourceKey,UseTransfer(fund,key,10,id)));
+        await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).CandidatesAsync(fund.SourceKey,"Invalid"));
+    }
+    [Fact] public async Task A_transfer_already_used_by_a_fund_cannot_be_assigned_to_another_fund()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();var(fund,key)=await FundWithTransfer(db);
+        fund=await Service(db).ActivityAsync(fund.SourceKey,UseTransfer(fund,key,200));
+        var component=new SavingsComponent{Name="Other purpose",Mode="Monthly",Amount=0};
+        var second=await Service(db).SaveAsync(new(){AccountId=1,Name="Other fund",Plan=new(){ScheduleContributions=false,StartDate=new(2026,10,16),Components=[component]},OpeningAllocations=new(){{component.Key,500}}});
+        await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).ActivityAsync(second.SourceKey,UseTransfer(second,component.Key,50)));
+        Assert.Equal(500,(await Service(db).GetAsync(1)).Single().Funds.Single(f=>f.Id==second.Id).Balance);
+    }
+    [Fact] public async Task Reversing_linked_transfer_usage_restores_only_the_fund_allocation()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();var(fund,key)=await FundWithTransfer(db);var request=UseTransfer(fund,key,350);
+        fund=await Service(db).ActivityAsync(fund.SourceKey,request);Assert.Equal(650,fund.Balance);
+        fund=await Service(db).CorrectActivityAsync(fund.SourceKey,request.OperationId,fund.EditVersion);Assert.Equal(1000,fund.Balance);
+        Assert.Contains(fund.Activities,a=>a.Kind=="Voided:WithdrawalLinked");
+        fund=await Service(db).ActivityAsync(fund.SourceKey,UseTransfer(fund,key,350));Assert.Equal(650,fund.Balance);
+        Assert.Equal(2,await db.Context().Transactions.CountAsync());
+    }
+
     [Fact] public async Task UnscheduledFundWorksWithoutBudgetAndKeepsLedgerAndAvailableCashIntact()
     {
         await using var db=await BudgetTestDatabase.CreateAsync();var context=db.Context();

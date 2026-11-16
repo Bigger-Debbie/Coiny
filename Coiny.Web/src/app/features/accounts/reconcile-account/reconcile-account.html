@@ -21,9 +21,29 @@
       <div><dt>Coiny through {{ result.statementDate | date:'mediumDate' }}</dt><dd>{{ result.calculatedBalance | currency }}</dd></div>
       <div><dt>Difference</dt><dd>{{ result.difference | currency }}</dd></div></dl>
     <p class="help">{{ result.transactionCount }} transactions included through the end of this date. Later transactions are left out.</p>
-    @if (!result.matches) { <p>Check for missing or duplicate transactions and confirm the account’s opening balance. Coiny won’t create an adjustment.</p> }
+    @if (!result.matches) { <p>Check for missing or duplicate transactions and confirm the account’s opening balance. Review these differences before considering an adjustment.</p> }
     <button type="button" class="button-outline" [disabled]="busy()" (click)="inspect.emit({ date: result.statementDate, balance: result.statementBalance })">Review these transactions</button>
   </section>
+  @if (!result.matches) {
+    <section class="adjustment-option">
+      @if (!adjustmentOpen) {
+        <button type="button" class="button-ghost" [disabled]="busy()" (click)="adjustmentOpen = true">Use a reconciliation adjustment instead</button>
+      } @else {
+        <h3>Preview reconciliation adjustment</h3>
+        <p>Use this only if you can’t resolve the difference from your statement. It changes Coiny’s recorded balance and may hide a missing or incorrect transaction.</p>
+        <dl><div><dt>Date</dt><dd>{{ result.statementDate | date:'mediumDate':'UTC' }}</dd></div>
+          <div><dt>{{ isDebt() ? 'Change in amount owed' : 'Change in balance' }}</dt><dd>{{ result.difference > 0 ? '+' : '' }}{{ result.difference | currency }}</dd></div>
+          <div><dt>{{ isDebt() ? 'Amount owed after adjustment' : 'Balance after adjustment' }}</dt><dd>{{ result.statementBalance | currency }}</dd></div></dl>
+        <p class="help">Creates one “Reconciliation adjustment” transaction and saves a checkpoint. It is excluded from income and spending totals. Later transactions remain unchanged.</p>
+        <label for="adjustment-reason">Reason</label>
+        <textarea id="adjustment-reason" rows="3" maxlength="500" [(ngModel)]="adjustmentReason" [disabled]="busy()" placeholder="Explain the unresolved difference"></textarea>
+        <label class="review-confirmation"><input type="checkbox" [(ngModel)]="reviewed" [disabled]="busy()" /><span>I reviewed the statement transactions and opening balance.</span></label>
+        <label class="review-confirmation"><input type="checkbox" [(ngModel)]="adjustmentAcknowledged" [disabled]="busy()" /><span>I understand this creates an adjustment to match the statement balance.</span></label>
+        <div class="actions"><button type="button" class="button-outline" [disabled]="busy()" (click)="adjustmentOpen = false">Cancel</button>
+          <button type="button" class="button-primary" [disabled]="busy() || !reviewed || !adjustmentAcknowledged || !adjustmentReason.trim()" (click)="adjust()">{{ busy() ? 'Saving…' : 'Create adjustment and reconcile' }}</button></div>
+      }
+    </section>
+  }
   @if (result.matches) {
     <label class="review-confirmation"><input type="checkbox" [disabled]="busy()" [(ngModel)]="reviewed" />
       <span>I compared the statement transactions and confirm everything through this date is correct.</span></label>
@@ -44,6 +64,7 @@
           <div class="history-heading"><strong>{{ record.statementDate | date:'mediumDate' }}</strong><strong>{{ record.statementBalance | currency }}</strong></div>
           <span class="status">{{ record.needsReview ? 'Needs review' : '✓ Verified' }}</span>
           <small>Confirmed by {{ record.confirmedByName }} · {{ record.confirmedAt | date:'medium' }}</small>
+          @if (record.adjustmentAmount != null) {<small>Reconciliation adjustment: {{ record.adjustmentAmount > 0 ? '+' : '' }}{{ record.adjustmentAmount | currency }} · {{ record.adjustmentReason }}{{ record.adjustmentTransactionId ? '' : ' · Adjustment transaction removed' }}</small>}
           @if (record.needsReview) { <small>{{ record.invalidationReason }} Check and confirm again to save a new checkpoint.</small> }
         </li>
       }

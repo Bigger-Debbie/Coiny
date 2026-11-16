@@ -21,3 +21,10 @@ li small { display: block; color: var(--color-text-muted); line-height: 1.6; }
 .needs-review .status { color: #9a5400; }
 .error { color: #aa0025; }
 @media (max-width: 540px) { .fields { grid-template-columns: 1fr; } }
+
+.adjustment-option { margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-border); border-radius: 10px; }
+.adjustment-option textarea { box-sizing: border-box; width:100%; padding:.75rem; color:var(--color-primary); border:1px solid var(--color-border); border-radius:8px; font:inherit; }
+.adjustment-option .actions { display:flex; gap:.75rem; flex-wrap:wrap; margin-top:1rem; }
+.adjustment-option dl { display:grid; gap:.5rem; }
+.adjustment-option dl>div {display:flex;justify-content:space-between;gap:1rem;}
+.adjustment-option dd {margin:0;}

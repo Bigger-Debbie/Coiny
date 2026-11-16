@@ -12,6 +12,7 @@ public class AccountReconciliationsController(AccountReconciliationService servi
 {
     [HttpGet] public async Task<ActionResult<IReadOnlyList<AccountReconciliationResponse>>> History(int accountId) => Ok(await service.HistoryAsync(accountId));
     [HttpPost("check")] public async Task<ActionResult<ReconciliationCheck>> Check(int accountId, ReconciliationCheckRequest request) => Ok(await service.CheckAsync(accountId, request));
+    [HttpPost("adjust")] public async Task<ActionResult<AccountReconciliationResponse>> Adjust(int accountId, AdjustReconciliationRequest request) => Ok(await service.AdjustAsync(accountId, request));
     [HttpPost] public async Task<ActionResult<AccountReconciliationResponse>> Confirm(int accountId, ConfirmReconciliationRequest request) => Ok(await service.ConfirmAsync(accountId, request));
 }
 public class ReconciliationApiExceptionFilterAttribute : ExceptionFilterAttribute

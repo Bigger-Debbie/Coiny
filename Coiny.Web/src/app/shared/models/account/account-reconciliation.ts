@@ -7,6 +7,9 @@ export interface AccountReconciliation {
   needsReview: boolean;
   invalidatedAt: string | null;
   invalidationReason: string | null;
+  adjustmentTransactionId?: number | null;
+  adjustmentAmount?: number | null;
+  adjustmentReason?: string | null;
 }
 
 export interface ReconciliationCheck {

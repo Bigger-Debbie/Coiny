@@ -250,3 +250,11 @@ income period. Other periods select their first day; payment refreshes preserve
 an explicitly selected day.
 
 The card also offers an account-based **Available cash** view. See [Available cash outlook](17-available-cash-outlook.md) for account selection, calculation boundaries, and API details.
+
+For a paid bill with linked transactions, the income-period bills list, calendar
+selected-day details, tooltips and accessible day labels show the combined linked
+amount instead of the estimate. Multiple links count once each. When the amount
+differs, the list retains a smaller estimated amount for comparison. Unlinking
+all transactions returns the displayed amount to its estimate while the payment
+awaits a transaction; skipped occurrences display zero. Published budget targets
+and scheduled totals remain unchanged.

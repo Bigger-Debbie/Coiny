@@ -32,6 +32,10 @@ export class ReconcileAccount implements OnInit {
   statementDate = this.today;
   statementBalance: number | null = null;
   reviewed = false;
+  adjustmentOpen = false;
+  adjustmentAcknowledged = false;
+  adjustmentReason = '';
+  private adjustmentOperationId = crypto.randomUUID();
 
   ngOnInit() {
     const initial = this.initialStatement();
@@ -43,7 +47,7 @@ export class ReconcileAccount implements OnInit {
     const detail = (response.error as { detail?: unknown } | null)?.detail;
     return typeof detail === 'string' ? detail : fallback;
   }
-  changed() { this.check.set(null); this.reviewed = false; this.error.set(''); }
+  changed() { this.check.set(null); this.reviewed = false; this.error.set(''); this.adjustmentOpen = false; this.adjustmentAcknowledged = false; this.adjustmentOperationId = crypto.randomUUID(); }
   loadHistory() {
     this.historyLoading.set(true); this.historyError.set(false);
     this.service.history(this.account().id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -59,6 +63,19 @@ export class ReconcileAccount implements OnInit {
         next: result => { this.check.set(result); this.busy.set(false); },
         error: response => { this.busy.set(false); this.error.set(this.message(response, 'The balance couldn’t be checked. Try again.')); },
       });
+  }
+  adjust() {
+    const check=this.check();
+    if (this.busy() || !check || check.matches || !this.reviewed || !this.adjustmentAcknowledged || !this.adjustmentReason.trim()) return;
+    this.busy.set(true);this.error.set('');
+    this.service.adjust(this.account().id,check,this.adjustmentOperationId,this.adjustmentReason.trim()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next:()=>{this.busy.set(false);this.saved.emit();},
+      error:response=>{
+        this.busy.set(false);
+        if(response.status===409)this.changed();
+        this.error.set(this.message(response,'The adjustment could not be confirmed. Retry with the same details, or check your reconciliation history.'));
+      },
+    });
   }
   confirm() {
     const check = this.check();

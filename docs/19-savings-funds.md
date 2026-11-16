@@ -71,12 +71,24 @@ Recording a paycheck contribution can settle the matching calendar occurrence. I
 Funded / Allocated rather than awaiting a bank transaction. A partial contribution
 reduces the forecast commitment but does not settle the entire occurrence.
 
-Withdrawals can link all or part of an expense from any household account. Link the
-expense rather than a transfer back to spending. The expense remains visible at its
-full amount in transaction reports. Its funded portion is excluded from current
-paycheck spending in the budget outlook so savings are not charged twice. A transfer
-out may temporarily make purpose allocations exceed the recorded account cash until
-its expense/withdrawal is allocated; the account view explicitly shows this shortfall.
+Use fund money can link all or part of an expense from any household account, or
+an outgoing transfer from the fund's savings account. Incoming transfer entries and
+transfers from other accounts cannot be used for withdrawals. The picker labels
+transfers and expenses separately. Linking records fund allocation activity only;
+it does not create another bank transaction or change the transfer's amount.
+
+Choose the transfer or its later expense, not both. Coiny caps allocations against
+the linked movement's amount, treats paired transfer entries as one movement, and
+rejects reusing a movement already assigned to another fund. An independent later
+expense cannot automatically be identified as the same money; review your existing
+fund activity before linking it. Reversing fund usage restores the allocation while
+leaving the bank transaction intact.
+
+When an expense is linked, it remains visible at its full amount in transaction
+reports, and its funded portion is excluded from current paycheck spending. Linking
+a transfer does not automatically mark a later expense as savings-funded. A transfer
+out may temporarily make purpose allocations exceed recorded account cash until
+its fund withdrawal is allocated; the account view explicitly shows the shortfall.
 
 Components can exchange allocations without bank movements. Money can also move to
 another fund in the same account or be released to unallocated cash. Ordinary activity

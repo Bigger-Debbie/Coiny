@@ -107,4 +107,13 @@ describe('EditTransaction', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false); const dismiss = vi.fn(); c.dismiss.subscribe(dismiss); c.close(); expect(dismiss).not.toHaveBeenCalled();
     expect(c.request!.notes).toBe('Unsaved');
   });
+  it('keeps reconciliation adjustment audit details read-only while allowing removal', async()=>{
+    const f=await render({...details,bill:null,transaction:{...details.transaction,categoryType:'BalanceAdjustment',amount:-50,description:'Reconciliation adjustment'}},false);
+    const c=f.componentInstance;c.startEditing();expect(c.editing()).toBe(false);
+    expect(f.nativeElement.querySelector('[data-edit-transaction]')).toBeNull();
+    const remove=[...f.nativeElement.querySelectorAll('button')].find((b:any)=>b.textContent.trim()==='Remove adjustment') as HTMLButtonElement;
+    expect(remove).toBeTruthy();remove.click();f.detectChanges();expect(c.deleting()).toBe(true);
+    c.remove();http.expectOne(r=>r.method==='DELETE').flush(null);
+  });
+
 });

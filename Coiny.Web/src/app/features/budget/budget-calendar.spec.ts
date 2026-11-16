@@ -229,4 +229,32 @@ describe('BudgetCalendar', () => {
     c.showCompleted.set(false);expect(c.visiblePayments([skipped])).toEqual([]);
   });
 
+  it('shows actual linked bill totals in the period list, day details, tooltip and accessible label', () => {
+    const f = render(), c = f.componentInstance;
+    const payment = { isPaid: true, paidOn: '2026-10-17', note: null, transactionId: 41,
+      linkedTransaction: { id: 41, date: '2026-10-17', amount: 150, description: 'Babysitter' },
+      linkedTransactions: [{ id: 41, date: '2026-10-17', amount: 150, description: 'Babysitter' }] };
+    const occurrence = { ...bill, name: 'Babysitter', amount: 400, payment };
+    c.period.set({ ...period, bills: [occurrence] });
+    c.calendars.set([{ ...month, events: [occurrence] }]); c.selectedDay.set(bill.date); f.detectChanges();
+    for (const selector of ['.period-events .bill-actions', '.day-details .bill-actions']) {
+      const row = f.nativeElement.querySelector(selector);
+      expect(row.querySelector('strong').textContent).toContain('$150.00');
+      expect(row.textContent).toContain('Estimated $400.00');
+    }
+    expect(f.nativeElement.querySelector('[aria-label^="2026-10-17"]').getAttribute('aria-label')).toContain('$150.00');
+    expect(f.nativeElement.querySelector('.day-tooltip').textContent).toContain('$150.00');
+    expect(occurrence.amount).toBe(400);
+    const multiple = { ...occurrence, payment: { ...payment, linkedTransactions: [...payment.linkedTransactions,
+      { id: 42, date: '2026-10-18', amount: 75, description: 'Second payment' }] } };
+    expect(c.displayAmount(multiple)).toBe(225); // Legacy first link is not counted twice.
+    expect(c.displayAmount({ ...occurrence, payment: { ...payment, linkedTransactions: [] } })).toBe(150);
+    expect(c.displayAmount({ ...occurrence, payment: { ...payment, transactionId: null,
+      linkedTransaction: null, linkedTransactions: [] } })).toBe(400);
+    expect(c.displayAmount({ ...multiple, payment: { ...multiple.payment, isPaid: false } })).toBe(400);
+    expect(c.displayAmount({ ...multiple, payment: { ...multiple.payment, isSkipped: true } })).toBe(0);
+    expect(c.displayAmount({ ...occurrence, payment: { ...payment,
+      linkedTransactions: [{ ...payment.linkedTransactions[0], amount: 0 }] } })).toBe(0);
+  });
+
 });

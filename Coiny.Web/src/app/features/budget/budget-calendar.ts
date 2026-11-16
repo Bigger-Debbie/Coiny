@@ -80,7 +80,17 @@ export class BudgetCalendar implements OnInit, OnChanges {
   canTrackPayment(event: BudgetEvent) { return !event.isIncome && ['Housing', 'Bills', 'Subscriptions', 'Savings', 'Investments'].includes(event.allocationType ?? ''); }
   awaitingTransaction(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && event.payment.transactionId == null && !event.payment.isFundAllocation; }
   linkedPayment(event: BudgetEvent) { return this.canTrackPayment(event) && event.payment?.isPaid === true && (event.payment.transactionId != null || !!event.payment.isFundAllocation); }
-  displayAmount(event: BudgetEvent) { return event.payment?.isSkipped ? 0 : event.amount; }
+  displayAmount(event: BudgetEvent) {
+    if (event.payment?.isSkipped) return 0;
+    if (this.linkedPayment(event)) {
+      const entries = event.payment?.linkedTransactions?.length
+        ? event.payment.linkedTransactions : event.payment?.linkedTransaction ? [event.payment.linkedTransaction] : [];
+      if (entries.length) return [...new Map(entries.map(entry => [entry.id, entry])).values()]
+        .reduce((total, entry) => total + Math.abs(entry.amount), 0);
+    }
+    return event.amount;
+  }
+  showEstimate(event: BudgetEvent) { return this.linkedPayment(event) && this.displayAmount(event) !== event.amount; }
   paymentMarker(event: BudgetEvent) { if(event.payment?.isSkipped)return '−'; return this.linkedPayment(event) ? '✓' : this.awaitingTransaction(event) ? '◷' : '●'; }
   paymentAction(event: BudgetEvent) { if(event.payment?.isSkipped)return event.allocationType === 'Savings' ? 'Restore contribution' : 'Restore occurrence'; if(event.payment?.isFundAllocation)return 'View allocation'; return this.awaitingTransaction(event) ? 'Link transaction' : this.linkedPayment(event) ? 'View payment' : 'Mark paid'; }
   status(event: BudgetEvent) { if(event.payment?.isSkipped)return event.allocationType === 'Savings' ? 'Skipped this period' : 'Skipped this occurrence'; if(event.payment?.isFundAllocation)return 'Funded · Allocated'; return this.awaitingTransaction(event) ? 'Paid · Awaiting transaction' : this.linkedPayment(event) ? 'Paid · Linked' : event.date < this.today ? 'Overdue' : event.date === this.today ? 'Due today' : 'Upcoming'; }
@@ -149,6 +159,6 @@ export class BudgetCalendar implements OnInit, OnChanges {
   }
   kind(event: BudgetEvent) { return event.isIncome ? 'Income' : ['Housing', 'Bills', 'Subscriptions'].includes(event.allocationType ?? '') ? 'Bill' : ['Savings', 'Investments'].includes(event.allocationType ?? '') ? 'Contribution' : 'Spending'; }
   dayLabel(date: string, events: BudgetEvent[]) {
-    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', selected income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${e.amount.toFixed(2)}${this.canTrackPayment(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
+    return date + (date === this.today ? ', today' : '') + (this.inPeriod(date) ? ', selected income period' : '') + (events.length ? ': ' + events.map(e => `${this.kind(e)}: ${e.name}, $${this.displayAmount(e).toFixed(2)}${this.canTrackPayment(e) ? ", " + this.status(e) : ""}`).join('; ') : ', no scheduled items');
   }
 }

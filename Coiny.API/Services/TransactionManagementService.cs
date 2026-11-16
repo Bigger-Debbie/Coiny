@@ -29,6 +29,8 @@ public class TransactionManagementService(IFinancialContext context, ICurrentUse
         var household = await user.GetCurrentHouseholdIdAsync();
         await using var unit = await context.Database.BeginTransactionAsync();
         var entry = await Owned(id, household);
+        if (entry.Category.CategoryType == CategoryType.BalanceAdjustment || request.CategoryType == CategoryType.BalanceAdjustment)
+            throw new ArgumentException("Reconciliation adjustments retain their original audit details. Remove the adjustment and reconcile again to correct it.");
         var pair = await Pair(entry, household);
         CheckVersions(entry, pair, request.ExpectedEditVersion, request.ExpectedPairedEditVersion);
         if (request.CategoryType is null || !Enum.IsDefined(request.CategoryType.Value) || request.Date is null || request.Date == DateOnly.MinValue ||

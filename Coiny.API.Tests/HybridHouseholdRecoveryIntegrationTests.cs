@@ -23,6 +23,21 @@ public class HybridHouseholdRecoveryIntegrationTests
         (await site.Client.PostAsJsonAsync("/api/households", new { name })).EnsureSuccessStatusCode();
         (await site.Client.PostAsJsonAsync("/api/accounts", new { name = "Original checking", accountType = "Checking", openingBalance = 1000, openingBalanceDate = "2026-01-01" })).EnsureSuccessStatusCode();
     }
+    [PostgresFact] public async Task Reconciliation_adjustment_and_audit_survive_portable_restore()
+    {
+        await using var source=new HybridApiIntegrationTests.Fixture();await Setup(source,"adjustment-source");
+        var account=(await source.Client.GetFromJsonAsync<JsonElement>("/api/accounts")).EnumerateArray().Single().GetProperty("id").GetInt32();
+        var checkResponse=await source.Client.PostAsJsonAsync($"/api/accounts/{account}/reconciliations/check",new{statementDate="2026-10-05",statementBalance=950});checkResponse.EnsureSuccessStatusCode();
+        var check=await checkResponse.Content.ReadFromJsonAsync<Coiny.API.DTOs.Accounts.ReconciliationCheck>();
+        var adjustment=await source.Client.PostAsJsonAsync($"/api/accounts/{account}/reconciliations/adjust",new{check!.StatementDate,check.StatementBalance,reviewedFingerprint=check.LedgerFingerprint,transactionsReviewed=true,adjustmentAcknowledged=true,operationId=Guid.NewGuid(),reason="Reviewed statement"});adjustment.EnsureSuccessStatusCode();
+        await using var target=new HybridApiIntegrationTests.Fixture();await Setup(target,"adjustment-target",true);
+        var preview=await Preview(target,await Backup(source,true),true);preview.EnsureSuccessStatusCode();
+        var id=(await preview.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("previewId").GetGuid();
+        (await target.Client.PostAsJsonAsync("/api/household-data/restore/confirm",new{previewId=id,currentPassword="Synthetic!2026",confirmReplacement=true})).EnsureSuccessStatusCode();
+        var history=await target.Client.GetFromJsonAsync<List<Coiny.API.DTOs.Accounts.AccountReconciliationResponse>>($"/api/accounts/{account}/reconciliations");
+        var record=Assert.Single(history!);Assert.Equal(-50,record.AdjustmentAmount);Assert.NotNull(record.AdjustmentTransactionId);Assert.False(record.NeedsReview);
+        var accounts=await target.Client.GetFromJsonAsync<JsonElement>("/api/accounts");Assert.Equal(950,accounts.EnumerateArray().Single().GetProperty("currentBalance").GetDecimal());
+    }
     [PostgresFact] public async Task Linked_restore_previews_detect_changes_and_safety_backup_preserves_replaced_data()
     {
         await using var site = new HybridApiIntegrationTests.Fixture(); await Setup(site, "backup-owner");

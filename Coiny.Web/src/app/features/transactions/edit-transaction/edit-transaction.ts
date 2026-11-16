@@ -45,6 +45,7 @@ export class EditTransaction implements OnInit {
   readonly directions: SelectOption[] = [{ value: 'Out', label: 'Money out' }, { value: 'In', label: 'Money in' }];
   readonly counterparties: SelectOption[] = [{ value: 'Unknown', label: 'Other account unknown — link later' }, { value: 'External', label: 'Account outside Coiny' }];
   get linked() { return this.details?.transaction.pairedTransactionId != null; }
+  get balanceAdjustment() { return this.details?.transaction.categoryType === 'BalanceAdjustment'; }
   get market() { return this.details?.transaction.categoryType === 'MarketAdjustment'; }
   get kinds(): SelectOption[] { if (this.market) return [{ value: 'MarketAdjustment', label: 'Market adjustment' }]; return (this.linked ? ['Transfer'] : ['Expense', 'Income', 'Transfer']).map(value => ({ value, label: value })); }
   get accountOptions(): SelectOption[] {
@@ -87,7 +88,7 @@ export class EditTransaction implements OnInit {
     this.transfers.unlink(this.transactionId, details.transaction.editVersion ?? 0, details.pairedEditVersion ?? 0)
       .pipe(takeUntilDestroyed(this.destroy)).subscribe({ next: () => { this.busy.set(false); this.changed.emit('updated'); }, error: response => this.fail(response) });
   }
-  startEditing() { if (!this.busy() && !this.stale()) { this.editing.set(true); this.focusAfterRender('#edit-kind'); } }
+  startEditing() { if (!this.balanceAdjustment && !this.busy() && !this.stale()) { this.editing.set(true); this.focusAfterRender('#edit-kind'); } }
   cancelEditing() {
     if (this.busy() || (this.dirty && !window.confirm('Discard your unsaved transaction changes?'))) return;
     this.request = JSON.parse(this.original) as UpdateTransactionRequest;

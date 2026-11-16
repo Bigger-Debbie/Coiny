@@ -22,6 +22,7 @@ const plan: BudgetMonth = {
   ],
 };
 describe('BudgetDashboard', () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => { TestBed.configureTestingModule({ providers:[provideHttpClient(),provideHttpClientTesting()] }); TestBed.overrideComponent(BudgetDashboard, { remove: { imports: [BudgetCalendar, BudgetActualsPanel, SavingsFunds] }, add: { imports: [BudgetCalendarStub, BudgetActualsStub, SavingsFundsStub] } }); });
   function render(month: BudgetMonth | null = plan) {
     const f = TestBed.createComponent(BudgetDashboard); f.componentInstance.mode.set('month');
@@ -29,6 +30,8 @@ describe('BudgetDashboard', () => {
     f.detectChanges(); return f;
   }
   it('defaults to one shared period for totals, breakdown, actuals, and calendar', () => {
+    // This fixture's unlinked reserve is only visible while its period is current.
+    vi.setSystemTime(new Date('2026-11-08T12:00:00Z'));
     const f = TestBed.createComponent(BudgetDashboard); const http = TestBed.inject(HttpTestingController);
     f.componentRef.setInput('month',plan); f.componentRef.setInput('selectedMonth','2026-10-01'); f.detectChanges();
     const projected = { ...plan, expectedIncome:2500, allocated:2700, unassigned:0, overBudget:200 };

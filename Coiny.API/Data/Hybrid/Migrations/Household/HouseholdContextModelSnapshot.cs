@@ -129,6 +129,23 @@ namespace Coiny.API.Data.Hybrid.Migrations.Household
                     b.Property<int>("AccountId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<decimal?>("AdjustmentAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("AdjustmentOperationId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AdjustmentReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AdjustmentReviewedFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("AdjustmentTransactionId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("ConfirmedByName")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -164,6 +181,11 @@ namespace Coiny.API.Data.Hybrid.Migrations.Household
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdjustmentTransactionId");
+
+                    b.HasIndex("HouseholdId", "AdjustmentOperationId")
+                        .IsUnique();
 
                     b.HasIndex("AccountId", "StatementDate", "LedgerFingerprint")
                         .IsUnique()
@@ -1107,6 +1129,11 @@ namespace Coiny.API.Data.Hybrid.Migrations.Household
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Coiny.API.Models.Transaction", null)
+                        .WithMany()
+                        .HasForeignKey("AdjustmentTransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Account");
                 });

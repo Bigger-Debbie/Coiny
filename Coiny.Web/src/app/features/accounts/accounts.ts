@@ -63,7 +63,7 @@ export class Accounts implements OnInit {
   accountUpdated() { this.editingAccount.set(null); this.notice.set('Account updated.'); this.loadOverview(true); }
   readonly modal = signal<'account' | 'transaction' | 'category' | null>(null);
   readonly editingId = signal<number | null>(null);
-  transactionChanged(action: 'updated' | 'deleted') { this.editingId.set(null); this.notice.set(action === 'updated' ? 'Transaction updated.' : 'Transaction deleted.'); this.loadOverview(true); }
+  transactionChanged(action: 'updated' | 'deleted') { this.editingId.set(null); this.notice.set(action === 'updated' ? 'Transaction updated.' : 'Transaction deleted.'); this.loadOverview(true, true); }
   private readonly auth = inject(AuthService);
   private readonly preferences = inject(UserPreferencesService);
   readonly includeMortgage = computed(() => this.auth.currentUser()?.includeMortgageInNetWorth ?? true);
@@ -92,6 +92,7 @@ export class Accounts implements OnInit {
   ]);
   readonly typeOptions: SelectOption[] = [
     { value: 'MarketAdjustment', label: 'Market adjustment' },
+    { value: 'BalanceAdjustment', label: 'Reconciliation adjustment' },
     { value: '', label: 'All types' }, ...['Income', 'Expense', 'Transfer'].map(value => ({ value, label: value })),
   ];
   readonly categoryOptions = computed<SelectOption[]>(() => [
@@ -170,7 +171,7 @@ export class Accounts implements OnInit {
     this.preferences.changed.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.loadOverview(true));
   }
 
-  loadOverview(refresh = false): void {
+  loadOverview(refresh = false, preserveTransactionPage = false): void {
     this.overviewRequest?.unsubscribe();
     this.loading.set(!refresh);
     this.loadError.set(false);
@@ -183,11 +184,12 @@ export class Accounts implements OnInit {
         this.accounts.set(data.accounts);
         this.categories.set(data.categories);
         this.institutions.set(data.institutions);
+        const previousAccountId = this.selectedId();
         if (!data.accounts.some(a => a.id === this.selectedId())) this.selectedId.set(null);
         this.loading.set(false);
         this.breakdownRefresh.update(value => value + 1);
         this.loadTrend();
-        this.loadTransactions(1);
+        this.loadTransactions(preserveTransactionPage && previousAccountId === this.selectedId() ? this.currentPage() : 1);
       },
       error: () => { this.loading.set(false); this.loadError.set(true); },
     });

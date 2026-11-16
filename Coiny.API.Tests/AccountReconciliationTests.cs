@@ -5,6 +5,8 @@ using Coiny.API.Interfaces;
 using Coiny.API.Models;
 using Coiny.API.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Coiny.API.Tests;
 
@@ -39,6 +41,72 @@ public class AccountReconciliationTests
         return await Service(db).ConfirmAsync(account, Confirmation(check));
     }
     private static ConfirmReconciliationRequest Confirmation(ReconciliationCheck check) => new() { StatementDate = check.StatementDate, StatementBalance = check.StatementBalance, ReviewedFingerprint = check.LedgerFingerprint, TransactionsReviewed = true };
+
+    [Fact]
+    public async Task Household_upgrade_preserves_existing_checkpoint_and_adds_nullable_audit_fields()
+    {
+        await using var c=new Coiny.API.Data.Hybrid.HouseholdContext(new DbContextOptionsBuilder<Coiny.API.Data.Hybrid.HouseholdContext>().UseSqlite("Data Source=:memory:").Options);
+        await c.Database.OpenConnectionAsync();
+        var priorMigration = c.Database.GetMigrations().TakeWhile(m => !m.EndsWith("_ReconciliationAdjustments")).Last();
+        await c.GetService<IMigrator>().MigrateAsync(priorMigration);
+        c.Accounts.Add(new Account{Id=1,HouseholdId=1,Name="Checking",OpeningBalance=100,OpeningBalanceDate=new(2026,10,1)});await c.SaveChangesAsync();
+        await c.Database.ExecuteSqlRawAsync("INSERT INTO AccountReconciliations (Id,HouseholdId,AccountId,StatementDate,StatementBalance,LedgerFingerprint,ConfirmedByUserId,ConfirmedByName,CreatedAt) VALUES (1,1,1,'2026-10-05','100','original-fingerprint','test','Reviewer','2026-10-06 12:00:00')");
+        await c.Database.MigrateAsync();
+        var record=await c.AccountReconciliations.AsNoTracking().SingleAsync();
+        Assert.Equal(100,record.StatementBalance);Assert.Equal("original-fingerprint",record.LedgerFingerprint);
+        Assert.Null(record.AdjustmentOperationId);Assert.Null(record.AdjustmentAmount);Assert.Null(record.AdjustmentTransactionId);
+        Assert.Equal(100,(await c.Accounts.SingleAsync()).OpeningBalance);
+    }
+
+    private static AdjustReconciliationRequest Adjustment(ReconciliationCheck check) => new() {OperationId=Guid.NewGuid(),StatementDate=check.StatementDate,StatementBalance=check.StatementBalance,ReviewedFingerprint=check.LedgerFingerprint,TransactionsReviewed=true,AdjustmentAcknowledged=true,Reason="Statement reviewed; unresolved legacy difference"};
+    [Theory]
+    [InlineData(1,950,50,1150)]
+    [InlineData(1,850,-50,1050)]
+    [InlineData(2,1150,-50,1150)]
+    [InlineData(2,1050,50,1050)]
+    public async Task Adjustment_reconciles_assets_and_liabilities_without_changing_opening_or_later_transactions(int account,decimal target,decimal stored,decimal current)
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();await Seed(db);
+        var check=await Service(db).CheckAsync(account,Request(target));var request=Adjustment(check);
+        var result=await Service(db).AdjustAsync(account,request);
+        using var c=db.Context();var entry=await c.Transactions.Include(t=>t.Category).SingleAsync(t=>t.Id==result.AdjustmentTransactionId);
+        Assert.Equal(stored,entry.Amount);Assert.Equal(CategoryType.BalanceAdjustment,entry.Category.CategoryType);
+        Assert.Equal(new DateTime(2026,10,5),entry.TransactionDate);Assert.True(entry.IsCleared);
+        Assert.Equal(1000,(await c.Accounts.SingleAsync(a=>a.Id==account)).OpeningBalance);
+        Assert.Equal(current,await new AccountBalanceService(c).GetCurrentBalanceAsync(account));
+        Assert.True((await Service(db).CheckAsync(account,Request(target))).Matches);
+        Assert.False(result.NeedsReview);Assert.Equal(check.Difference,result.AdjustmentAmount);
+        Assert.Equal(3,await c.Transactions.CountAsync(t=>t.Category.CategoryType!=CategoryType.BalanceAdjustment));
+        Assert.Equal(result,await Service(db).AdjustAsync(account,request));
+        Assert.Single(await c.Transactions.Where(t=>t.Category.CategoryType==CategoryType.BalanceAdjustment).ToListAsync());
+        request.Reason="Changed request";await Assert.ThrowsAsync<ReconciliationConflictException>(()=>Service(db).AdjustAsync(account,request));
+    }
+    [Fact]
+    public async Task Adjustment_requires_explicit_review_and_rejects_changed_ledger_or_target()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();await Seed(db);
+        var check=await Service(db).CheckAsync(1,Request(950));var request=Adjustment(check);
+        request.AdjustmentAcknowledged=false;await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).AdjustAsync(1,request));request.AdjustmentAcknowledged=true;
+        request.TransactionsReviewed=false;await Assert.ThrowsAsync<ArgumentException>(()=>Service(db).AdjustAsync(1,request));request.TransactionsReviewed=true;
+        request.StatementBalance=960;await Assert.ThrowsAsync<ReconciliationConflictException>(()=>Service(db).AdjustAsync(1,request));request.StatementBalance=950;
+        using var c=db.Context();(await c.Transactions.SingleAsync(t=>t.Id==1)).Amount=101;await c.SaveChangesAsync();
+        await Assert.ThrowsAsync<ReconciliationConflictException>(()=>Service(db).AdjustAsync(1,request));
+        Assert.Equal(3,await c.Transactions.CountAsync());Assert.Empty(await c.AccountReconciliations.ToListAsync());
+        await Assert.ThrowsAsync<ReconciliationNotFoundException>(()=>Service(db,2).AdjustAsync(1,request));
+    }
+    [Fact]
+    public async Task Adjustment_invalidates_old_checkpoints_and_removal_retains_its_audit()
+    {
+        await using var db=await BudgetTestDatabase.CreateAsync();await Seed(db);var old=await Confirm(db);
+        var result=await Service(db).AdjustAsync(1,Adjustment(await Service(db).CheckAsync(1,Request(950))));
+        using var c=db.Context();Assert.NotNull((await c.AccountReconciliations.SingleAsync(r=>r.Id==old.Id)).InvalidatedAt);
+        var management=new TransactionManagementService(c,new User(),new AccountBalanceSnapshotService(c,new User()));
+        await Assert.ThrowsAsync<ArgumentException>(()=>management.UpdateAsync(result.AdjustmentTransactionId!.Value,new(){CategoryType=CategoryType.BalanceAdjustment}));
+        await management.DeleteAsync(result.AdjustmentTransactionId!.Value,0,null);
+        using var verify=db.Context();var audit=await verify.AccountReconciliations.SingleAsync(r=>r.Id==result.Id);
+        Assert.Null(audit.AdjustmentTransactionId);Assert.NotNull(audit.InvalidatedAt);Assert.Equal(50,audit.AdjustmentAmount);Assert.NotNull(audit.AdjustmentReason);
+        Assert.Equal(1100,await new AccountBalanceService(verify).GetCurrentBalanceAsync(1));
+    }
 
     [Fact]
     public async Task Compares_the_whole_statement_date_excludes_later_entries_and_uses_liability_signs()

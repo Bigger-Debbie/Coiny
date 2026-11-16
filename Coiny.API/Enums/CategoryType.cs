@@ -5,5 +5,6 @@ public enum CategoryType
     Income,
     Expense,
     Transfer,
-    MarketAdjustment
+    MarketAdjustment,
+    BalanceAdjustment
 }

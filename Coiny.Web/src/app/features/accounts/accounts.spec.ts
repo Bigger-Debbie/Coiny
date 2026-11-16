@@ -158,6 +158,60 @@ describe('Accounts', () => {
     expect(week.request.params.get('startDate')).toBe(getTrendDates('1W').startDate);
     week.flush({ items: [], totalCount: 0, page: 1, pageSize: 10 });
   });
+  it.each(['updated', 'deleted'] as const)('keeps the account, filters and page after a transaction is %s', action => {
+    const f=render();flushTrend();flushPage();const c=f.componentInstance;
+    c.selectAccount('1');flushTrend();flushPage(35);
+    c.search='coffee';c.categoryId='1';c.categoryType='Expense';c.applyFilters();flushPage(35);
+    c.loadTransactions(3);flushPage(35,3);
+    c.editingId.set(7);c.transactionChanged(action);
+    http.expectOne(r=>r.url.endsWith('/accounts')).flush(accounts);
+    http.expectOne(r=>r.url.endsWith('/categories')).flush([]);
+    http.expectOne(r=>r.url.endsWith('/institutions')).flush([]);
+    flushTrend();
+    const request=http.expectOne(r=>r.url.endsWith('/paged'));
+    expect(request.request.params.get('page')).toBe('3');
+    expect(request.request.params.get('accountId')).toBe('1');
+    expect(request.request.params.get('search')).toBe('coffee');
+    expect(request.request.params.get('categoryId')).toBe('1');
+    expect(request.request.params.get('categoryType')).toBe('Expense');
+    request.flush({items:[],totalCount:35,page:3,pageSize:10});
+    expect(c.currentPage()).toBe(3);expect(c.editingId()).toBeNull();
+  });
+  it('uses the last valid page returned after deleting the last item on a page', () => {
+    const f=render();flushTrend();flushPage(21);const c=f.componentInstance;
+    c.loadTransactions(3);flushPage(21,3);c.transactionChanged('deleted');
+    http.expectOne(r=>r.url.endsWith('/accounts')).flush(accounts);
+    http.expectOne(r=>r.url.endsWith('/categories')).flush([]);
+    http.expectOne(r=>r.url.endsWith('/institutions')).flush([]);flushTrend();
+    const request=http.expectOne(r=>r.url.endsWith('/paged'));
+    expect(request.request.params.get('page')).toBe('3');
+    request.flush({items:[],totalCount:20,page:2,pageSize:10});
+    expect(c.currentPage()).toBe(2);
+  });
+  it('resets the page if a refreshed selected account no longer exists', () => {
+    const f=render();flushTrend();flushPage();const c=f.componentInstance;
+    c.selectAccount('1');flushTrend();flushPage(35);c.loadTransactions(3);flushPage(35,3);
+    c.transactionChanged('updated');
+    http.expectOne(r=>r.url.endsWith('/accounts')).flush([accounts[1]]);
+    http.expectOne(r=>r.url.endsWith('/categories')).flush([]);
+    http.expectOne(r=>r.url.endsWith('/institutions')).flush([]);flushTrend();
+    const request=http.expectOne(r=>r.url.endsWith('/paged'));
+    expect(request.request.params.get('page')).toBe('1');
+    expect(request.request.params.has('accountId')).toBe(false);
+    request.flush({items:[],totalCount:0,page:1,pageSize:10});
+  });
+  it('does not restore an old page if filters change during the overview refresh', () => {
+    const f=render();flushTrend();flushPage(35);const c=f.componentInstance;
+    c.loadTransactions(3);flushPage(35,3);c.transactionChanged('updated');
+    c.search='new search';c.applyFilters();flushPage(15);
+    http.expectOne(r=>r.url.endsWith('/accounts')).flush(accounts);
+    http.expectOne(r=>r.url.endsWith('/categories')).flush([]);
+    http.expectOne(r=>r.url.endsWith('/institutions')).flush([]);flushTrend();
+    const request=http.expectOne(r=>r.url.endsWith('/paged'));
+    expect(request.request.params.get('page')).toBe('1');
+    expect(request.request.params.get('search')).toBe('new search');
+    request.flush({items:[],totalCount:15,page:1,pageSize:10});
+  });
   it('shows bottom pagination and retries transaction errors', () => {
     const f = render();
     flushTrend(); flushPage(52);

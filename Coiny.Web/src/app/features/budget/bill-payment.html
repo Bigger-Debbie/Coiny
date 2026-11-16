@@ -1,5 +1,5 @@
 <app-modal [title]="bill.name" [busy]="busy()" (dismiss)="dismiss.emit()">
-  <p class="bill-summary">{{ bill.amount | currency }} · Due {{ bill.date | date:'MMM d, yyyy':'UTC' }}</p>
+  <p class="bill-summary">Estimated {{ bill.amount | currency }} · Due {{ bill.date | date:'MMM d, yyyy':'UTC' }}</p>
   @if(bill.payment?.isSkipped){
     @if(contribution){<p class="hint">Skipped for this income period. No contribution is reserved in its plan or forecast. Recorded transactions remain in actuals. Later contributions may need to increase to keep a dated goal on track.</p>}@else{<p class="hint">Skipped for this occurrence. Nothing is due for this date, and its estimate is removed from remaining bills and the forecast. Your original budget target and future occurrences stay unchanged.</p>}
     @if(bill.payment?.note){<p class="hint">{{bill.payment?.note}}</p>}

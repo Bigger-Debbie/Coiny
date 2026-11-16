@@ -39,6 +39,7 @@ public class AccountReconciliationApiTests
         await using var app = builder.Build(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers(); await app.StartAsync(); using var client = app.GetTestClient();
         const string url = "/api/accounts/1/reconciliations";
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized,(await client.PostAsJsonAsync(url+"/adjust",new{})).StatusCode);
         client.DefaultRequestHeaders.Add("Test-User", "test");
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/accounts/2/reconciliations")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(url + "/check", new { statementDate = "2026-10-05" })).StatusCode);
@@ -52,6 +53,15 @@ public class AccountReconciliationApiTests
         var history = await client.GetFromJsonAsync<List<AccountReconciliationResponse>>(url); Assert.False(Assert.Single(history!).NeedsReview);
         var wrong = await (await client.PostAsJsonAsync(url + "/check", new { statementDate = "2026-10-06", statementBalance = 90 })).Content.ReadFromJsonAsync<ReconciliationCheck>();
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(url, new { wrong!.StatementDate, wrong.StatementBalance, reviewedFingerprint = wrong.LedgerFingerprint, transactionsReviewed = true })).StatusCode);
+        var operation=Guid.NewGuid();
+        var adjustment=new {wrong!.StatementDate,wrong.StatementBalance,reviewedFingerprint=wrong.LedgerFingerprint,transactionsReviewed=true,adjustmentAcknowledged=true,operationId=operation,reason="Reviewed statement"};
+        Assert.Equal(HttpStatusCode.NotFound,(await client.PostAsJsonAsync("/api/accounts/2/reconciliations/adjust",adjustment)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,(await client.PostAsJsonAsync(url+"/adjust",new {wrong.StatementDate,wrong.StatementBalance,reviewedFingerprint=wrong.LedgerFingerprint,transactionsReviewed=true,operationId=operation,reason="Reviewed statement"})).StatusCode);
+        var adjusted=await client.PostAsJsonAsync(url+"/adjust",adjustment);adjusted.EnsureSuccessStatusCode();
+        var response=await adjusted.Content.ReadFromJsonAsync<AccountReconciliationResponse>();Assert.NotNull(response!.AdjustmentTransactionId);Assert.Equal(-10,response.AdjustmentAmount);
+        (await client.PostAsJsonAsync(url+"/adjust",adjustment)).EnsureSuccessStatusCode();
+        Assert.Single(await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(db.Context().Transactions));
+
     }
     private sealed class User : ICurrentUserService
     {

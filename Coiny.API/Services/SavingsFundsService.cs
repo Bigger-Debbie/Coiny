@@ -242,7 +242,9 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
             if(r.Kind=="Contribution" && await db.BillPayments.AnyAsync(p=>p.HouseholdId==fund.HouseholdId && (p.TransactionId==id || entry.PairedTransactionId.HasValue && p.TransactionId==entry.PairedTransactionId || p.Links.Any(l=>l.TransactionId==id || l.TransactionId==entry.PairedTransactionId))))
                 throw new ArgumentException("This movement is already linked in the calendar. Manage that contribution from its existing payment.");
             if(r.Kind=="Contribution" && await db.TransactionBudgetAssignments.AnyAsync(a=>a.TransactionId==id || a.TransactionId==entry.PairedTransactionId)) throw new ArgumentException("Remove this movement's individual budget assignment before recording it as a fund contribution.");
-            if(r.Kind=="Withdrawal" && entry.Category.CategoryType!=CategoryType.Expense) throw new ArgumentException("Link the expense paid from the fund. A transfer back to spending is not a second withdrawal.");
+            if(r.Kind=="Withdrawal" && !(entry.Category.CategoryType==CategoryType.Expense ||
+                entry.Category.CategoryType==CategoryType.Transfer && entry.AccountId==fund.AccountId && entry.TransferDirection==TransferDirection.Out))
+                throw new ArgumentException("Link an expense or the outgoing side of a transfer from this fund's savings account. Use one link for the movement, not both transfer entries.");
             if(linked.Sum(a=>Math.Abs(a.Amount))+Math.Abs(total)>entry.Amount) throw new ArgumentException("The allocated amount exceeds this transaction's remaining amount.");
         }
         var account=(await GetAsync(fund.AccountId)).Single();
@@ -302,10 +304,11 @@ public class SavingsFundsService(IFinancialContext db, ICurrentUserService user,
     }
     public async Task<object> CandidatesAsync(Guid key,string kind)
     {
+        if(kind is not ("Contribution" or "Withdrawal")) throw new ArgumentException("Choose contribution or withdrawal activity.");
         var fund=await Owned(key);var cutoff=Today.ToDateTime(TimeOnly.MaxValue);
         return await db.Transactions.AsNoTracking().Where(t=>t.HouseholdId==fund.HouseholdId && t.TransactionDate<=cutoff &&
-            (kind=="Contribution" ? t.AccountId==fund.AccountId && (t.Category.CategoryType==CategoryType.Income || t.Category.CategoryType==CategoryType.Transfer && t.TransferDirection==TransferDirection.In) : t.Category.CategoryType==CategoryType.Expense))
-            .OrderByDescending(t=>t.TransactionDate).ThenByDescending(t=>t.Id).Take(100).Select(t=>new {t.Id,Date=DateOnly.FromDateTime(t.TransactionDate),t.Amount,t.Merchant,t.Description,AccountName=t.Account.Name}).ToListAsync();
+            (kind=="Contribution" ? t.AccountId==fund.AccountId && (t.Category.CategoryType==CategoryType.Income || t.Category.CategoryType==CategoryType.Transfer && t.TransferDirection==TransferDirection.In) : t.Category.CategoryType==CategoryType.Expense || t.Category.CategoryType==CategoryType.Transfer && t.AccountId==fund.AccountId && t.TransferDirection==TransferDirection.Out))
+            .OrderByDescending(t=>t.TransactionDate).ThenByDescending(t=>t.Id).Take(100).Select(t=>new {t.Id,Date=DateOnly.FromDateTime(t.TransactionDate),t.Amount,t.Merchant,t.Description,AccountName=t.Account.Name,CategoryType=t.Category.CategoryType,t.TransferDirection}).ToListAsync();
     }
 
     public async Task<SavingsFundView> MoveAsync(Guid key,MoveSavingsAllocation r)

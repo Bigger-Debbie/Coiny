@@ -10,7 +10,7 @@ asset/debt and transfer signs as current account balances; daily chart snapshots
 are not used as the source of truth.
 
 If the amounts differ, correct missing/duplicate transactions or the opening
-balance before confirming. No adjustment is created. **Review these transactions**
+balance before confirming. An optional adjustment is available when you cannot resolve the difference. **Review these transactions**
 shows the account's full history from its opening date through the statement date,
 clearing list filters while leaving the trend chart's range alone. Return to
 reconciliation to reuse the statement inputs and run a fresh check.
@@ -56,3 +56,28 @@ existing checkpoint. No financial data is rewritten by the migration.
   linking/amount edits, account opening changes, and authenticated HTTP contracts.
 - Frontend tests cover comparison/mismatch states, explicit confirmation, stale
   errors, history, debt labels, and review-period navigation/input restoration.
+
+
+## Optional reconciliation adjustment
+
+Review missing, duplicate or incorrect transactions first. On a mismatch, choose
+**Use a reconciliation adjustment instead** to preview its statement date, balance
+change and resulting statement balance. Provide a reason, confirm that you reviewed
+the transactions, then explicitly acknowledge the adjustment.
+
+**Create adjustment and reconcile** atomically creates a dated **Reconciliation
+adjustment** transaction, rebuilds balances, and saves a matching checkpoint. It
+preserves opening balances and later transaction amounts. Credit-card/loan changes
+use Coiny's positive-amount-owed convention. The separate system category is excluded
+from income, spending and individual budget assignments.
+
+A changed ledger or target requires another check. Retrying the same operation does
+not create another adjustment. History retains the amount, reason and transaction
+link. Adjustment audit details cannot be edited through ordinary transaction editing;
+remove the adjustment and reconcile again to correct it. Removal invalidates affected
+checkpoints while preserving their recorded adjustment amount and reason.
+
+Existing hybrid installations need the `ReconciliationAdjustments` household migration:
+stop the API, take a verified backup, and run the new API's
+`--upgrade-households --offline` before restarting. Legacy SQLite installations use
+the corresponding CoinyContext migration. No control-schema migration is required.

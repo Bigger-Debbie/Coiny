@@ -81,4 +81,14 @@ describe('Savings funds',()=>{
   trigger.click();const assign=Array.from(menu.querySelectorAll('button')).find(b=>b.textContent?.includes('Assign existing savings'))!;assign.click();f.detectChanges();expect(c.dialog()).toBe('activity');expect(c.activityKind).toBe('Allocate');expect(f.nativeElement.querySelector('.fund-management')).toBeNull();
  });
 
+ it('offers an outgoing savings transfer and records fund usage without creating a second bank movement',async()=>{
+  const f=await render();const c=f.componentInstance;c.detail(fund);const opening=c.activity('Withdrawal');
+  http.expectOne(r=>r.url.endsWith('/candidates')).flush([{id:43,date:'2026-10-27',amount:350,merchant:null,description:'Transfer to spending',accountName:'Savings',categoryType:'Transfer',transferDirection:'Out'}]);await opening;
+  expect(c.transactionOptions[1].detail).toContain('Transfer out');
+  c.chooseTransaction('43');c.activityAmounts={'goal-1':350};const recording=c.record();
+  const req=http.expectOne(r=>r.url.endsWith('/fund-1/activity'));expect(req.request.body).toMatchObject({kind:'Withdrawal',transactionId:43,date:'2026-10-27',amounts:{'goal-1':-350}});
+  req.flush({...fund,balance:650});await Promise.resolve();http.expectOne(r=>r.url.endsWith('/savings-funds')).flush([{...account,funds:[{...fund,balance:650}]}]);await recording;
+  http.expectNone(r=>r.url.includes('/transactions')&&r.method==='POST');
+ });
+
 });

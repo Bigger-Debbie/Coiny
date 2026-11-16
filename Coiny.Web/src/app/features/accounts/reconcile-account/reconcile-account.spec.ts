@@ -66,4 +66,31 @@ describe('ReconcileAccount', () => {
     f.detectChanges(); http.expectOne(r => r.method === 'GET').flush([]);
     expect(f.componentInstance.statementDate).toBe('2026-09-30'); expect(f.componentInstance.statementBalance).toBe(850); expect(f.componentInstance.check()).toBeNull();
   });
+  it('requires both confirmations and a reason before creating an adjustment',()=>{
+    const f=render();const c=f.componentInstance;const saved=vi.fn();c.saved.subscribe(saved);
+    c.check.set({...check,matches:false,statementBalance:950,difference:50});c.adjustmentOpen=true;
+    c.adjust();http.expectNone(r=>r.method==='POST');
+    c.reviewed=true;c.adjustmentReason='Reviewed missing history';c.adjust();http.expectNone(r=>r.method==='POST');
+    c.adjustmentAcknowledged=true;c.adjust();
+    const request=http.expectOne(r=>r.url.endsWith('/reconciliations/adjust'));
+    expect(request.request.body).toMatchObject({statementDate:check.statementDate,statementBalance:950,reviewedFingerprint:check.ledgerFingerprint,transactionsReviewed:true,adjustmentAcknowledged:true,reason:'Reviewed missing history'});
+    expect(request.request.body.operationId).toMatch(/^[a-f0-9-]{36}$/i);
+    request.flush({id:5,adjustmentTransactionId:10});expect(saved).toHaveBeenCalledOnce();
+  });
+  it('retries a lost response using the same adjustment operation and requires a new check on conflict',()=>{
+    const f=render();const c=f.componentInstance;c.check.set({...check,matches:false,difference:50});
+    c.reviewed=true;c.adjustmentAcknowledged=true;c.adjustmentReason='Statement reviewed';c.adjust();
+    const first=http.expectOne(r=>r.url.endsWith('/adjust'));const operation=first.request.body.operationId;
+    first.flush('network failure',{status:503,statusText:'Unavailable'});
+    c.adjust();const retry=http.expectOne(r=>r.url.endsWith('/adjust'));expect(retry.request.body.operationId).toBe(operation);
+    retry.flush({detail:'Account changed'},{status:409,statusText:'Conflict'});
+    expect(c.check()).toBeNull();expect(c.adjustmentAcknowledged).toBe(false);expect(c.reviewed).toBe(false);
+  });
+  it('previews the exact dated adjustment and hides it once balances match',()=>{
+    const f=render('CreditCard');const c=f.componentInstance;c.check.set({...check,matches:false,difference:50,statementBalance:950});c.adjustmentOpen=true;f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Change in amount owed');expect(f.nativeElement.textContent).toContain('$950.00');
+    c.changed();expect(c.adjustmentOpen).toBe(false);c.check.set(check);f.detectChanges();
+    expect(f.nativeElement.textContent).not.toContain('Create adjustment and reconcile');
+  });
+
 });
